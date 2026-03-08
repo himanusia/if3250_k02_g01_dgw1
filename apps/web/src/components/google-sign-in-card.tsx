@@ -1,4 +1,3 @@
-import { useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,28 +8,45 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
 export default function GoogleSignInCard() {
-  const navigate = useNavigate();
   const { isPending: isSessionPending } = authClient.useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
 
-    const { error } = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: "/dashboard",
-      errorCallbackURL: "/login",
-    });
+    try {
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/dashboard",
+        errorCallbackURL: "/login",
+        disableRedirect: true,
+      });
 
-    if (error) {
+      if (result.error) {
+        setIsSubmitting(false);
+        toast.error(result.error.message || "Google sign in failed");
+        return;
+      }
+
+      const redirectUrl =
+        typeof result.data === "object" &&
+        result.data !== null &&
+        "url" in result.data &&
+        typeof result.data.url === "string"
+          ? result.data.url
+          : null;
+
+      if (!redirectUrl) {
+        setIsSubmitting(false);
+        toast.error("URL login Google tidak ditemukan.");
+        return;
+      }
+
+      window.location.assign(redirectUrl);
+    } catch (error) {
       setIsSubmitting(false);
-      toast.error(error.message || "Google sign in failed");
-      return;
+      toast.error(error instanceof Error ? error.message : "Google sign in failed");
     }
-
-    navigate({
-      to: "/dashboard",
-    });
   };
 
   const isLoading = isSessionPending || isSubmitting;
