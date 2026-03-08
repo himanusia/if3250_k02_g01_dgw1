@@ -523,6 +523,17 @@ function getAvatarSrc(url: string) {
     return url;
   }
 
+  try {
+    const hostname = new URL(url).hostname;
+    const shouldProxy = /(^|\.)fbcdn\.net$/i.test(hostname) || /\.cdninstagram\.com$/i.test(hostname);
+
+    if (!shouldProxy) {
+      return url;
+    }
+  } catch {
+    return url;
+  }
+
   return `/api/avatar?url=${encodeURIComponent(url)}`;
 }
 
