@@ -168,21 +168,36 @@ function RouteComponent() {
             {filteredKols.map((kol) => (
               <div key={kol.id} className="border-border space-y-4 border p-4">
                 {(() => {
+                  const primaryAccount = kol.accounts[0];
                   const biography = kol.accounts.find((account) => account.biography)?.biography;
+                  const primaryMetadata = primaryAccount ? getAccountMetadata(primaryAccount.metadata) : null;
+                  const initials =
+                    kol.displayName
+                      .split(" ")
+                      .slice(0, 2)
+                      .map((part) => part[0]?.toUpperCase() ?? "")
+                      .join("") || "K";
 
                   return (
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    <div className="bg-muted text-foreground flex size-12 shrink-0 items-center justify-center border text-sm font-medium">
-                      {kol.displayName
-                        .split(" ")
-                        .slice(0, 2)
-                        .map((part) => part[0]?.toUpperCase() ?? "")
-                        .join("") || "K"}
-                    </div>
+                    {primaryMetadata?.avatarUrl ? (
+                      <img
+                        src={primaryMetadata.avatarUrl}
+                        alt={kol.displayName}
+                        className="border-border size-12 shrink-0 border object-cover"
+                      />
+                    ) : (
+                      <div className="bg-muted text-foreground flex size-12 shrink-0 items-center justify-center border text-sm font-medium">
+                        {initials}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="font-medium">{kol.displayName}</p>
                       <p className="text-muted-foreground text-sm">{kol.accounts.length} akun terhubung</p>
+                      {primaryMetadata?.category && (
+                        <p className="text-muted-foreground text-sm">{primaryMetadata.category}</p>
+                      )}
                       {biography && <p className="text-muted-foreground mt-1 text-sm wrap-break-word">{biography}</p>}
                     </div>
                   </div>
@@ -226,16 +241,74 @@ function RouteComponent() {
 
                 <div className="grid gap-2">
                   {kol.accounts.map((account) => (
-                    <div key={account.id} className="border-border grid gap-2 border p-3 md:grid-cols-[1.2fr_repeat(4,minmax(0,1fr))]">
-                      <div className="min-w-0">
-                        <p className="font-medium capitalize">{account.platform}</p>
-                        <p className="text-muted-foreground wrap-break-word text-sm">@{account.handle}</p>
-                      </div>
-                      <MetricInline label="Followers" value={formatNumber(account.followers)} />
-                      <MetricInline label="Avg likes" value={formatNumber(account.averageLikes)} />
-                      <MetricInline label="Avg views" value={formatNumber(account.averageViews)} />
-                      <MetricInline label="ER" value={account.engagementRate || "-"} />
-                      <MetricInline label="Last sync" value={formatDateTime(account.lastSyncedAt)} />
+                    <div key={account.id} className="border-border grid gap-3 border p-3">
+                      {(() => {
+                        const metadata = getAccountMetadata(account.metadata);
+
+                        return (
+                          <>
+                            <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                              <div className="flex min-w-0 items-start gap-3">
+                                {metadata?.avatarUrl ? (
+                                  <img
+                                    src={metadata.avatarUrl}
+                                    alt={`@${account.handle}`}
+                                    className="border-border size-14 shrink-0 border object-cover"
+                                  />
+                                ) : (
+                                  <div className="bg-muted text-foreground flex size-14 shrink-0 items-center justify-center border text-sm font-medium uppercase">
+                                    {account.handle.slice(0, 2) || account.platform.slice(0, 2)}
+                                  </div>
+                                )}
+
+                                <div className="min-w-0 space-y-1">
+                                  <p className="font-medium capitalize">{account.platform}</p>
+                                  <p className="text-muted-foreground wrap-break-word text-sm">@{account.handle}</p>
+                                  {metadata?.fullName && metadata.fullName !== account.handle && (
+                                    <p className="text-sm">{metadata.fullName}</p>
+                                  )}
+                                  <div className="flex flex-wrap gap-2 text-xs">
+                                    {metadata?.verified && <MetaBadge>Verified</MetaBadge>}
+                                    {metadata?.isBusinessAccount && <MetaBadge>Business</MetaBadge>}
+                                    {metadata?.isPrivate && <MetaBadge>Private</MetaBadge>}
+                                    {metadata?.category && <MetaBadge>{metadata.category}</MetaBadge>}
+                                  </div>
+                                  {metadata?.website && (
+                                    <a
+                                      href={metadata.website}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-sm underline underline-offset-2"
+                                    >
+                                      {metadata.website}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="text-muted-foreground grid gap-1 text-sm md:text-right">
+                                <p>Status: {account.syncStatus}</p>
+                                <p>Last sync: {formatDateTime(account.lastSyncedAt)}</p>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+                              <MetricInline label="Followers" value={formatNumber(account.followers)} />
+                              <MetricInline label="Following" value={formatNumber(metadata?.followingCount ?? 0)} />
+                              <MetricInline label="Posts" value={formatNumber(metadata?.postsCount ?? 0)} />
+                              <MetricInline label="Avg likes" value={formatNumber(account.averageLikes)} />
+                              <MetricInline label="Avg views" value={formatNumber(account.averageViews)} />
+                              <MetricInline label="ER" value={account.engagementRate || "-"} />
+                            </div>
+
+                            {account.syncMessage && (
+                              <p className="text-muted-foreground border-border wrap-break-word border px-3 py-2 text-sm">
+                                {account.syncMessage}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -429,6 +502,97 @@ function MetricInline({ label, value }: { label: string; value: string }) {
       <p className="truncate text-sm">{value}</p>
     </div>
   );
+}
+
+function MetaBadge({ children }: { children: string }) {
+  return <span className="bg-muted border-border border px-2 py-1">{children}</span>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function asText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function asNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value));
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.replace(/[^\d.-]/g, "");
+    const parsed = Number(normalized);
+
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.round(parsed));
+    }
+  }
+
+  return 0;
+}
+
+function asBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : false;
+}
+
+function getValue(record: Record<string, unknown> | null, ...keys: string[]) {
+  if (!record) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    if (key in record) {
+      return record[key];
+    }
+
+    if (key.includes(".")) {
+      const value = key.split(".").reduce<unknown>((current, part) => {
+        if (typeof current === "object" && current !== null && part in (current as Record<string, unknown>)) {
+          return (current as Record<string, unknown>)[part];
+        }
+
+        return undefined;
+      }, record);
+
+      if (value !== undefined) {
+        return value;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function getAccountMetadata(metadata: Record<string, unknown> | null) {
+  if (!isRecord(metadata)) {
+    return null;
+  }
+
+  const avatarUrl =
+    asText(getValue(metadata, "profilePicUrlHD", "profilePicUrl", "avatarUrl", "authorMeta.avatar", "authorMeta.originalAvatarUrl")) ||
+    null;
+  const category =
+    asText(getValue(metadata, "businessCategoryName", "category", "authorMeta.commerceUserInfo.category")) || null;
+  const website =
+    asText(getValue(metadata, "externalUrl", "authorMeta.bioLink")) ||
+    (Array.isArray(metadata.externalUrls)
+      ? asText((metadata.externalUrls.find((item) => isRecord(item) && asText(item.url)) as Record<string, unknown> | undefined)?.url)
+      : "") ||
+    null;
+
+  return {
+    avatarUrl,
+    category,
+    fullName: asText(getValue(metadata, "fullName", "authorMeta.nickName", "authorMeta.name")) || null,
+    followingCount: asNumber(getValue(metadata, "followsCount", "followingCount", "authorMeta.following")),
+    isBusinessAccount: asBoolean(getValue(metadata, "isBusinessAccount", "authorMeta.commerceUserInfo.commerceUser")),
+    isPrivate: asBoolean(getValue(metadata, "private", "isPrivate", "authorMeta.privateAccount")),
+    postsCount: asNumber(getValue(metadata, "postsCount", "authorMeta.video")),
+    verified: asBoolean(getValue(metadata, "verified", "authorMeta.verified")),
+    website,
+  };
 }
 
 function formatNumber(value: number) {

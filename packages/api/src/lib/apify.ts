@@ -65,6 +65,38 @@ function asRecordArray(value: unknown) {
   return value.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null);
 }
 
+function asRecord(value: unknown) {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function getValue(record: Record<string, unknown> | null | undefined, ...keys: string[]) {
+  if (!record) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    if (key in record) {
+      return record[key];
+    }
+
+    if (key.includes(".")) {
+      const value = key.split(".").reduce<unknown>((current, part) => {
+        if (typeof current === "object" && current !== null && part in (current as Record<string, unknown>)) {
+          return (current as Record<string, unknown>)[part];
+        }
+
+        return undefined;
+      }, record);
+
+      if (value !== undefined) {
+        return value;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 function averageFromItems(items: Array<Record<string, unknown>>, keys: string[]) {
   const values = items
     .map((item) => {
@@ -129,20 +161,19 @@ function buildInput(account: AccountInput) {
   }
 
   return {
-    handle,
-    handles: [handle],
-    maxItems: 1,
-    profile: profileUrl,
-    resultsLimit: 1,
-    startUrls: [{ url: profileUrl }],
-    url: profileUrl,
-    userName: handle,
-    username: handle,
-    usernames: [handle],
+    profiles: [profileUrl],
+    resultsPerPage: 10,
+    shouldDownloadCovers: false,
+    shouldDownloadSlideshowImages: false,
+    shouldDownloadVideos: false,
   };
 }
 
-function extractMetrics(item: Record<string, unknown> | undefined): SyncedMetrics {
+function formatRate(value: number) {
+  return value > 0 ? `${value.toFixed(2)}%` : "";
+}
+
+function extractInstagramMetrics(item: Record<string, unknown> | undefined): SyncedMetrics {
   if (!item) {
     return {
       averageLikes: 0,
@@ -192,8 +223,72 @@ function extractMetrics(item: Record<string, unknown> | undefined): SyncedMetric
   };
 }
 
+function extractTikTokMetrics(items: Array<Record<string, unknown>>): SyncedMetrics {
+  if (!items.length) {
+    return {
+      averageLikes: 0,
+      averageViews: 0,
+      biography: null,
+      engagementRate: "",
+      followers: 0,
+      metadata: null,
+      message: "Apify tidak mengembalikan item data.",
+      syncStatus: "failed",
+    };
+  }
+
+  const firstItem = items[0];
+
+  if (firstItem && typeof firstItem.error === "string") {
+    return {
+      averageLikes: 0,
+      averageViews: 0,
+      biography: null,
+      engagementRate: "",
+      followers: 0,
+      metadata: firstItem,
+      message: asText(firstItem.errorDescription ?? firstItem.error) || "Apify tidak menemukan data akun.",
+      syncStatus: "failed",
+    };
+  }
+
+  const authorMeta = asRecord(getValue(firstItem, "authorMeta"));
+  const averageLikes = averageFromItems(items, ["diggCount", "likes", "likesCount"]);
+  const averageViews = averageFromItems(items, ["playCount", "videoViewCount", "views"]);
+  const averageComments = averageFromItems(items, ["commentCount", "commentsCount"]);
+  const averageShares = averageFromItems(items, ["shareCount", "sharesCount"]);
+  const followers = asNumber(getValue(firstItem, "authorMeta.fans", "authorMeta.followerCount", "authorMeta.followers"));
+  const engagementBase = averageViews > 0 ? averageViews : followers;
+  const engagementRate =
+    engagementBase > 0 ? formatRate(((averageLikes + averageComments + averageShares) / engagementBase) * 100) : "";
+
+  return {
+    averageLikes,
+    averageViews,
+    biography: asText(getValue(firstItem, "authorMeta.signature", "authorMeta.bio", "authorMeta.description")) || null,
+    engagementRate,
+    externalId: asText(getValue(firstItem, "authorMeta.id", "authorMeta.userId")) || null,
+    followers,
+    metadata: {
+      authorMeta,
+      latestPosts: items,
+    },
+    message: null,
+    syncStatus: "success",
+  };
+}
+
+function extractMetrics(platform: SocialPlatform, items: Array<Record<string, unknown>>): SyncedMetrics {
+  if (platform === "tiktok") {
+    return extractTikTokMetrics(items);
+  }
+
+  return extractInstagramMetrics(items[0]);
+}
+
 export async function syncAccountWithApify(account: AccountInput): Promise<SyncedMetrics> {
   const actorId = getActorId(account.platform);
+  const resultLimit = account.platform === "tiktok" ? 10 : 1;
 
   if (!env.APIFY_API_TOKEN || !actorId) {
     return {
@@ -211,7 +306,7 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
   }
 
   const response = await fetch(
-    `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${env.APIFY_API_TOKEN}&clean=true&limit=1`,
+    `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${env.APIFY_API_TOKEN}&clean=true&limit=${resultLimit}`,
     {
       body: JSON.stringify(buildInput(account)),
       headers: {
@@ -250,6 +345,7 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
       {
         actorId,
         handle: account.handle,
+        itemCount: items.length,
         item: items[0] ?? null,
         platform: account.platform,
       },
@@ -258,5 +354,5 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
     ),
   );
 
-  return extractMetrics(items[0]);
+  return extractMetrics(account.platform, items);
 }
