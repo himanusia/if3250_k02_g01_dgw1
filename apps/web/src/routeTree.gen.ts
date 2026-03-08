@@ -9,13 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
 import { Route as TodosRouteImport } from './routes/todos'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as KolsRouteImport } from './routes/kols'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CompareKolsRouteImport } from './routes/compare-kols'
+import { Route as CampaignsRouteImport } from './routes/campaigns'
+import { Route as AccessRouteImport } from './routes/access'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiRpcSplatRouteImport } from './routes/api/rpc/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
+const UnauthorizedRoute = UnauthorizedRouteImport.update({
+  id: '/unauthorized',
+  path: '/unauthorized',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TodosRoute = TodosRouteImport.update({
   id: '/todos',
   path: '/todos',
@@ -26,9 +36,29 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KolsRoute = KolsRouteImport.update({
+  id: '/kols',
+  path: '/kols',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompareKolsRoute = CompareKolsRouteImport.update({
+  id: '/compare-kols',
+  path: '/compare-kols',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CampaignsRoute = CampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessRoute = AccessRouteImport.update({
+  id: '/access',
+  path: '/access',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -49,26 +79,41 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/access': typeof AccessRoute
+  '/campaigns': typeof CampaignsRoute
+  '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
+  '/kols': typeof KolsRoute
   '/login': typeof LoginRoute
   '/todos': typeof TodosRoute
+  '/unauthorized': typeof UnauthorizedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/access': typeof AccessRoute
+  '/campaigns': typeof CampaignsRoute
+  '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
+  '/kols': typeof KolsRoute
   '/login': typeof LoginRoute
   '/todos': typeof TodosRoute
+  '/unauthorized': typeof UnauthorizedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/access': typeof AccessRoute
+  '/campaigns': typeof CampaignsRoute
+  '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
+  '/kols': typeof KolsRoute
   '/login': typeof LoginRoute
   '/todos': typeof TodosRoute
+  '/unauthorized': typeof UnauthorizedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
@@ -76,34 +121,67 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/access'
+    | '/campaigns'
+    | '/compare-kols'
     | '/dashboard'
+    | '/kols'
     | '/login'
     | '/todos'
+    | '/unauthorized'
     | '/api/auth/$'
     | '/api/rpc/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/todos' | '/api/auth/$' | '/api/rpc/$'
+  to:
+    | '/'
+    | '/access'
+    | '/campaigns'
+    | '/compare-kols'
+    | '/dashboard'
+    | '/kols'
+    | '/login'
+    | '/todos'
+    | '/unauthorized'
+    | '/api/auth/$'
+    | '/api/rpc/$'
   id:
     | '__root__'
     | '/'
+    | '/access'
+    | '/campaigns'
+    | '/compare-kols'
     | '/dashboard'
+    | '/kols'
     | '/login'
     | '/todos'
+    | '/unauthorized'
     | '/api/auth/$'
     | '/api/rpc/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccessRoute: typeof AccessRoute
+  CampaignsRoute: typeof CampaignsRoute
+  CompareKolsRoute: typeof CompareKolsRoute
   DashboardRoute: typeof DashboardRoute
+  KolsRoute: typeof KolsRoute
   LoginRoute: typeof LoginRoute
   TodosRoute: typeof TodosRoute
+  UnauthorizedRoute: typeof UnauthorizedRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiRpcSplatRoute: typeof ApiRpcSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unauthorized': {
+      id: '/unauthorized'
+      path: '/unauthorized'
+      fullPath: '/unauthorized'
+      preLoaderRoute: typeof UnauthorizedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/todos': {
       id: '/todos'
       path: '/todos'
@@ -118,11 +196,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kols': {
+      id: '/kols'
+      path: '/kols'
+      fullPath: '/kols'
+      preLoaderRoute: typeof KolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compare-kols': {
+      id: '/compare-kols'
+      path: '/compare-kols'
+      fullPath: '/compare-kols'
+      preLoaderRoute: typeof CompareKolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/campaigns': {
+      id: '/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access': {
+      id: '/access'
+      path: '/access'
+      fullPath: '/access'
+      preLoaderRoute: typeof AccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -151,9 +257,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccessRoute: AccessRoute,
+  CampaignsRoute: CampaignsRoute,
+  CompareKolsRoute: CompareKolsRoute,
   DashboardRoute: DashboardRoute,
+  KolsRoute: KolsRoute,
   LoginRoute: LoginRoute,
   TodosRoute: TodosRoute,
+  UnauthorizedRoute: UnauthorizedRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiRpcSplatRoute: ApiRpcSplatRoute,
 }
