@@ -5,7 +5,6 @@
   "outputDirectory": "apps/web/dist/client",
   "functions": {
     "api/index.ts": {
-      "runtime": "nodejs22.x",
       "includeFiles": "apps/web/dist/server/**"
     }
   },
