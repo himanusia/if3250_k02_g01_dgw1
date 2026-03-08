@@ -240,18 +240,26 @@ function extractInstagramMetrics(item: Record<string, unknown> | undefined): Syn
   const averageViews =
     asNumber(item.averageViews ?? item.avgViews ?? item.viewsAverage ?? item.viewsAvg ?? item.views) ||
     averageFromItems(latestPosts, ["videoViewCount", "videoPlayCount", "playCount", "viewsCount", "views"]);
+  const averageComments =
+		asNumber(item.averageComments ?? item.avgComments ?? item.commentsAverage ?? item.commentsAvg ?? item.comments) ||
+		averageFromItems(latestPosts, ["commentsCount", "commentCount", "comments", "comments_count"]);
+  const followers = asNumber(
+		item.followers ?? item.followersCount ?? item.followerCount ?? item.fans ?? item.fansCount,
+	);
+  const engagementRate =
+		asText(item.engagementRate ?? item.er ?? item.engagement) ||
+		(followers > 0 ? formatRate(((averageLikes + averageComments) / followers) * 100) : "");
 
   return {
     averageLikes,
     averageViews,
     biography: asText(item.biography ?? item.bio) || null,
-    engagementRate: asText(item.engagementRate ?? item.er ?? item.engagement),
+    engagementRate,
     externalId: asText(item.id ?? item.userId) || null,
-    followers: asNumber(
-      item.followers ?? item.followersCount ?? item.followerCount ?? item.fans ?? item.fansCount,
-    ),
+    followers,
     metadata: {
 		...item,
+		averageComments,
 		avatarUrl: profilePicUrlHD || profilePicUrl || null,
 		latestIgtvVideos,
 		latestPosts,
