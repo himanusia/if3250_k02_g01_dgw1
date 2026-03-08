@@ -110,15 +110,13 @@
       "name": "@if3250_k02_g01_dgw1/db",
       "dependencies": {
         "@if3250_k02_g01_dgw1/env": "workspace:*",
-        "@vercel/functions": "^3.4.3",
         "dotenv": "catalog:",
         "drizzle-orm": "catalog:",
-        "pg": "^8.17.1",
+        "postgres": "^3.4.7",
         "zod": "catalog:",
       },
       "devDependencies": {
         "@if3250_k02_g01_dgw1/config": "workspace:*",
-        "@types/pg": "catalog:",
         "drizzle-kit": "^0.31.8",
         "typescript": "catalog:",
       },
