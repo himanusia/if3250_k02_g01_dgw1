@@ -17,6 +17,7 @@ export type AccessEntry = {
 export type KolAccountRecord = {
   averageLikes: number;
   averageViews: number;
+  biography: string | null;
   createdAt: string;
   engagementRate: string;
   externalId: string | null;
@@ -25,6 +26,7 @@ export type KolAccountRecord = {
   id: number;
   kolId: number;
   lastSyncedAt: string | null;
+  metadata: Record<string, unknown> | null;
   platform: SocialPlatform;
   profileUrl: string | null;
   syncMessage: string | null;
@@ -60,7 +62,6 @@ export type KolRecord = {
   updatedAt: string;
   averageLikes: number;
   averageViews: number;
-  bio: string | null;
 };
 
 export type CampaignRecord = {

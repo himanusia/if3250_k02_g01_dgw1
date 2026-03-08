@@ -1,6 +1,6 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { kolAccount, kolCampaignHistory, kolProfile } from "@if3250_k02_g01_dgw1/db/schema/kol";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import z from "zod";
 
 import { syncAccountWithApify } from "../lib/apify";
@@ -13,7 +13,6 @@ const kolAccountInputSchema = z.object({
 });
 
 const kolInputSchema = z.object({
-  bio: z.string().trim().default(""),
   accounts: z.array(kolAccountInputSchema).min(1),
   displayName: z.string().trim().min(1),
   keywords: z.string().trim().default(""),
@@ -77,27 +76,6 @@ async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSc
   }
 }
 
-async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSchema>>) {
-    await validateAccounts(input.accounts);
-
-  for (const account of accounts) {
-    const metrics = await syncAccountWithApify({
-      handle: account.handle,
-      platform: account.platform,
-      profileUrl: account.profileUrl,
-
-    const hasData =
-      metrics.followers > 0 ||
-      metrics.averageLikes > 0 ||
-      metrics.averageViews > 0 ||
-      Boolean(metrics.externalId);
-
-    if (metrics.syncStatus !== "success" || !hasData) {
-      throw new Error(`Akun ${account.platform} @${account.handle} tidak valid atau data tidak ditemukan.`);
-    }
-  }
-}
-
 async function syncKolProfile(kolId: number) {
   const accounts = await db.select().from(kolAccount).where(eq(kolAccount.kolId, kolId));
 
@@ -125,10 +103,12 @@ async function syncKolProfile(kolId: number) {
       .set({
         averageLikes: metrics.averageLikes,
         averageViews: metrics.averageViews,
+        biography: metrics.biography ?? null,
         engagementRate: metrics.engagementRate,
         externalId: metrics.externalId ?? null,
         followers: metrics.followers,
         lastSyncedAt: syncedAt,
+        metadata: metrics.metadata ?? null,
         syncMessage: metrics.message ?? null,
         syncStatus: metrics.syncStatus,
         updatedAt: new Date(),
@@ -206,16 +186,16 @@ async function mapKolRecord(kolId: number) {
       ...account,
       createdAt: account.createdAt.toISOString(),
       lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
+      metadata: account.metadata ?? null,
       updatedAt: account.updatedAt.toISOString(),
     })),
     createdAt: profile.createdAt.toISOString(),
-      await validateAccounts(input.accounts);
-
     history: history.map((item) => ({
       ...item,
       createdAt: item.createdAt.toISOString(),
       endedAt: formatDate(item.endedAt),
       startedAt: formatDate(item.startedAt),
+    })),
     lastSyncedAt: profile.lastSyncedAt?.toISOString() ?? null,
     updatedAt: profile.updatedAt.toISOString(),
   };
@@ -249,7 +229,6 @@ export const kolRouter = {
     const [created] = await db
       .insert(kolProfile)
       .values({
-        bio: input.bio,
         displayName: input.displayName,
         keywords: input.keywords,
       })
@@ -265,7 +244,6 @@ export const kolRouter = {
     );
 
     await syncKolProfile(created!.id);
-
     return await mapKolRecord(created!.id);
   }),
   getById: protectedProcedure
@@ -296,7 +274,6 @@ export const kolRouter = {
       await db
         .update(kolProfile)
         .set({
-          bio: input.bio,
           displayName: input.displayName,
           keywords: input.keywords,
           updatedAt: new Date(),

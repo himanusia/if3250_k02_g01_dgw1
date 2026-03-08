@@ -1,4 +1,4 @@
-import { integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const socialPlatformEnum = pgEnum("social_platform", ["instagram", "tiktok", "shopee"]);
 
@@ -13,7 +13,6 @@ export type FollowerTier = (typeof followerTierEnum.enumValues)[number];
 export const kolProfile = pgTable("kol_profile", {
   id: serial("id").primaryKey(),
   displayName: text("display_name").notNull(),
-  bio: text("bio"),
   keywords: text("keywords").default("").notNull(),
   totalFollowers: integer("total_followers").default(0).notNull(),
   averageLikes: integer("average_likes").default(0).notNull(),
@@ -40,6 +39,8 @@ export const kolAccount = pgTable(
     platform: socialPlatformEnum("platform").notNull(),
     handle: text("handle").notNull(),
     profileUrl: text("profile_url"),
+    biography: text("biography"),
+    metadata: jsonb("metadata"),
     externalId: text("external_id"),
     followers: integer("followers").default(0).notNull(),
     averageLikes: integer("average_likes").default(0).notNull(),

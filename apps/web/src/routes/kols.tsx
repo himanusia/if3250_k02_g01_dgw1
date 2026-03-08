@@ -24,7 +24,6 @@ type KolAccountFormState = {
 };
 
 type KolFormState = {
-  bio: string;
   accounts: KolAccountFormState[];
   displayName: string;
   keywords: string;
@@ -39,7 +38,6 @@ function getDefaultAccount(platform: SocialPlatform = "instagram"): KolAccountFo
 
 function getDefaultForm(): KolFormState {
   return {
-    bio: "",
     accounts: [getDefaultAccount("instagram")],
     displayName: "",
     keywords: "",
@@ -68,7 +66,7 @@ function RouteComponent() {
       const haystack = [
         kol.displayName,
         kol.keywords,
-        kol.bio ?? "",
+        ...kol.accounts.map((account) => account.biography ?? ""),
         ...kol.accounts.map((account) => `${account.platform} ${account.handle}`),
       ]
         .join(" ")
@@ -128,7 +126,6 @@ function RouteComponent() {
   function editKol(kol: KolRecord) {
     setEditingId(kol.id);
     setForm({
-      bio: kol.bio ?? "",
       accounts: kol.accounts.map((account) => ({
         handle: account.handle,
         platform: account.platform,
@@ -170,6 +167,10 @@ function RouteComponent() {
           <div className="space-y-3">
             {filteredKols.map((kol) => (
               <div key={kol.id} className="border-border space-y-4 border p-4">
+                {(() => {
+                  const biography = kol.accounts.find((account) => account.biography)?.biography;
+
+                  return (
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <div className="bg-muted text-foreground flex size-12 shrink-0 items-center justify-center border text-sm font-medium">
@@ -182,7 +183,7 @@ function RouteComponent() {
                     <div className="min-w-0">
                       <p className="font-medium">{kol.displayName}</p>
                       <p className="text-muted-foreground text-sm">{kol.accounts.length} akun terhubung</p>
-                      {kol.bio && <p className="text-muted-foreground mt-1 text-sm wrap-break-word">{kol.bio}</p>}
+                      {biography && <p className="text-muted-foreground mt-1 text-sm wrap-break-word">{biography}</p>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -201,6 +202,8 @@ function RouteComponent() {
                     </Button>
                   </div>
                 </div>
+                  );
+                })()}
 
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   <MetricBox label="Total followers" value={formatNumber(kol.totalFollowers)} />
@@ -286,12 +289,6 @@ function RouteComponent() {
                 placeholder="Pisahkan dengan koma"
               />
             </div>
-
-            <FormTextarea
-              label="Bio / deskripsi singkat"
-              value={form.bio}
-              onChange={(value) => setForm((current) => ({ ...current, bio: value }))}
-            />
 
             <div className="grid gap-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -411,30 +408,6 @@ function FormInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={!placeholder}
-      />
-    </Label>
-  );
-}
-
-function FormTextarea({
-  label,
-  onChange,
-  placeholder,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  value: string;
-}) {
-  return (
-    <Label className="grid gap-2">
-      <span>{label}</span>
-      <textarea
-        className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 w-full min-w-0 rounded-none border px-3 py-2 text-xs outline-none focus-visible:ring-1"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
       />
     </Label>
   );

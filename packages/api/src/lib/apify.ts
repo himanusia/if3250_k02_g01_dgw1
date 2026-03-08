@@ -16,9 +16,11 @@ type AccountInput = {
 type SyncedMetrics = {
   averageLikes: number;
   averageViews: number;
+  biography?: string | null;
   engagementRate: string;
   externalId?: string | null;
   followers: number;
+  metadata?: Record<string, unknown> | null;
   message?: string | null;
   syncStatus: "success" | "failed" | "pending";
 };
@@ -145,8 +147,10 @@ function extractMetrics(item: Record<string, unknown> | undefined): SyncedMetric
     return {
       averageLikes: 0,
       averageViews: 0,
+      biography: null,
       engagementRate: "",
       followers: 0,
+      metadata: null,
       message: "Apify tidak mengembalikan item data.",
       syncStatus: "failed",
     };
@@ -156,8 +160,10 @@ function extractMetrics(item: Record<string, unknown> | undefined): SyncedMetric
     return {
       averageLikes: 0,
       averageViews: 0,
+      biography: null,
       engagementRate: "",
       followers: 0,
+      metadata: item,
       message: asText(item.errorDescription ?? item.error) || "Apify tidak menemukan data akun.",
       syncStatus: "failed",
     };
@@ -174,11 +180,13 @@ function extractMetrics(item: Record<string, unknown> | undefined): SyncedMetric
   return {
     averageLikes,
     averageViews,
+    biography: asText(item.biography ?? item.bio) || null,
     engagementRate: asText(item.engagementRate ?? item.er ?? item.engagement),
     externalId: asText(item.id ?? item.userId) || null,
     followers: asNumber(
       item.followers ?? item.followersCount ?? item.followerCount ?? item.fans ?? item.fansCount,
     ),
+    metadata: item,
     message: null,
     syncStatus: "success",
   };
@@ -191,8 +199,10 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
     return {
       averageLikes: 0,
       averageViews: 0,
+      biography: null,
       engagementRate: "",
       followers: 0,
+      metadata: null,
       message: env.APIFY_API_TOKEN
         ? "Platform ini baru disiapkan di enum dan belum punya integrasi Apify."
         : "Konfigurasi Apify belum lengkap.",
@@ -224,8 +234,10 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
     return {
       averageLikes: 0,
       averageViews: 0,
+      biography: null,
       engagementRate: "",
       followers: 0,
+      metadata: null,
       message: `Apify request gagal (${response.status}).`,
       syncStatus: "failed",
     };
