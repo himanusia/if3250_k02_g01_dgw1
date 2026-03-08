@@ -21,8 +21,8 @@ export const campaign = pgTable("campaign", {
   periodStart: timestamp("period_start").notNull(),
   periodEnd: timestamp("period_end").notNull(),
   keywords: text("keywords").default("").notNull(),
-  kolTargetCount: integer("kol_target_count").default(0).notNull(),
-  kolCategory: text("kol_category").default("").notNull(),
+  targetKolCount: integer("target_kol_count").default(0).notNull(),
+  targetFollowerTier: text("target_follower_tier").default("").notNull(),
   postBriefs: text("post_briefs").default("").notNull(),
   status: campaignStatusEnum("status").default("draft").notNull(),
   createdByUserId: text("created_by_user_id").references(() => user.id, {

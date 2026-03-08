@@ -1,4 +1,7 @@
 export type AccessRole = "admin" | "user";
+export type SocialPlatform = "instagram" | "tiktok" | "shopee";
+export type SyncStatus = "pending" | "success" | "failed";
+export type FollowerTier = "nano" | "micro" | "macro" | "mega";
 
 export type AccessEntry = {
   createdAt: string;
@@ -11,26 +14,54 @@ export type AccessEntry = {
   updatedAt: string;
 };
 
-export type KolRecord = {
-  analyticsNotes: string;
+export type KolAccountRecord = {
   averageLikes: number;
   averageViews: number;
-  bio: string | null;
-  campaignHistory: string;
-  category: string;
+  createdAt: string;
+  engagementRate: string;
+  externalId: string | null;
+  followers: number;
+  handle: string;
+  id: number;
+  kolId: number;
+  lastSyncedAt: string | null;
+  platform: SocialPlatform;
+  profileUrl: string | null;
+  syncMessage: string | null;
+  syncStatus: SyncStatus;
+  updatedAt: string;
+};
+
+export type KolCampaignHistoryRecord = {
+  brand: string;
+  campaignName: string;
+  createdAt: string;
+  endedAt: string | null;
+  id: number;
+  kolId: number;
+  notes: string | null;
+  platform: SocialPlatform;
+  startedAt: string | null;
+};
+
+export type KolRecord = {
+  accounts: KolAccountRecord[];
   createdAt: string;
   displayName: string;
   engagementRate: string;
-  estimatedRateCard: number;
   fieldOfExpertise: string;
-  followers: number;
+  followerTier: FollowerTier;
+  history: KolCampaignHistoryRecord[];
   id: number;
   keywords: string;
-  platformLinks: string;
-  primaryPlatform: "tiktok" | "instagram" | "youtube" | "shopee" | "other";
-  salesNotes: string;
+  lastSyncedAt: string | null;
+  syncMessage: string | null;
+  syncStatus: SyncStatus;
+  totalFollowers: number;
   updatedAt: string;
-  username: string;
+  averageLikes: number;
+  averageViews: number;
+  bio: string | null;
 };
 
 export type CampaignRecord = {
@@ -39,14 +70,15 @@ export type CampaignRecord = {
   description: string;
   id: number;
   keywords: string;
-  kolCategory: string;
-  kolTargetCount: number;
-  kols: Array<{ displayName: string; id: number; username: string }>;
+  selectedKolIds: number[];
+  kols: Array<{ displayName: string; handles: string[]; id: number }>;
   name: string;
   objective: string;
   periodEnd: string;
   periodStart: string;
   postBriefs: string;
   status: "draft" | "active" | "completed" | "archived";
+  targetFollowerTier: string;
+  targetKolCount: number;
   updatedAt: string;
 };

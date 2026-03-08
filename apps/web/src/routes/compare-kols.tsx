@@ -32,7 +32,9 @@ function RouteComponent() {
       kols.filter((kol) => {
         const matchesSearch =
           !search ||
-          `${kol.displayName} ${kol.username}`.toLowerCase().includes(search.toLowerCase());
+          `${kol.displayName} ${kol.accounts.map((account) => account.handle).join(" ")}`
+            .toLowerCase()
+            .includes(search.toLowerCase());
         const matchesField =
           !fieldFilter || kol.fieldOfExpertise.toLowerCase().includes(fieldFilter.toLowerCase());
         const matchesKeyword =
@@ -52,13 +54,13 @@ function RouteComponent() {
           <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">Compare KOL</p>
           <h1 className="text-2xl font-semibold">Bandingkan kandidat KOL</h1>
           <p className="text-muted-foreground">
-            Cari berdasarkan nama, username, bidang, atau keyword, lalu pilih beberapa akun untuk
+            Cari berdasarkan nama, handle, bidang, atau keyword, lalu pilih beberapa KOL untuk
             dibandingkan.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <FilterInput label="Cari nama / username" value={search} onChange={setSearch} />
+          <FilterInput label="Cari nama / handle" value={search} onChange={setSearch} />
           <FilterInput label="Bidang" value={fieldFilter} onChange={setFieldFilter} />
           <FilterInput label="Keyword" value={keywordFilter} onChange={setKeywordFilter} />
         </div>
@@ -83,13 +85,15 @@ function RouteComponent() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">{kol.displayName}</p>
-                    <p className="text-muted-foreground text-sm">@{kol.username}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {kol.accounts.map((account) => `@${account.handle}`).join(" • ")}
+                    </p>
                   </div>
-                  <span className="text-muted-foreground text-xs">{kol.primaryPlatform}</span>
+                  <span className="text-muted-foreground text-xs">{kol.accounts.length} akun</span>
                 </div>
                 <div className="text-muted-foreground mt-2 grid gap-1 text-sm md:grid-cols-2">
                   <p>Bidang: {kol.fieldOfExpertise}</p>
-                  <p>Followers: {kol.followers.toLocaleString()}</p>
+                  <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
                 </div>
               </button>
             );
@@ -151,21 +155,26 @@ function RouteComponent() {
             <article key={kol.id} className="border-border space-y-3 border p-3">
               <div>
                 <p className="font-medium">{kol.displayName}</p>
-                <p className="text-muted-foreground text-sm">@{kol.username}</p>
+                <p className="text-muted-foreground text-sm">
+                  {kol.accounts.map((account) => `${account.platform}: @${account.handle}`).join(" • ")}
+                </p>
               </div>
               <div className="text-muted-foreground grid gap-1 text-sm">
                 <p>Bidang: {kol.fieldOfExpertise}</p>
-                <p>Kategori: {kol.category}</p>
-                <p>Followers: {kol.followers.toLocaleString()}</p>
+                <p>Tier: {kol.followerTier}</p>
+                <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
                 <p>Likes rata-rata: {kol.averageLikes.toLocaleString()}</p>
                 <p>Views rata-rata: {kol.averageViews.toLocaleString()}</p>
                 <p>ER: {kol.engagementRate || "-"}</p>
-                <p>Rate card: {kol.estimatedRateCard.toLocaleString()}</p>
               </div>
               {kol.keywords && <p className="text-muted-foreground text-sm">Keywords: {kol.keywords}</p>}
-              {kol.analyticsNotes && (
-                <p className="text-muted-foreground text-sm">Analytics: {kol.analyticsNotes}</p>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {kol.accounts.map((account) => (
+                  <span key={account.id} className="border-border text-muted-foreground border px-2 py-1 text-xs">
+                    {account.platform} • {account.followers.toLocaleString()} followers
+                  </span>
+                ))}
+              </div>
             </article>
           ))}
 

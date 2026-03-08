@@ -13,8 +13,6 @@ type CampaignFormState = {
   brand: string;
   description: string;
   keywords: string;
-  kolCategory: string;
-  kolTargetCount: number;
   name: string;
   objective: string;
   periodEnd: string;
@@ -22,6 +20,8 @@ type CampaignFormState = {
   postBriefs: string;
   selectedKolIds: number[];
   status: CampaignRecord["status"];
+  targetFollowerTier: string;
+  targetKolCount: number;
 };
 
 function getDefaultForm(): CampaignFormState {
@@ -29,8 +29,6 @@ function getDefaultForm(): CampaignFormState {
     brand: "",
     description: "",
     keywords: "",
-    kolCategory: "micro",
-    kolTargetCount: 0,
     name: "",
     objective: "",
     periodEnd: "",
@@ -38,6 +36,8 @@ function getDefaultForm(): CampaignFormState {
     postBriefs: "",
     selectedKolIds: [],
     status: "draft",
+    targetFollowerTier: "micro",
+    targetKolCount: 0,
   };
 }
 
@@ -90,8 +90,6 @@ function RouteComponent() {
       brand: campaign.brand,
       description: campaign.description,
       keywords: campaign.keywords,
-      kolCategory: campaign.kolCategory,
-      kolTargetCount: campaign.kolTargetCount,
       name: campaign.name,
       objective: campaign.objective,
       periodEnd: campaign.periodEnd,
@@ -99,6 +97,8 @@ function RouteComponent() {
       postBriefs: campaign.postBriefs,
       selectedKolIds: campaign.kols.map((kol) => kol.id),
       status: campaign.status,
+      targetFollowerTier: campaign.targetFollowerTier,
+      targetKolCount: campaign.targetKolCount,
     });
   };
 
@@ -106,10 +106,10 @@ function RouteComponent() {
     <div className="container mx-auto grid gap-6 px-4 py-6 xl:grid-cols-[1fr_0.95fr]">
       <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
         <div>
-          <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">Campaign planner</p>
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">Campaigns</p>
           <h1 className="text-2xl font-semibold">Buat / edit campaign</h1>
           <p className="text-muted-foreground">
-            Isi nama, deskripsi, periode, brand, objektif, keyword, target KOL, lalu pilih akun yang
+            Isi nama, deskripsi, periode, brand, objektif, keyword, target KOL, lalu pilih KOL yang
             masuk shortlist.
           </p>
         </div>
@@ -144,15 +144,15 @@ function RouteComponent() {
                 required
               />
             </label>
-            <FormInput label="Target kategori KOL" value={form.kolCategory} onChange={(value) => setForm((current) => ({ ...current, kolCategory: value }))} placeholder="micro, nano, dll" />
+            <FormInput label="Target follower tier" value={form.targetFollowerTier} onChange={(value) => setForm((current) => ({ ...current, targetFollowerTier: value }))} placeholder="micro, nano, macro" />
             <label className="grid gap-2 text-sm">
               <span>Jumlah KOL</span>
               <input
                 className="border-border bg-background min-h-10 border px-3"
                 type="number"
                 min={0}
-                value={form.kolTargetCount}
-                onChange={(event) => setForm((current) => ({ ...current, kolTargetCount: Number(event.target.value) }))}
+                value={form.targetKolCount}
+                onChange={(event) => setForm((current) => ({ ...current, targetKolCount: Number(event.target.value) }))}
               />
             </label>
             <label className="grid gap-2 text-sm md:col-span-2">
@@ -196,7 +196,8 @@ function RouteComponent() {
                       }}
                     />
                     <span>
-                      <strong>{kol.displayName}</strong> @{kol.username}
+                      <strong>{kol.displayName}</strong>
+                      <span className="block">{kol.accounts.map((account) => `${account.platform}: @${account.handle}`).join(" • ")}</span>
                       <span className="text-muted-foreground block">{kol.fieldOfExpertise}</span>
                     </span>
                   </label>
@@ -204,7 +205,7 @@ function RouteComponent() {
               })}
 
               {!kols.length && (
-                <p className="text-muted-foreground">Belum ada akun KOL. Tambah dulu di halaman KOL DB.</p>
+                <p className="text-muted-foreground">Belum ada KOL. Tambah dulu di halaman KOL.</p>
               )}
             </div>
           </div>
@@ -253,13 +254,13 @@ function RouteComponent() {
               <div className="text-muted-foreground grid gap-1 text-sm md:grid-cols-2">
                 <p>Periode: {campaign.periodStart} → {campaign.periodEnd}</p>
                 <p>Status: {campaign.status}</p>
-                <p>Target KOL: {campaign.kolTargetCount}</p>
-                <p>Kategori target: {campaign.kolCategory || "-"}</p>
+                <p>Target KOL: {campaign.targetKolCount}</p>
+                <p>Follower tier: {campaign.targetFollowerTier || "-"}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {campaign.kols.map((kol) => (
                   <span key={kol.id} className="border-border text-muted-foreground border px-2 py-1 text-xs">
-                    {kol.displayName}
+                    {kol.displayName}{kol.handles.length ? ` • ${kol.handles.join(" / ")}` : ""}
                   </span>
                 ))}
                 {!campaign.kols.length && (

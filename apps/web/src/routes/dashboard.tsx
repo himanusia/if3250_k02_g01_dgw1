@@ -22,8 +22,8 @@ function RouteComponent() {
         <p className="text-muted-foreground text-sm uppercase tracking-[0.2em]">Dashboard</p>
         <h1 className="text-3xl font-semibold">Selamat datang, {privateData.data?.user?.name}</h1>
         <p className="text-muted-foreground max-w-2xl">
-          Alur kerja utama sekarang terpusat di campaign planner, database KOL, dan halaman
-          perbandingan akun.
+          Alur kerja utama sekarang terpusat di listing campaign, listing KOL, dan halaman
+          perbandingan akun lintas platform.
         </p>
       </section>
 
@@ -50,11 +50,11 @@ function RouteComponent() {
           <div>
             <h2 className="text-lg font-medium">Journey utama</h2>
             <p className="text-muted-foreground">
-              1. Tambah KOL ke database, 2. bandingkan kandidat, 3. masukkan ke campaign.
+              1. Tambah KOL, 2. sinkronkan metrik dari Apify, 3. bandingkan kandidat, 4. pilih ke campaign.
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
-            <LinkCard href="/kols" title="Input KOL" description="Masukkan akun dan metrik awal." />
+            <LinkCard href="/kols" title="Lihat KOL" description="Kelola daftar KOL dan akun platformnya." />
             <LinkCard
               href="/compare-kols"
               title="Bandingkan KOL"
@@ -62,7 +62,7 @@ function RouteComponent() {
             />
             <LinkCard
               href="/campaigns"
-              title="Kelola Campaign"
+              title="Lihat Campaign"
               description="Susun brief lalu hubungkan dengan KOL terpilih."
             />
           </div>

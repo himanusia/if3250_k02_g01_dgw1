@@ -1,50 +1,43 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { KolRecord } from "@/lib/app-types";
+import type { KolRecord, SocialPlatform } from "@/lib/app-types";
 
 import { Button } from "@/components/ui/button";
 import { client, orpc } from "@/utils/orpc";
 
-type KolFormState = {
-  analyticsNotes: string;
-  averageLikes: number;
-  averageViews: number;
-  bio: string;
-  campaignHistory: string;
-  category: string;
-  displayName: string;
-  engagementRate: string;
-  estimatedRateCard: number;
-  fieldOfExpertise: string;
-  followers: number;
-  keywords: string;
-  platformLinks: string;
-  primaryPlatform: "tiktok" | "instagram" | "youtube" | "shopee" | "other";
-  salesNotes: string;
-  username: string;
+type KolAccountFormState = {
+  handle: string;
+  platform: SocialPlatform;
+  profileUrl: string;
 };
+
+type KolFormState = {
+  bio: string;
+  accounts: KolAccountFormState[];
+  displayName: string;
+  fieldOfExpertise: string;
+  keywords: string;
+};
+
+function getDefaultAccount(platform: SocialPlatform = "instagram"): KolAccountFormState {
+  return {
+    handle: "",
+    platform,
+    profileUrl: "",
+  };
+}
 
 function getDefaultForm(): KolFormState {
   return {
-    analyticsNotes: "",
-    averageLikes: 0,
-    averageViews: 0,
     bio: "",
-    campaignHistory: "",
-    category: "micro",
+    accounts: [getDefaultAccount("instagram")],
     displayName: "",
-    engagementRate: "",
-    estimatedRateCard: 0,
     fieldOfExpertise: "",
-    followers: 0,
     keywords: "",
-    platformLinks: "",
-    primaryPlatform: "instagram",
-    salesNotes: "",
-    username: "",
   };
 }
 
@@ -69,11 +62,10 @@ function RouteComponent() {
     <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.95fr_1.05fr]">
       <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
         <div>
-          <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">KOL database</p>
-          <h1 className="text-2xl font-semibold">Masukkan akun KOL ke database</h1>
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">KOL</p>
+          <h1 className="text-2xl font-semibold">Tambah KOL dengan beberapa akun platform</h1>
           <p className="text-muted-foreground">
-            Simpan link platform, keywords, followers, metrik engagement, sampai catatan sales dan
-            campaign history.
+            Satu KOL bisa punya beberapa akun, misalnya Instagram dan TikTok sekaligus.
           </p>
         </div>
 
@@ -86,47 +78,109 @@ function RouteComponent() {
         >
           <div className="grid gap-4 md:grid-cols-2">
             <FormInput label="Display name" value={form.displayName} onChange={(value) => setForm((current) => ({ ...current, displayName: value }))} />
-            <FormInput label="Username" value={form.username} onChange={(value) => setForm((current) => ({ ...current, username: value }))} />
             <FormInput label="Bidang" value={form.fieldOfExpertise} onChange={(value) => setForm((current) => ({ ...current, fieldOfExpertise: value }))} placeholder="Pet care, beauty, gaming" />
-            <FormInput label="Kategori KOL" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value }))} placeholder="Nano, micro, macro" />
-            <label className="grid gap-2 text-sm">
-              <span>Platform utama</span>
-              <select
-                className="border-border bg-background min-h-10 border px-3"
-                value={form.primaryPlatform}
-                onChange={(event) => setForm((current) => ({ ...current, primaryPlatform: event.target.value as KolFormState["primaryPlatform"] }))}
-              >
-                <option value="instagram">Instagram</option>
-                <option value="tiktok">TikTok</option>
-                <option value="youtube">YouTube</option>
-                <option value="shopee">Shopee</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <FormInput label="Engagement rate" value={form.engagementRate} onChange={(value) => setForm((current) => ({ ...current, engagementRate: value }))} placeholder="Contoh: 4.7%" />
-            <FormNumberInput label="Followers" value={form.followers} onChange={(value) => setForm((current) => ({ ...current, followers: value }))} />
-            <FormNumberInput label="Average likes" value={form.averageLikes} onChange={(value) => setForm((current) => ({ ...current, averageLikes: value }))} />
-            <FormNumberInput label="Average views" value={form.averageViews} onChange={(value) => setForm((current) => ({ ...current, averageViews: value }))} />
-            <FormNumberInput label="Estimasi rate card" value={form.estimatedRateCard} onChange={(value) => setForm((current) => ({ ...current, estimatedRateCard: value }))} />
+            <FormInput label="Keyword / tags" value={form.keywords} onChange={(value) => setForm((current) => ({ ...current, keywords: value }))} placeholder="Pisahkan dengan koma" />
           </div>
 
           <FormTextarea label="Bio / deskripsi singkat" value={form.bio} onChange={(value) => setForm((current) => ({ ...current, bio: value }))} />
-          <FormTextarea label="Link platform" value={form.platformLinks} onChange={(value) => setForm((current) => ({ ...current, platformLinks: value }))} placeholder="Satu baris per link/platform" />
-          <FormTextarea label="Keyword / tags" value={form.keywords} onChange={(value) => setForm((current) => ({ ...current, keywords: value }))} placeholder="Pisahkan dengan koma" />
-          <FormTextarea label="Analytics notes" value={form.analyticsNotes} onChange={(value) => setForm((current) => ({ ...current, analyticsNotes: value }))} />
-          <FormTextarea label="Sales notes" value={form.salesNotes} onChange={(value) => setForm((current) => ({ ...current, salesNotes: value }))} />
-          <FormTextarea label="Campaign history" value={form.campaignHistory} onChange={(value) => setForm((current) => ({ ...current, campaignHistory: value }))} />
+
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-medium">Akun platform</h2>
+                <p className="text-muted-foreground text-sm">Tambahkan semua akun milik KOL ini.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setForm((current) => ({
+                    ...current,
+                    accounts: [...current.accounts, getDefaultAccount("tiktok")],
+                  }));
+                }}
+              >
+                <Plus className="mr-2 size-4" />
+                Tambah akun
+              </Button>
+            </div>
+
+            {form.accounts.map((account, index) => (
+              <div key={index} className="border-border grid gap-4 border p-3 md:grid-cols-[1fr_1fr_1.2fr_auto]">
+                <label className="grid gap-2 text-sm">
+                  <span>Platform</span>
+                  <select
+                    className="border-border bg-background min-h-10 border px-3"
+                    value={account.platform}
+                    onChange={(event) => {
+                      const platform = event.target.value as SocialPlatform;
+                      setForm((current) => ({
+                        ...current,
+                        accounts: current.accounts.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, platform } : item,
+                        ),
+                      }));
+                    }}
+                  >
+                    <option value="instagram">Instagram</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="shopee">Shopee</option>
+                  </select>
+                </label>
+                <FormInput
+                  label="Handle"
+                  value={account.handle}
+                  onChange={(value) => {
+                    setForm((current) => ({
+                      ...current,
+                      accounts: current.accounts.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, handle: value } : item,
+                      ),
+                    }));
+                  }}
+                />
+                <FormInput
+                  label="Profile URL"
+                  placeholder="Opsional"
+                  value={account.profileUrl}
+                  onChange={(value) => {
+                    setForm((current) => ({
+                      ...current,
+                      accounts: current.accounts.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, profileUrl: value } : item,
+                      ),
+                    }));
+                  }}
+                />
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={form.accounts.length === 1}
+                    onClick={() => {
+                      setForm((current) => ({
+                        ...current,
+                        accounts: current.accounts.filter((_, itemIndex) => itemIndex !== index),
+                      }));
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
 
           <Button type="submit" disabled={createKol.isPending}>
-            {createKol.isPending ? "Menyimpan..." : "Simpan akun KOL"}
+            {createKol.isPending ? "Menyimpan..." : "Simpan KOL"}
           </Button>
         </form>
       </section>
 
       <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
         <div>
-          <h2 className="text-xl font-semibold">Akun yang sudah tersimpan</h2>
-          <p className="text-muted-foreground">Data ini bisa dipakai lagi di halaman compare dan campaign.</p>
+          <h2 className="text-xl font-semibold">Daftar KOL</h2>
+          <p className="text-muted-foreground">Setiap KOL bisa memiliki beberapa akun lintas platform.</p>
         </div>
 
         <div className="space-y-3">
@@ -135,22 +189,29 @@ function RouteComponent() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{kol.displayName}</p>
-                  <p className="text-muted-foreground text-sm">@{kol.username}</p>
+                  <p className="text-muted-foreground text-sm">{kol.accounts.length} akun terhubung</p>
                 </div>
-                <p className="text-muted-foreground text-sm">{kol.primaryPlatform}</p>
+                <p className="text-muted-foreground text-sm">{kol.syncStatus}</p>
               </div>
               <div className="text-muted-foreground grid gap-1 text-sm md:grid-cols-2">
                 <p>Bidang: {kol.fieldOfExpertise}</p>
-                <p>Kategori: {kol.category}</p>
-                <p>Followers: {kol.followers.toLocaleString()}</p>
+                <p>Tier: {kol.followerTier}</p>
+                <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
                 <p>ER: {kol.engagementRate || "-"}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {kol.accounts.map((account) => (
+                  <span key={account.id} className="border-border text-muted-foreground border px-2 py-1 text-xs">
+                    {account.platform} • @{account.handle}
+                  </span>
+                ))}
               </div>
               {kol.keywords && <p className="text-muted-foreground text-sm">Keywords: {kol.keywords}</p>}
             </div>
           ))}
 
           {!kols.length && (
-            <p className="text-muted-foreground text-sm">Belum ada akun KOL di database.</p>
+            <p className="text-muted-foreground text-sm">Belum ada KOL yang tersimpan.</p>
           )}
         </div>
       </section>
@@ -178,29 +239,6 @@ function FormInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={!placeholder}
-      />
-    </label>
-  );
-}
-
-function FormNumberInput({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  value: number;
-}) {
-  return (
-    <label className="grid gap-2 text-sm">
-      <span>{label}</span>
-      <input
-        className="border-border bg-background min-h-10 border px-3"
-        type="number"
-        min={0}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>
   );
