@@ -25,6 +25,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "check-types": "turbo check-types",
+    "deploy:cloudflare": "bun --filter web deploy",
     "dev:native": "turbo -F native dev",
     "dev:web": "turbo -F web dev",
     "db:push": "turbo -F @if3250_k02_g01_dgw1/db db:push",

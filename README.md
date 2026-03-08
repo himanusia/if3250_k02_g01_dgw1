@@ -93,6 +93,39 @@ Catatan:
 - Konfigurasi Vercel sudah ada di [vercel.json](vercel.json), termasuk routing semua request SSR/API ke server TanStack Start
 - Variabel environment build juga sudah didaftarkan di [turbo.json](turbo.json)
 
+## Deploy ke Cloudflare Workers
+
+Project web sekarang juga sudah disiapkan untuk target Cloudflare Workers.
+
+File yang dipakai:
+
+- [apps/web/wrangler.jsonc](apps/web/wrangler.jsonc)
+- [apps/web/vite.config.ts](apps/web/vite.config.ts)
+
+Langkah deploy:
+
+1. Login Cloudflare:
+
+```bash
+bunx wrangler login
+```
+
+2. Isi environment variable yang sama seperti deployment Vercel.
+
+3. Kalau perlu, sesuaikan `name`, `routes`, atau `custom_domain` di [apps/web/wrangler.jsonc](apps/web/wrangler.jsonc).
+
+4. Deploy dari root repo:
+
+```bash
+bun run deploy:cloudflare
+```
+
+Catatan:
+
+- Entry worker memakai `@tanstack/react-start/server-entry`, jadi tidak perlu adapter Node seperti [api/index.ts](api/index.ts)
+- Vite sudah memakai plugin Cloudflare supaya output SSR cocok untuk Workers
+- Kalau ingin generate type binding Wrangler, jalankan `bun --filter web cf-typegen`
+
 ## Project Structure
 
 ```
