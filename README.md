@@ -31,6 +31,7 @@ This project uses PostgreSQL with Drizzle ORM.
 3. Add the following to `apps/web/.env`:
 
 ```bash
+ADMIN_EMAILS=admin@example.com
 BETTER_AUTH_SECRET=
 BETTER_AUTH_URL=http://localhost:3001
 CORS_ORIGIN=http://localhost:3001
@@ -39,9 +40,10 @@ GOOGLE_CLIENT_SECRET=
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/digiwonder
 ```
 
-4. Add `http://localhost:3001/api/auth/callback/google` as an authorized redirect URI in Google Cloud Console.
+4. Set `ADMIN_EMAILS` to one or more comma-separated bootstrap admin emails.
+5. Add `http://localhost:3001/api/auth/callback/google` as an authorized redirect URI in Google Cloud Console.
 
-5. Apply the schema to your database:
+6. Apply the schema to your database:
 
 ```bash
 bun run db:push

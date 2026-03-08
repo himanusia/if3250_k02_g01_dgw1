@@ -1,27 +1,21 @@
 import { redirect } from "@tanstack/react-router";
 
-import { getUser } from "@/functions/get-user";
+import { getAuthState } from "@/functions/get-auth-state";
 
-export async function requireAuth() {
-  const session = await getUser();
+export async function requireAdminAccess() {
+  const authState = await getAuthState();
 
-  if (!session) {
+  if (!authState.session) {
     throw redirect({
       to: "/login",
     });
   }
 
-  return session;
-}
-
-export async function redirectIfAuthenticated() {
-  const session = await getUser();
-
-  if (session) {
+  if (authState.access?.role !== "admin") {
     throw redirect({
-      to: "/dashboard",
+      to: "/unauthorized",
     });
   }
 
-  return session;
+  return authState;
 }

@@ -1,12 +1,19 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+  redirect,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import type { orpc } from "@/utils/orpc";
 
 import { Toaster } from "@/components/ui/sonner";
+import { getAuthState } from "@/functions/get-auth-state";
 
 import Header from "../components/header";
 import appCss from "../index.css?url";
@@ -16,6 +23,36 @@ export interface RouterAppContext {
 }
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
+  beforeLoad: async ({ location }) => {
+    const isApiRoute = location.pathname.startsWith("/api/");
+
+    if (isApiRoute) {
+      return;
+    }
+
+    const isPublicRoute = ["/login", "/unauthorized"].includes(location.pathname);
+    const authState = await getAuthState();
+
+    if (!authState.session && !isPublicRoute) {
+      throw redirect({
+        to: "/login",
+      });
+    }
+
+    if (authState.session && !authState.access && location.pathname !== "/unauthorized") {
+      throw redirect({
+        to: "/unauthorized",
+      });
+    }
+
+    if (authState.session && authState.access && isPublicRoute) {
+      throw redirect({
+        to: "/dashboard",
+      });
+    }
+
+    return authState;
+  },
   head: () => ({
     meta: [
       {

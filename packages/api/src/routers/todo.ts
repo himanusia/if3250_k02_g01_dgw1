@@ -3,14 +3,14 @@ import { todo } from "@if3250_k02_g01_dgw1/db/schema/todo";
 import { eq } from "drizzle-orm";
 import z from "zod";
 
-import { publicProcedure } from "../index";
+import { protectedProcedure } from "../index";
 
 export const todoRouter = {
-  getAll: publicProcedure.handler(async () => {
+  getAll: protectedProcedure.handler(async () => {
     return await db.select().from(todo);
   }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(z.object({ text: z.string().min(1) }))
     .handler(async ({ input }) => {
       return await db.insert(todo).values({
@@ -18,13 +18,13 @@ export const todoRouter = {
       });
     }),
 
-  toggle: publicProcedure
+  toggle: protectedProcedure
     .input(z.object({ id: z.number(), completed: z.boolean() }))
     .handler(async ({ input }) => {
       return await db.update(todo).set({ completed: input.completed }).where(eq(todo.id, input.id));
     }),
 
-  delete: publicProcedure.input(z.object({ id: z.number() })).handler(async ({ input }) => {
+  delete: protectedProcedure.input(z.object({ id: z.number() })).handler(async ({ input }) => {
     return await db.delete(todo).where(eq(todo.id, input.id));
   }),
 };
