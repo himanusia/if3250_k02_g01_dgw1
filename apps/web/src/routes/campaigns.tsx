@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import type { CampaignRecord, KolRecord } from "@/lib/app-types";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -190,22 +192,24 @@ function RouteComponent() {
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-0">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
-            <DialogDescription>
-              Isi brief dan pilih KOL yang masuk shortlist.
-            </DialogDescription>
+            <div className="border-border border-b px-4 py-4 sm:px-6">
+              <DialogTitle>{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
+              <DialogDescription>
+                Isi brief dan pilih KOL yang masuk shortlist.
+              </DialogDescription>
+            </div>
           </DialogHeader>
 
           <form
-            className="grid gap-4"
+            className="grid gap-5 overflow-x-hidden px-4 pb-4 sm:px-6 sm:pb-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
             }}
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               <FormInput
                 label="Nama campaign"
                 value={form.name}
@@ -237,10 +241,10 @@ function RouteComponent() {
                 value={form.targetKolCount}
                 onChange={(value) => setForm((current) => ({ ...current, targetKolCount: value }))}
               />
-              <label className="grid gap-2 text-sm md:col-span-2">
+              <Label className="grid gap-2 md:col-span-2">
                 <span>Status</span>
                 <select
-                  className="border-border bg-background min-h-10 border px-3"
+                  className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-full min-w-0 rounded-none border px-3 text-xs outline-none focus-visible:ring-1"
                   value={form.status}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -254,7 +258,7 @@ function RouteComponent() {
                   <option value="completed">Completed</option>
                   <option value="archived">Archived</option>
                 </select>
-              </label>
+              </Label>
             </div>
 
             <FormTextarea
@@ -281,16 +285,17 @@ function RouteComponent() {
               placeholder="Satu brief per baris"
             />
 
-            <div className="grid gap-2 text-sm">
-              <span>Pilih KOL untuk campaign ini</span>
-              <div className="border-border grid max-h-64 gap-2 overflow-auto border p-3">
+            <div className="grid gap-2">
+              <Label>Pilih KOL untuk campaign ini</Label>
+              <div className="border-border grid max-h-64 gap-2 overflow-y-auto overflow-x-hidden border p-3">
                 {kols.map((kol) => {
                   const checked = form.selectedKolIds.includes(kol.id);
 
                   return (
-                    <label key={kol.id} className="flex items-start gap-3 text-sm">
+                    <label key={kol.id} className="hover:bg-muted/40 flex min-w-0 items-start gap-3 p-2 text-sm">
                       <input
                         type="checkbox"
+                        className="mt-0.5 shrink-0"
                         checked={checked}
                         onChange={(event) => {
                           setForm((current) => ({
@@ -301,9 +306,9 @@ function RouteComponent() {
                           }));
                         }}
                       />
-                      <span>
+                      <span className="min-w-0">
                         <strong>{kol.displayName}</strong>
-                        <span className="block">
+                        <span className="text-muted-foreground block break-words">
                           {kol.accounts
                             .map((account) => `${account.platform}: @${account.handle}`)
                             .join(" • ")}
@@ -320,7 +325,7 @@ function RouteComponent() {
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="border-border border-t pt-4">
               {editingId && (
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Batal edit
@@ -355,16 +360,15 @@ function FormInput({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <Label className="grid gap-2">
       <span>{label}</span>
-      <input
-        className="border-border bg-background min-h-10 border px-3"
+      <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={!placeholder}
       />
-    </label>
+    </Label>
   );
 }
 
@@ -378,16 +382,15 @@ function DateInput({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <Label className="grid gap-2">
       <span>{label}</span>
-      <input
-        className="border-border bg-background min-h-10 border px-3"
+      <Input
         type="date"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required
       />
-    </label>
+    </Label>
   );
 }
 
@@ -401,16 +404,15 @@ function NumberInput({
   value: number;
 }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <Label className="grid gap-2">
       <span>{label}</span>
-      <input
-        className="border-border bg-background min-h-10 border px-3"
+      <Input
         type="number"
         min={0}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
       />
-    </label>
+    </Label>
   );
 }
 
@@ -426,14 +428,14 @@ function FormTextarea({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <Label className="grid gap-2">
       <span>{label}</span>
       <textarea
-        className="border-border bg-background min-h-24 border px-3 py-2"
+        className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 w-full min-w-0 rounded-none border px-3 py-2 text-xs outline-none focus-visible:ring-1"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
-    </label>
+    </Label>
   );
 }

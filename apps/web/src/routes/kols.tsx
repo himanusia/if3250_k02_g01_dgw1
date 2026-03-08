@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import type { KolRecord, SocialPlatform } from "@/lib/app-types";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -184,22 +186,24 @@ function RouteComponent() {
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-0">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
-            <DialogDescription>
-              Satu KOL bisa punya beberapa akun, misalnya Instagram dan TikTok sekaligus.
-            </DialogDescription>
+            <div className="border-border border-b px-4 py-4 sm:px-6">
+              <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
+              <DialogDescription>
+                Satu KOL bisa punya beberapa akun, misalnya Instagram dan TikTok sekaligus.
+              </DialogDescription>
+            </div>
           </DialogHeader>
 
           <form
-            className="grid gap-4"
+            className="grid gap-5 overflow-x-hidden px-4 pb-4 sm:px-6 sm:pb-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
             }}
           >
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2">
               <FormInput
                 label="Display name"
                 value={form.displayName}
@@ -226,8 +230,8 @@ function RouteComponent() {
             />
 
             <div className="grid gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <h2 className="text-base font-medium">Akun platform</h2>
                   <p className="text-muted-foreground text-sm">Tambahkan semua akun milik KOL ini.</p>
                 </div>
@@ -249,12 +253,12 @@ function RouteComponent() {
               {form.accounts.map((account, index) => (
                 <div
                   key={`${account.platform}-${index}`}
-                  className="border-border grid gap-4 border p-3 md:grid-cols-[1fr_1fr_1.2fr_auto]"
+                  className="border-border grid min-w-0 gap-4 border p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_1.2fr_auto]"
                 >
-                  <label className="grid gap-2 text-sm">
+                  <Label className="grid gap-2">
                     <span>Platform</span>
                     <select
-                      className="border-border bg-background min-h-10 border px-3"
+                      className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-full min-w-0 rounded-none border px-3 text-xs outline-none focus-visible:ring-1"
                       value={account.platform}
                       onChange={(event) => {
                         const platform = event.target.value as SocialPlatform;
@@ -270,7 +274,7 @@ function RouteComponent() {
                       <option value="tiktok">TikTok</option>
                       <option value="shopee">Shopee</option>
                     </select>
-                  </label>
+                  </Label>
 
                   <FormInput
                     label="Handle"
@@ -299,7 +303,7 @@ function RouteComponent() {
                     }}
                   />
 
-                  <div className="flex items-end">
+                  <div className="flex items-end xl:col-start-4">
                     <Button
                       type="button"
                       variant="ghost"
@@ -318,7 +322,7 @@ function RouteComponent() {
               ))}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="border-border border-t pt-4">
               {editingId && (
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Batal edit
@@ -353,16 +357,15 @@ function FormInput({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <Label className="grid min-w-0 gap-2">
       <span>{label}</span>
-      <input
-        className="border-border bg-background min-h-10 border px-3"
+      <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={!placeholder}
       />
-    </label>
+    </Label>
   );
 }
 
@@ -378,14 +381,14 @@ function FormTextarea({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <Label className="grid gap-2">
       <span>{label}</span>
       <textarea
-        className="border-border bg-background min-h-24 border px-3 py-2"
+        className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 w-full min-w-0 rounded-none border px-3 py-2 text-xs outline-none focus-visible:ring-1"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
-    </label>
+    </Label>
   );
 }
