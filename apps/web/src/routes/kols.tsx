@@ -186,6 +186,7 @@ function RouteComponent() {
                         src={primaryMetadata.avatarUrl}
                         alt={kol.displayName}
                         className="border-border size-12 shrink-0 border object-cover"
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="bg-muted text-foreground flex size-12 shrink-0 items-center justify-center border text-sm font-medium">
@@ -537,6 +538,19 @@ function asBoolean(value: unknown) {
   return typeof value === "boolean" ? value : false;
 }
 
+function decodeHtmlEntities(value: string) {
+  return value
+    .replace(/&amp;/gi, "&")
+    .replace(/&#38;/gi, "&")
+    .replace(/&#x26;/gi, "&");
+}
+
+function asUrlText(value: unknown) {
+  const text = asText(value);
+
+  return text ? decodeHtmlEntities(text) : "";
+}
+
 function getValue(record: Record<string, unknown> | null, ...keys: string[]) {
   if (!record) {
     return undefined;
@@ -571,7 +585,7 @@ function getAccountMetadata(metadata: Record<string, unknown> | null) {
   }
 
   const avatarUrl =
-    asText(
+    asUrlText(
     getValue(
       metadata,
       "profilePicUrlHD",

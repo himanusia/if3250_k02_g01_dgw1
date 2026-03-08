@@ -57,9 +57,22 @@ function asText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function decodeHtmlEntities(value: string) {
+	return value
+		.replace(/&amp;/gi, "&")
+		.replace(/&#38;/gi, "&")
+		.replace(/&#x26;/gi, "&");
+}
+
+function asUrlText(value: unknown) {
+	const text = asText(value);
+
+	return text ? decodeHtmlEntities(text) : "";
+}
+
 function firstText(record: Record<string, unknown> | null | undefined, ...keys: string[]) {
   for (const key of keys) {
-    const value = asText(getValue(record, key));
+    const value = asUrlText(getValue(record, key));
 
     if (value) {
       return value;
@@ -137,7 +150,7 @@ function normalizeHandle(handle: string) {
 
 function getProfileUrl(account: AccountInput) {
   if (account.profileUrl?.trim()) {
-    return account.profileUrl.trim();
+    return decodeHtmlEntities(account.profileUrl.trim());
   }
 
   const handle = normalizeHandle(account.handle);
