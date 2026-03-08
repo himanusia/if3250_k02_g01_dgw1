@@ -60,6 +60,31 @@ bun run dev
 
 Open [http://localhost:3003](http://localhost:3003) in your browser to see the fullstack application.
 
+## Deploy ke Vercel
+
+Project ini sudah disiapkan untuk deploy dari root repository di Vercel.
+
+Yang perlu diisi di Project Environment Variables:
+
+```bash
+ADMIN_EMAILS=
+APIFY_API_TOKEN=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=
+CORS_ORIGIN=
+DATABASE_URL=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+Catatan:
+
+- `BETTER_AUTH_URL` isi dengan URL production Vercel, misalnya `https://nama-project.vercel.app`
+- `CORS_ORIGIN` isi dengan origin yang sama dengan domain production
+- Redirect URI Google OAuth production harus ditambahkan ke `https://<domain-vercel>/api/auth/callback/google`
+- Konfigurasi Vercel sudah ada di [vercel.json](vercel.json), termasuk routing semua request SSR/API ke server TanStack Start
+- Variabel environment build juga sudah didaftarkan di [turbo.json](turbo.json)
+
 ## Project Structure
 
 ```
