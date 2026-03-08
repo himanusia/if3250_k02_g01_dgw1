@@ -64,6 +64,14 @@ Open [http://localhost:3003](http://localhost:3003) in your browser to see the f
 
 Project ini sudah disiapkan untuk deploy dari root repository di Vercel.
 
+Setting project yang dipakai di Vercel:
+
+- Root Directory: repository root (`.`)
+- Framework Preset: `Other`
+- Install Command: biarkan mengikuti [vercel.json](vercel.json)
+- Build Command: biarkan mengikuti [vercel.json](vercel.json)
+- Output Directory: jangan isi manual `client`, biarkan mengikuti [vercel.json](vercel.json)
+
 Yang perlu diisi di Project Environment Variables:
 
 ```bash
