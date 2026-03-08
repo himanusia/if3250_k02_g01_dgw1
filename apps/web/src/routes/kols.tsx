@@ -571,7 +571,20 @@ function getAccountMetadata(metadata: Record<string, unknown> | null) {
   }
 
   const avatarUrl =
-    asText(getValue(metadata, "profilePicUrlHD", "profilePicUrl", "avatarUrl", "authorMeta.avatar", "authorMeta.originalAvatarUrl")) ||
+    asText(
+    getValue(
+      metadata,
+      "profilePicUrlHD",
+      "profilePicUrlHd",
+      "profilePicUrl",
+      "avatarUrl",
+      "avatarUrlHD",
+      "profile_pic_url_hd",
+      "profile_pic_url",
+      "authorMeta.avatar",
+      "authorMeta.originalAvatarUrl",
+    ),
+  ) ||
     null;
   const category =
     asText(getValue(metadata, "businessCategoryName", "category", "authorMeta.commerceUserInfo.category")) || null;

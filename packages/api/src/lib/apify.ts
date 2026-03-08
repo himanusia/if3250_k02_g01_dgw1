@@ -57,6 +57,18 @@ function asText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function firstText(record: Record<string, unknown> | null | undefined, ...keys: string[]) {
+  for (const key of keys) {
+    const value = asText(getValue(record, key));
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 function asRecordArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [] as Array<Record<string, unknown>>;
@@ -201,6 +213,27 @@ function extractInstagramMetrics(item: Record<string, unknown> | undefined): Syn
   }
 
   const latestPosts = asRecordArray(item.latestPosts ?? item.posts ?? item.latestVideos);
+  const latestIgtvVideos = asRecordArray(
+    item.latestIgtvVideos ?? item.latestIGTVVideos ?? item.latestigtvvideos ?? item.igtvVideos,
+  );
+  const profilePicUrlHD = firstText(
+    item,
+    "profilePicUrlHD",
+    "profilePicUrlHd",
+    "avatarUrl",
+    "avatarUrlHD",
+    "profile_pic_url_hd",
+    "owner.profilePicUrlHD",
+    "user.profilePicUrlHD",
+  );
+  const profilePicUrl = firstText(
+    item,
+    "profilePicUrl",
+    "profile_pic_url",
+    "avatarUrl",
+    "owner.profilePicUrl",
+    "user.profilePicUrl",
+  ) || profilePicUrlHD;
   const averageLikes =
     asNumber(item.averageLikes ?? item.avgLikes ?? item.likesAverage ?? item.likesAvg ?? item.likes) ||
     averageFromItems(latestPosts, ["likesCount", "likes", "likes_count"]);
@@ -217,7 +250,14 @@ function extractInstagramMetrics(item: Record<string, unknown> | undefined): Syn
     followers: asNumber(
       item.followers ?? item.followersCount ?? item.followerCount ?? item.fans ?? item.fansCount,
     ),
-    metadata: item,
+    metadata: {
+		...item,
+		avatarUrl: profilePicUrlHD || profilePicUrl || null,
+		latestIgtvVideos,
+		latestPosts,
+		profilePicUrl: profilePicUrl || null,
+		profilePicUrlHD: profilePicUrlHD || null,
+	},
     message: null,
     syncStatus: "success",
   };
