@@ -3,8 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import type { CampaignRecord, KolRecord } from "@/lib/app-types";
+
 import { Button } from "@/components/ui/button";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/compare-kols")({
   component: RouteComponent,
@@ -19,11 +21,15 @@ function RouteComponent() {
 
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const campaignQuery = useQuery(orpc.campaign.list.queryOptions());
-  const addKol = useMutation(orpc.campaign.addKolToCampaign.mutationOptions());
+  const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
+  const campaigns = (campaignQuery.data as CampaignRecord[] | undefined) ?? [];
+  const addKol = useMutation({
+    mutationFn: (input: { campaignId: number; kolId: number }) => client.campaign.addKolToCampaign(input),
+  });
 
   const filteredKols = useMemo(() => {
     return (
-      kolQuery.data?.filter((kol) => {
+      kols.filter((kol) => {
         const matchesSearch =
           !search ||
           `${kol.displayName} ${kol.username}`.toLowerCase().includes(search.toLowerCase());
@@ -33,9 +39,9 @@ function RouteComponent() {
           !keywordFilter || kol.keywords.toLowerCase().includes(keywordFilter.toLowerCase());
 
         return matchesSearch && matchesField && matchesKeyword;
-      }) ?? []
+      })
     );
-  }, [fieldFilter, keywordFilter, kolQuery.data, search]);
+  }, [fieldFilter, keywordFilter, kols, search]);
 
   const selectedKols = filteredKols.filter((kol) => selectedKolIds.includes(kol.id));
 
@@ -57,7 +63,7 @@ function RouteComponent() {
           <FilterInput label="Keyword" value={keywordFilter} onChange={setKeywordFilter} />
         </div>
 
-        <div className="border-border max-h-[32rem] space-y-2 overflow-auto border p-3">
+        <div className="border-border max-h-128 space-y-2 overflow-auto border p-3">
           {filteredKols.map((kol) => {
             const selected = selectedKolIds.includes(kol.id);
 
@@ -113,7 +119,7 @@ function RouteComponent() {
                 onChange={(event) => setSelectedCampaignId(event.target.value)}
               >
                 <option value="">Pilih campaign</option>
-                {campaignQuery.data?.map((campaign) => (
+                {campaigns.map((campaign) => (
                   <option key={campaign.id} value={campaign.id}>
                     {campaign.name}
                   </option>

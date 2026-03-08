@@ -4,26 +4,10 @@ import { PencilLine } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { orpc } from "@/utils/orpc";
+import type { CampaignRecord, KolRecord } from "@/lib/app-types";
 
-type CampaignRecord = {
-  brand: string;
-  createdAt: string;
-  description: string;
-  id: number;
-  keywords: string;
-  kolCategory: string;
-  kolTargetCount: number;
-  kols: Array<{ displayName: string; id: number; username: string }>;
-  name: string;
-  objective: string;
-  periodEnd: string;
-  periodStart: string;
-  postBriefs: string;
-  status: "draft" | "active" | "completed" | "archived";
-  updatedAt: string;
-};
+import { Button } from "@/components/ui/button";
+import { client, orpc } from "@/utils/orpc";
 
 type CampaignFormState = {
   brand: string;
@@ -64,27 +48,27 @@ export const Route = createFileRoute("/campaigns")({
 function RouteComponent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
-  const campaigns = useQuery(orpc.campaign.list.queryOptions());
-  const kols = useQuery(orpc.kol.list.queryOptions());
+  const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
+  const kolsQuery = useQuery(orpc.kol.list.queryOptions());
+  const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
+  const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
 
-  const createCampaign = useMutation(
-    orpc.campaign.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Campaign berhasil dibuat");
-        campaigns.refetch();
-        resetForm();
-      },
-    }),
-  );
-  const updateCampaign = useMutation(
-    orpc.campaign.update.mutationOptions({
-      onSuccess: () => {
-        toast.success("Campaign berhasil diperbarui");
-        campaigns.refetch();
-        resetForm();
-      },
-    }),
-  );
+  const createCampaign = useMutation({
+    mutationFn: (input: CampaignFormState) => client.campaign.create(input),
+    onSuccess: () => {
+      toast.success("Campaign berhasil dibuat");
+      campaignsQuery.refetch();
+      resetForm();
+    },
+  });
+  const updateCampaign = useMutation({
+    mutationFn: (input: CampaignFormState & { id: number }) => client.campaign.update(input),
+    onSuccess: () => {
+      toast.success("Campaign berhasil diperbarui");
+      campaignsQuery.refetch();
+      resetForm();
+    },
+  });
 
   const resetForm = () => {
     setEditingId(null);
@@ -194,7 +178,7 @@ function RouteComponent() {
           <div className="grid gap-2 text-sm">
             <span>Pilih KOL untuk campaign ini</span>
             <div className="border-border grid max-h-64 gap-2 overflow-auto border p-3">
-              {kols.data?.map((kol) => {
+              {kols.map((kol) => {
                 const checked = form.selectedKolIds.includes(kol.id);
 
                 return (
@@ -219,7 +203,7 @@ function RouteComponent() {
                 );
               })}
 
-              {!kols.data?.length && (
+              {!kols.length && (
                 <p className="text-muted-foreground">Belum ada akun KOL. Tambah dulu di halaman KOL DB.</p>
               )}
             </div>
@@ -253,7 +237,7 @@ function RouteComponent() {
         </div>
 
         <div className="space-y-3">
-          {campaigns.data?.map((campaign) => (
+          {campaigns.map((campaign) => (
             <article key={campaign.id} className="border-border space-y-3 border p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -285,7 +269,7 @@ function RouteComponent() {
             </article>
           ))}
 
-          {!campaigns.data?.length && (
+          {!campaigns.length && (
             <p className="text-muted-foreground text-sm">Belum ada campaign yang dibuat.</p>
           )}
         </div>

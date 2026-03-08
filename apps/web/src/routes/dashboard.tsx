@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import type { CampaignRecord, KolRecord } from "@/lib/app-types";
+
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/dashboard")({
@@ -9,8 +11,10 @@ export const Route = createFileRoute("/dashboard")({
 
 function RouteComponent() {
   const privateData = useQuery(orpc.privateData.queryOptions());
-  const campaigns = useQuery(orpc.campaign.list.queryOptions());
-  const kols = useQuery(orpc.kol.list.queryOptions());
+  const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
+  const kolsQuery = useQuery(orpc.kol.list.queryOptions());
+  const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
+  const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
 
   return (
     <div className="container mx-auto grid gap-6 px-4 py-6">
@@ -26,12 +30,12 @@ function RouteComponent() {
       <section className="grid gap-4 md:grid-cols-3">
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Campaign</p>
-          <p className="text-3xl font-semibold">{campaigns.data?.length ?? 0}</p>
+          <p className="text-3xl font-semibold">{campaigns.length}</p>
           <p className="text-muted-foreground">Total brief campaign yang tersimpan.</p>
         </div>
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">KOL</p>
-          <p className="text-3xl font-semibold">{kols.data?.length ?? 0}</p>
+          <p className="text-3xl font-semibold">{kols.length}</p>
           <p className="text-muted-foreground">Akun KOL yang siap dipakai untuk shortlisting.</p>
         </div>
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
@@ -70,7 +74,7 @@ function RouteComponent() {
             <p className="text-muted-foreground">Snapshot cepat dari brief yang sudah dibuat.</p>
           </div>
           <div className="space-y-3">
-            {campaigns.data?.slice(0, 3).map((campaign) => (
+            {campaigns.slice(0, 3).map((campaign) => (
               <div key={campaign.id} className="border-border space-y-1 border p-3">
                 <p className="font-medium">{campaign.name}</p>
                 <p className="text-muted-foreground text-sm">{campaign.brand}</p>
@@ -79,7 +83,7 @@ function RouteComponent() {
                 </p>
               </div>
             ))}
-            {!campaigns.data?.length && (
+            {!campaigns.length && (
               <p className="text-muted-foreground text-sm">Belum ada campaign yang tersimpan.</p>
             )}
           </div>

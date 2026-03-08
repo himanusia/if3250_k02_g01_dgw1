@@ -3,8 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { KolRecord } from "@/lib/app-types";
+
 import { Button } from "@/components/ui/button";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 type KolFormState = {
   analyticsNotes: string;
@@ -53,15 +55,15 @@ export const Route = createFileRoute("/kols")({
 function RouteComponent() {
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
-  const createKol = useMutation(
-    orpc.kol.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("KOL berhasil ditambahkan ke database");
-        kolQuery.refetch();
-        setForm(getDefaultForm());
-      },
-    }),
-  );
+  const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
+  const createKol = useMutation({
+    mutationFn: (input: KolFormState) => client.kol.create(input),
+    onSuccess: () => {
+      toast.success("KOL berhasil ditambahkan ke database");
+      kolQuery.refetch();
+      setForm(getDefaultForm());
+    },
+  });
 
   return (
     <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.95fr_1.05fr]">
@@ -128,7 +130,7 @@ function RouteComponent() {
         </div>
 
         <div className="space-y-3">
-          {kolQuery.data?.map((kol) => (
+          {kols.map((kol) => (
             <div key={kol.id} className="border-border space-y-2 border p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -147,7 +149,7 @@ function RouteComponent() {
             </div>
           ))}
 
-          {!kolQuery.data?.length && (
+          {!kols.length && (
             <p className="text-muted-foreground text-sm">Belum ada akun KOL di database.</p>
           )}
         </div>

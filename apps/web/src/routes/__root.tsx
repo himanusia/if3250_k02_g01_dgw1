@@ -13,7 +13,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import type { orpc } from "@/utils/orpc";
 
 import { Toaster } from "@/components/ui/sonner";
-import { getAuthState } from "@/functions/get-auth-state";
+import { getAuthState } from "../functions/get-auth-state";
 
 import Header from "../components/header";
 import appCss from "../index.css?url";

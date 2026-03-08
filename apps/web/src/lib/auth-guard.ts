@@ -1,6 +1,6 @@
 import { redirect } from "@tanstack/react-router";
 
-import { getAuthState } from "@/functions/get-auth-state";
+import { getAuthState } from "../functions/get-auth-state";
 
 export async function requireAdminAccess() {
   const authState = await getAuthState();

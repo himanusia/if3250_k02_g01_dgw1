@@ -4,9 +4,11 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { AccessEntry, AccessRole } from "@/lib/app-types";
+
 import { Button } from "@/components/ui/button";
 import { requireAdminAccess } from "@/lib/auth-guard";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/access")({
   beforeLoad: async () => {
@@ -19,27 +21,26 @@ function RouteComponent() {
   const [form, setForm] = useState({
     email: "",
     note: "",
-    role: "user" as "admin" | "user",
+    role: "user" as AccessRole,
   });
 
-  const accessEntries = useQuery(orpc.access.list.queryOptions());
-  const createEntry = useMutation(
-    orpc.access.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Whitelist berhasil diperbarui");
-        accessEntries.refetch();
-        setForm({ email: "", note: "", role: "user" });
-      },
-    }),
-  );
-  const deleteEntry = useMutation(
-    orpc.access.delete.mutationOptions({
-      onSuccess: () => {
-        toast.success("Email berhasil dihapus dari whitelist");
-        accessEntries.refetch();
-      },
-    }),
-  );
+  const accessEntriesQuery = useQuery(orpc.access.list.queryOptions());
+  const accessEntries = (accessEntriesQuery.data as AccessEntry[] | undefined) ?? [];
+  const createEntry = useMutation({
+    mutationFn: (input: { email: string; note: string; role: AccessRole }) => client.access.create(input),
+    onSuccess: () => {
+      toast.success("Whitelist berhasil diperbarui");
+      accessEntriesQuery.refetch();
+      setForm({ email: "", note: "", role: "user" });
+    },
+  });
+  const deleteEntry = useMutation({
+    mutationFn: (input: { id: number }) => client.access.delete(input),
+    onSuccess: () => {
+      toast.success("Email berhasil dihapus dari whitelist");
+      accessEntriesQuery.refetch();
+    },
+  });
 
   return (
     <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -81,7 +82,7 @@ function RouteComponent() {
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
-                  role: event.target.value as "admin" | "user",
+                  role: event.target.value as AccessRole,
                 }))
               }
             >
@@ -115,7 +116,7 @@ function RouteComponent() {
         </div>
 
         <div className="space-y-3">
-          {accessEntries.data?.map((entry) => (
+          {accessEntries.map((entry) => (
             <div key={entry.id} className="border-border flex items-start justify-between gap-4 border p-3">
               <div className="space-y-1">
                 <p className="font-medium">{entry.email}</p>
@@ -134,7 +135,7 @@ function RouteComponent() {
             </div>
           ))}
 
-          {!accessEntries.data?.length && (
+          {!accessEntries.length && (
             <p className="text-muted-foreground text-sm">Belum ada email di whitelist database.</p>
           )}
         </div>

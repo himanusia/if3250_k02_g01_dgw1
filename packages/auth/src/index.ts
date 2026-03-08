@@ -7,7 +7,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 
-import { getAccessForEmail, normalizeEmail } from "./access";
+import { getAccessForEmail, normalizeEmail } from "./access.js";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,

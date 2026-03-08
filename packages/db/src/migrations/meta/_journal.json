@@ -8,6 +8,13 @@
       "when": 1772955050532,
       "tag": "0000_married_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772955894510,
+      "tag": "0001_milky_sinister_six",
+      "breakpoints": true
     }
   ]
 }

@@ -1,10 +1,9 @@
 import type { RouterClient } from "@orpc/server";
 
 import { protectedProcedure, publicProcedure } from "../index";
-import { accessRouter } from "./access";
-import { campaignRouter } from "./campaign";
-import { kolRouter } from "./kol";
-import { todoRouter } from "./todo";
+import { accessRouter } from "./access.js";
+import { campaignRouter } from "./campaign.js";
+import { kolRouter } from "./kol.js";
 
 export const appRouter = {
   access: accessRouter,
@@ -20,7 +19,6 @@ export const appRouter = {
       user: context.session?.user,
     };
   }),
-  todo: todoRouter,
 };
 export type AppRouter = typeof appRouter;
 export type AppRouterClient = RouterClient<typeof appRouter>;

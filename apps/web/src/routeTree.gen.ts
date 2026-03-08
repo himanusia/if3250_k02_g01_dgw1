@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
-import { Route as TodosRouteImport } from './routes/todos'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KolsRouteImport } from './routes/kols'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -24,11 +23,6 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 const UnauthorizedRoute = UnauthorizedRouteImport.update({
   id: '/unauthorized',
   path: '/unauthorized',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TodosRoute = TodosRouteImport.update({
-  id: '/todos',
-  path: '/todos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -85,7 +79,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRoute
   '/login': typeof LoginRoute
-  '/todos': typeof TodosRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
@@ -98,7 +91,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRoute
   '/login': typeof LoginRoute
-  '/todos': typeof TodosRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
@@ -112,7 +104,6 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRoute
   '/login': typeof LoginRoute
-  '/todos': typeof TodosRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
@@ -127,7 +118,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kols'
     | '/login'
-    | '/todos'
     | '/unauthorized'
     | '/api/auth/$'
     | '/api/rpc/$'
@@ -140,7 +130,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kols'
     | '/login'
-    | '/todos'
     | '/unauthorized'
     | '/api/auth/$'
     | '/api/rpc/$'
@@ -153,7 +142,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kols'
     | '/login'
-    | '/todos'
     | '/unauthorized'
     | '/api/auth/$'
     | '/api/rpc/$'
@@ -167,7 +155,6 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   KolsRoute: typeof KolsRoute
   LoginRoute: typeof LoginRoute
-  TodosRoute: typeof TodosRoute
   UnauthorizedRoute: typeof UnauthorizedRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiRpcSplatRoute: typeof ApiRpcSplatRoute
@@ -180,13 +167,6 @@ declare module '@tanstack/react-router' {
       path: '/unauthorized'
       fullPath: '/unauthorized'
       preLoaderRoute: typeof UnauthorizedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/todos': {
-      id: '/todos'
-      path: '/todos'
-      fullPath: '/todos'
-      preLoaderRoute: typeof TodosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -263,7 +243,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   KolsRoute: KolsRoute,
   LoginRoute: LoginRoute,
-  TodosRoute: TodosRoute,
   UnauthorizedRoute: UnauthorizedRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiRpcSplatRoute: ApiRpcSplatRoute,
