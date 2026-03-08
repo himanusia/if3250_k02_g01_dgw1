@@ -111,7 +111,6 @@
       "name": "@if3250_k02_g01_dgw1/db",
       "dependencies": {
         "@if3250_k02_g01_dgw1/env": "workspace:*",
-        "@neondatabase/serverless": "^1.0.1",
         "dotenv": "catalog:",
         "drizzle-orm": "catalog:",
         "pg": "^8.17.1",
@@ -140,7 +139,6 @@
     },
   },
   "catalog": {
-    "@neondatabase/serverless": "^1.0.1",
     "@orpc/client": "^1.12.2",
     "@orpc/openapi": "^1.12.2",
     "@orpc/server": "^1.12.2",
