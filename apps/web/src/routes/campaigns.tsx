@@ -308,12 +308,12 @@ function RouteComponent() {
                       />
                       <span className="min-w-0">
                         <strong>{kol.displayName}</strong>
-                        <span className="text-muted-foreground block break-words">
+                        <span className="text-muted-foreground block wrap-break-word">
                           {kol.accounts
                             .map((account) => `${account.platform}: @${account.handle}`)
                             .join(" • ")}
                         </span>
-                        <span className="text-muted-foreground block">{kol.fieldOfExpertise}</span>
+                          {kol.keywords && <span className="text-muted-foreground block">{kol.keywords}</span>}
                       </span>
                     </label>
                   );

@@ -13,7 +13,6 @@ export type FollowerTier = (typeof followerTierEnum.enumValues)[number];
 export const kolProfile = pgTable("kol_profile", {
   id: serial("id").primaryKey(),
   displayName: text("display_name").notNull(),
-  fieldOfExpertise: text("field_of_expertise").notNull(),
   bio: text("bio"),
   keywords: text("keywords").default("").notNull(),
   totalFollowers: integer("total_followers").default(0).notNull(),

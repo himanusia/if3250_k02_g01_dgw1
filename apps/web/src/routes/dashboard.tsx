@@ -21,37 +21,32 @@ function RouteComponent() {
       <section className="grid gap-2">
         <p className="text-muted-foreground text-sm uppercase tracking-[0.2em]">Dashboard</p>
         <h1 className="text-3xl font-semibold">Selamat datang, {privateData.data?.user?.name}</h1>
-        <p className="text-muted-foreground max-w-2xl">
-          Alur kerja utama sekarang terpusat di listing campaign, listing KOL, dan halaman
-          perbandingan akun lintas platform.
-        </p>
+        <p className="text-muted-foreground max-w-2xl">Ringkasan data utama.</p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Campaign</p>
           <p className="text-3xl font-semibold">{campaigns.length}</p>
-          <p className="text-muted-foreground">Total brief campaign yang tersimpan.</p>
+          <p className="text-muted-foreground">Total campaign.</p>
         </div>
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">KOL</p>
           <p className="text-3xl font-semibold">{kols.length}</p>
-          <p className="text-muted-foreground">Akun KOL yang siap dipakai untuk shortlisting.</p>
+          <p className="text-muted-foreground">Total KOL.</p>
         </div>
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Access</p>
           <p className="text-3xl font-semibold">{privateData.data?.access?.role ?? "user"}</p>
-          <p className="text-muted-foreground">Role aktif untuk sesi yang sedang berjalan.</p>
+          <p className="text-muted-foreground">Role aktif.</p>
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
           <div>
-            <h2 className="text-lg font-medium">Journey utama</h2>
-            <p className="text-muted-foreground">
-              1. Tambah KOL, 2. sinkronkan metrik dari Apify, 3. bandingkan kandidat, 4. pilih ke campaign.
-            </p>
+            <h2 className="text-lg font-medium">Menu utama</h2>
+            <p className="text-muted-foreground">Akses halaman utama.</p>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <LinkCard href="/kols" title="Lihat KOL" description="Kelola daftar KOL dan akun platformnya." />
@@ -71,7 +66,7 @@ function RouteComponent() {
         <div className="bg-card ring-foreground/10 space-y-3 p-4 ring-1">
           <div>
             <h2 className="text-lg font-medium">Campaign terbaru</h2>
-            <p className="text-muted-foreground">Snapshot cepat dari brief yang sudah dibuat.</p>
+            <p className="text-muted-foreground">Data terbaru.</p>
           </div>
           <div className="space-y-3">
             {campaigns.slice(0, 3).map((campaign) => (

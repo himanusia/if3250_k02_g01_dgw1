@@ -14,7 +14,6 @@ export const Route = createFileRoute("/compare-kols")({
 
 function RouteComponent() {
   const [search, setSearch] = useState("");
-  const [fieldFilter, setFieldFilter] = useState("");
   const [keywordFilter, setKeywordFilter] = useState("");
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [selectedKolIds, setSelectedKolIds] = useState<number[]>([]);
@@ -35,15 +34,13 @@ function RouteComponent() {
           `${kol.displayName} ${kol.accounts.map((account) => account.handle).join(" ")}`
             .toLowerCase()
             .includes(search.toLowerCase());
-        const matchesField =
-          !fieldFilter || kol.fieldOfExpertise.toLowerCase().includes(fieldFilter.toLowerCase());
         const matchesKeyword =
           !keywordFilter || kol.keywords.toLowerCase().includes(keywordFilter.toLowerCase());
 
-        return matchesSearch && matchesField && matchesKeyword;
+        return matchesSearch && matchesKeyword;
       })
     );
-  }, [fieldFilter, keywordFilter, kols, search]);
+  }, [keywordFilter, kols, search]);
 
   const selectedKols = filteredKols.filter((kol) => selectedKolIds.includes(kol.id));
 
@@ -61,7 +58,6 @@ function RouteComponent() {
 
         <div className="grid gap-4 md:grid-cols-3">
           <FilterInput label="Cari nama / handle" value={search} onChange={setSearch} />
-          <FilterInput label="Bidang" value={fieldFilter} onChange={setFieldFilter} />
           <FilterInput label="Keyword" value={keywordFilter} onChange={setKeywordFilter} />
         </div>
 
@@ -92,7 +88,7 @@ function RouteComponent() {
                   <span className="text-muted-foreground text-xs">{kol.accounts.length} akun</span>
                 </div>
                 <div className="text-muted-foreground mt-2 grid gap-1 text-sm md:grid-cols-2">
-                  <p>Bidang: {kol.fieldOfExpertise}</p>
+                  <p>Keywords: {kol.keywords || "-"}</p>
                   <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
                 </div>
               </button>
@@ -160,7 +156,7 @@ function RouteComponent() {
                 </p>
               </div>
               <div className="text-muted-foreground grid gap-1 text-sm">
-                <p>Bidang: {kol.fieldOfExpertise}</p>
+                <p>Keywords: {kol.keywords || "-"}</p>
                 <p>Tier: {kol.followerTier}</p>
                 <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
                 <p>Likes rata-rata: {kol.averageLikes.toLocaleString()}</p>

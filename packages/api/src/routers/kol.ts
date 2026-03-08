@@ -16,7 +16,6 @@ const kolInputSchema = z.object({
   bio: z.string().trim().default(""),
   accounts: z.array(kolAccountInputSchema).min(1),
   displayName: z.string().trim().min(1),
-  fieldOfExpertise: z.string().trim().min(1),
   keywords: z.string().trim().default(""),
 });
 
@@ -56,6 +55,47 @@ function getFollowerTier(totalFollowers: number) {
   }
 
   return "nano" as const;
+}
+
+async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSchema>>) {
+  for (const account of accounts) {
+    const metrics = await syncAccountWithApify({
+      handle: account.handle,
+      platform: account.platform,
+      profileUrl: account.profileUrl,
+    });
+
+    const hasData =
+      metrics.followers > 0 ||
+      metrics.averageLikes > 0 ||
+      metrics.averageViews > 0 ||
+      Boolean(metrics.externalId);
+
+    if (metrics.syncStatus !== "success" || !hasData) {
+      throw new Error(`Akun ${account.platform} @${account.handle} tidak valid atau data tidak ditemukan.`);
+    }
+  }
+}
+
+async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSchema>>) {
+    await validateAccounts(input.accounts);
+
+  for (const account of accounts) {
+    const metrics = await syncAccountWithApify({
+      handle: account.handle,
+      platform: account.platform,
+      profileUrl: account.profileUrl,
+
+    const hasData =
+      metrics.followers > 0 ||
+      metrics.averageLikes > 0 ||
+      metrics.averageViews > 0 ||
+      Boolean(metrics.externalId);
+
+    if (metrics.syncStatus !== "success" || !hasData) {
+      throw new Error(`Akun ${account.platform} @${account.handle} tidak valid atau data tidak ditemukan.`);
+    }
+  }
 }
 
 async function syncKolProfile(kolId: number) {
@@ -169,12 +209,13 @@ async function mapKolRecord(kolId: number) {
       updatedAt: account.updatedAt.toISOString(),
     })),
     createdAt: profile.createdAt.toISOString(),
+      await validateAccounts(input.accounts);
+
     history: history.map((item) => ({
       ...item,
       createdAt: item.createdAt.toISOString(),
       endedAt: formatDate(item.endedAt),
       startedAt: formatDate(item.startedAt),
-    })),
     lastSyncedAt: profile.lastSyncedAt?.toISOString() ?? null,
     updatedAt: profile.updatedAt.toISOString(),
   };
@@ -203,12 +244,13 @@ export const kolRouter = {
     };
   }),
   create: protectedProcedure.input(kolInputSchema).handler(async ({ input }) => {
+    await validateAccounts(input.accounts);
+
     const [created] = await db
       .insert(kolProfile)
       .values({
         bio: input.bio,
         displayName: input.displayName,
-        fieldOfExpertise: input.fieldOfExpertise,
         keywords: input.keywords,
       })
       .returning({ id: kolProfile.id });
@@ -249,12 +291,13 @@ export const kolRouter = {
       }),
     )
     .handler(async ({ input }) => {
+      await validateAccounts(input.accounts);
+
       await db
         .update(kolProfile)
         .set({
           bio: input.bio,
           displayName: input.displayName,
-          fieldOfExpertise: input.fieldOfExpertise,
           keywords: input.keywords,
           updatedAt: new Date(),
         })

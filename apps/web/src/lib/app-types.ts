@@ -49,7 +49,6 @@ export type KolRecord = {
   createdAt: string;
   displayName: string;
   engagementRate: string;
-  fieldOfExpertise: string;
   followerTier: FollowerTier;
   history: KolCampaignHistoryRecord[];
   id: number;
