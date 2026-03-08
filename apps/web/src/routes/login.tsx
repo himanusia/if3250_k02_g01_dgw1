@@ -1,19 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 
-import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
+import GoogleSignInCard from "@/components/google-sign-in-card";
+import { redirectIfAuthenticated } from "@/lib/auth-guard";
 
 export const Route = createFileRoute("/login")({
+  beforeLoad: async () => {
+    await redirectIfAuthenticated();
+  },
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const [showSignIn, setShowSignIn] = useState(false);
-
-  return showSignIn ? (
-    <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-  ) : (
-    <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
-  );
+  return <GoogleSignInCard />;
 }
