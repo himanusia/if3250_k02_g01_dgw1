@@ -110,9 +110,6 @@ function RouteComponent() {
       <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
         <div>
           <h2 className="text-xl font-semibold">Daftar email yang diizinkan</h2>
-          <p className="text-muted-foreground">
-            Email bootstrap dari `ADMIN_EMAILS` tetap dianggap admin walau belum masuk tabel.
-          </p>
         </div>
 
         <div className="space-y-3">
