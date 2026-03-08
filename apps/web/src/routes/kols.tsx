@@ -183,7 +183,7 @@ function RouteComponent() {
                   <div className="flex min-w-0 items-start gap-3">
                     {primaryMetadata?.avatarUrl ? (
                       <img
-                        src={primaryMetadata.avatarUrl}
+                        src={getAvatarSrc(primaryMetadata.avatarUrl)}
                         alt={kol.displayName}
                         className="border-border size-12 shrink-0 border object-cover"
                         referrerPolicy="no-referrer"
@@ -252,9 +252,10 @@ function RouteComponent() {
                               <div className="flex min-w-0 items-start gap-3">
                                 {metadata?.avatarUrl ? (
                                   <img
-                                    src={metadata.avatarUrl}
+                                    src={getAvatarSrc(metadata.avatarUrl)}
                                     alt={`@${account.handle}`}
                                     className="border-border size-14 shrink-0 border object-cover"
+                                    referrerPolicy="no-referrer"
                                   />
                                 ) : (
                                   <div className="bg-muted text-foreground flex size-14 shrink-0 items-center justify-center border text-sm font-medium uppercase">
@@ -507,6 +508,22 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 
 function MetaBadge({ children }: { children: string }) {
   return <span className="bg-muted border-border border px-2 py-1">{children}</span>;
+}
+
+function getAvatarSrc(url: string) {
+  if (!url) {
+    return "";
+  }
+
+  if (url.startsWith("/api/avatar?url=")) {
+    return url;
+  }
+
+  if (!/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  return `/api/avatar?url=${encodeURIComponent(url)}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
