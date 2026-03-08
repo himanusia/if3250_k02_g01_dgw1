@@ -34,8 +34,8 @@ This project uses PostgreSQL with Drizzle ORM.
 ADMIN_EMAILS=admin@example.com
 APIFY_API_TOKEN=
 BETTER_AUTH_SECRET=
-BETTER_AUTH_URL=http://localhost:3001
-CORS_ORIGIN=http://localhost:3001
+BETTER_AUTH_URL=http://localhost:3003
+CORS_ORIGIN=http://localhost:3003
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/digiwonder
@@ -44,7 +44,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/digiwonder
 4. Set `ADMIN_EMAILS` to one or more comma-separated bootstrap admin emails.
 5. `APIFY_API_TOKEN` saja cukup untuk sinkronisasi Instagram dan TikTok karena actor sudah di-hardcode ke `apify/instagram-scraper` dan `clockworks/tiktok-scraper`.
 6. Shopee baru disiapkan di enum/domain model, belum dihubungkan ke actor Apify.
-7. Add `http://localhost:3001/api/auth/callback/google` as an authorized redirect URI in Google Cloud Console.
+7. Add `http://localhost:3003/api/auth/callback/google` as an authorized redirect URI in Google Cloud Console.
 
 8. Apply the schema to your database:
 
@@ -58,7 +58,7 @@ Then, run the development server:
 bun run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
+Open [http://localhost:3003](http://localhost:3003) in your browser to see the fullstack application.
 
 ## Project Structure
 
