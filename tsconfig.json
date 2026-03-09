@@ -1,0 +1,3 @@
+{
+  "extends": "@if3250_k02_g01_dgw1/config/tsconfig.base.json"
+}
