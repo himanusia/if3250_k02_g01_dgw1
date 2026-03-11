@@ -70,6 +70,10 @@ async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSc
       metrics.averageViews > 0 ||
       Boolean(metrics.externalId);
 
+    if (metrics.syncStatus === "pending") {
+      continue;
+    }
+
     if (metrics.syncStatus !== "success" || !hasData) {
       throw new Error(`Akun ${account.platform} @${account.handle} tidak valid atau data tidak ditemukan.`);
     }
@@ -202,6 +206,18 @@ async function mapKolRecord(kolId: number) {
 }
 
 export const kolRouter = {
+  delete: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      await db.delete(kolProfile).where(eq(kolProfile.id, input.id));
+      return { success: true };
+    }),
+  deleteHistory: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      await db.delete(kolCampaignHistory).where(eq(kolCampaignHistory.id, input.id));
+      return { success: true };
+    }),
   addHistory: protectedProcedure.input(historyInputSchema).handler(async ({ input }) => {
     const [created] = await db
       .insert(kolCampaignHistory)

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KolsRouteImport } from './routes/kols'
+import { Route as KolsKolIdRouteImport } from './routes/kols.$kolId'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CompareKolsRouteImport } from './routes/compare-kols'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
@@ -34,6 +35,11 @@ const LoginRoute = LoginRouteImport.update({
 const KolsRoute = KolsRouteImport.update({
   id: '/kols',
   path: '/kols',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KolsKolIdRoute = KolsKolIdRouteImport.update({
+  id: '/kols/$kolId',
+  path: '/kols/$kolId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRoute
+  '/kols/$kolId': typeof KolsKolIdRoute
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/avatar': typeof ApiAvatarRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRoute
+  '/kols/$kolId': typeof KolsKolIdRoute
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/avatar': typeof ApiAvatarRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRoute
+  '/kols/$kolId': typeof KolsKolIdRoute
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/avatar': typeof ApiAvatarRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/dashboard'
     | '/kols'
+    | '/kols/$kolId'
     | '/login'
     | '/unauthorized'
     | '/api/avatar'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/dashboard'
     | '/kols'
+    | '/kols/$kolId'
     | '/login'
     | '/unauthorized'
     | '/api/avatar'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/dashboard'
     | '/kols'
+    | '/kols/$kolId'
     | '/login'
     | '/unauthorized'
     | '/api/avatar'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   CompareKolsRoute: typeof CompareKolsRoute
   DashboardRoute: typeof DashboardRoute
   KolsRoute: typeof KolsRoute
+  KolsKolIdRoute: typeof KolsKolIdRoute
   LoginRoute: typeof LoginRoute
   UnauthorizedRoute: typeof UnauthorizedRoute
   ApiAvatarRoute: typeof ApiAvatarRoute
@@ -194,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/kols'
       fullPath: '/kols'
       preLoaderRoute: typeof KolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kols/$kolId': {
+      id: '/kols/$kolId'
+      path: '/kols/$kolId'
+      fullPath: '/kols/$kolId'
+      preLoaderRoute: typeof KolsKolIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -262,6 +282,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompareKolsRoute: CompareKolsRoute,
   DashboardRoute: DashboardRoute,
   KolsRoute: KolsRoute,
+  KolsKolIdRoute: KolsKolIdRoute,
   LoginRoute: LoginRoute,
   UnauthorizedRoute: UnauthorizedRoute,
   ApiAvatarRoute: ApiAvatarRoute,
