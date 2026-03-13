@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { PencilLine, Plus } from "lucide-react";
+import { PencilLine, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -71,6 +71,9 @@ function RouteComponent() {
       campaignsQuery.refetch();
       resetForm();
     },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal membuat campaign");
+    },
   });
 
   const updateCampaign = useMutation({
@@ -79,6 +82,20 @@ function RouteComponent() {
       toast.success("Campaign berhasil diperbarui");
       campaignsQuery.refetch();
       resetForm();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal memperbarui campaign");
+    },
+  });
+
+  const deleteCampaign = useMutation({
+    mutationFn: ({ id }: { id: number }) => client.campaign.delete({ id }),
+    onSuccess: () => {
+      toast.success("Campaign berhasil dihapus");
+      campaignsQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus campaign");
     },
   });
 
@@ -148,10 +165,25 @@ function RouteComponent() {
                     <p className="font-medium">{campaign.name}</p>
                     <p className="text-muted-foreground text-sm">{campaign.brand}</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => editCampaign(campaign)}>
-                    <PencilLine className="mr-1 size-4" />
-                    Edit
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => editCampaign(campaign)}>
+                      <PencilLine className="mr-1 size-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={deleteCampaign.isPending}
+                      onClick={() => {
+                        if (window.confirm("Apakah Anda yakin ingin menghapus campaign ini?")) {
+                          deleteCampaign.mutate({ id: campaign.id });
+                        }
+                      }}
+                    >
+                      <Trash2 className="mr-1 size-4" />
+                      Hapus
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-muted-foreground text-sm">{campaign.description}</p>
                 <div className="text-muted-foreground grid gap-1 text-sm md:grid-cols-2">

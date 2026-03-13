@@ -1,10 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { KolRecord, SocialPlatform } from "@/lib/app-types";
+import { formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/kols")({
 function RouteComponent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
@@ -108,6 +110,19 @@ function RouteComponent() {
     },
     onError: () => {
       toast.error("Sinkronisasi KOL gagal");
+    },
+  });
+
+  const deleteKol = useMutation({
+    mutationFn: ({ id }: { id: number }) => client.kol.delete({ id }),
+    onSuccess: () => {
+      toast.success("KOL berhasil dihapus");
+      kolQuery.refetch();
+      setDeleteTargetId(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus KOL");
+      setDeleteTargetId(null);
     },
   });
 
@@ -194,7 +209,7 @@ function RouteComponent() {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="font-medium">{kol.displayName}</p>
+                      <Link to="/kols/$kolId" params={{ kolId: String(kol.id) }} className="font-medium underline underline-offset-2 hover:no-underline">{kol.displayName}</Link>
                       <p className="text-muted-foreground text-sm">{kol.accounts.length} akun terhubung</p>
                       {primaryMetadata?.category && (
                         <p className="text-muted-foreground text-sm">{primaryMetadata.category}</p>
@@ -215,6 +230,10 @@ function RouteComponent() {
                     <Button variant="outline" size="sm" onClick={() => editKol(kol)}>
                       <PencilLine className="mr-1 size-4" />
                       Edit
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setDeleteTargetId(kol.id)}>
+                      <Trash2 className="mr-1 size-4" />
+                      Hapus
                     </Button>
                   </div>
                 </div>
@@ -460,6 +479,40 @@ function RouteComponent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetId(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Hapus KOL</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            Apakah Anda yakin ingin menghapus KOL ini? Semua data akun dan riwayat campaign terkait juga akan dihapus. Tindakan ini tidak dapat dibatalkan.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTargetId(null)}>
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteKol.isPending}
+              onClick={() => {
+                if (deleteTargetId !== null) {
+                  deleteKol.mutate({ id: deleteTargetId });
+                }
+              }}
+            >
+              {deleteKol.isPending ? "Menghapus..." : "Hapus"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -508,159 +561,4 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 
 function MetaBadge({ children }: { children: string }) {
   return <span className="bg-muted border-border border px-2 py-1">{children}</span>;
-}
-
-function getAvatarSrc(url: string) {
-  if (!url) {
-    return "";
-  }
-
-  if (url.startsWith("/api/avatar?url=")) {
-    return url;
-  }
-
-  if (!/^https?:\/\//i.test(url)) {
-    return url;
-  }
-
-  try {
-    const hostname = new URL(url).hostname;
-    const shouldProxy = /(^|\.)fbcdn\.net$/i.test(hostname) || /\.cdninstagram\.com$/i.test(hostname);
-
-    if (!shouldProxy) {
-      return url;
-    }
-  } catch {
-    return url;
-  }
-
-  return `/api/avatar?url=${encodeURIComponent(url)}`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function asText(value: unknown) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function asNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.max(0, Math.round(value));
-  }
-
-  if (typeof value === "string") {
-    const normalized = value.replace(/[^\d.-]/g, "");
-    const parsed = Number(normalized);
-
-    if (Number.isFinite(parsed)) {
-      return Math.max(0, Math.round(parsed));
-    }
-  }
-
-  return 0;
-}
-
-function asBoolean(value: unknown) {
-  return typeof value === "boolean" ? value : false;
-}
-
-function decodeHtmlEntities(value: string) {
-  return value
-    .replace(/&amp;/gi, "&")
-    .replace(/&#38;/gi, "&")
-    .replace(/&#x26;/gi, "&");
-}
-
-function asUrlText(value: unknown) {
-  const text = asText(value);
-
-  return text ? decodeHtmlEntities(text) : "";
-}
-
-function getValue(record: Record<string, unknown> | null, ...keys: string[]) {
-  if (!record) {
-    return undefined;
-  }
-
-  for (const key of keys) {
-    if (key in record) {
-      return record[key];
-    }
-
-    if (key.includes(".")) {
-      const value = key.split(".").reduce<unknown>((current, part) => {
-        if (typeof current === "object" && current !== null && part in (current as Record<string, unknown>)) {
-          return (current as Record<string, unknown>)[part];
-        }
-
-        return undefined;
-      }, record);
-
-      if (value !== undefined) {
-        return value;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-function getAccountMetadata(metadata: Record<string, unknown> | null) {
-  if (!isRecord(metadata)) {
-    return null;
-  }
-
-  const avatarUrl =
-    asUrlText(
-    getValue(
-      metadata,
-      "profilePicUrlHD",
-      "profilePicUrlHd",
-      "profilePicUrl",
-      "avatarUrl",
-      "avatarUrlHD",
-      "profile_pic_url_hd",
-      "profile_pic_url",
-      "authorMeta.avatar",
-      "authorMeta.originalAvatarUrl",
-    ),
-  ) ||
-    null;
-  const category =
-    asText(getValue(metadata, "businessCategoryName", "category", "authorMeta.commerceUserInfo.category")) || null;
-  const website =
-    asText(getValue(metadata, "externalUrl", "authorMeta.bioLink")) ||
-    (Array.isArray(metadata.externalUrls)
-      ? asText((metadata.externalUrls.find((item) => isRecord(item) && asText(item.url)) as Record<string, unknown> | undefined)?.url)
-      : "") ||
-    null;
-
-  return {
-    avatarUrl,
-    category,
-    fullName: asText(getValue(metadata, "fullName", "authorMeta.nickName", "authorMeta.name")) || null,
-    followingCount: asNumber(getValue(metadata, "followsCount", "followingCount", "authorMeta.following")),
-    isBusinessAccount: asBoolean(getValue(metadata, "isBusinessAccount", "authorMeta.commerceUserInfo.commerceUser")),
-    isPrivate: asBoolean(getValue(metadata, "private", "isPrivate", "authorMeta.privateAccount")),
-    postsCount: asNumber(getValue(metadata, "postsCount", "authorMeta.video")),
-    verified: asBoolean(getValue(metadata, "verified", "authorMeta.verified")),
-    website,
-  };
-}
-
-function formatNumber(value: number) {
-  return value.toLocaleString("id-ID");
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Date(value).toLocaleString("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }

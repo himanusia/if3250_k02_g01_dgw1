@@ -73,6 +73,12 @@ async function getCampaignKolLinks() {
 }
 
 export const campaignRouter = {
+  delete: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      await db.delete(campaign).where(eq(campaign.id, input.id));
+      return { success: true };
+    }),
   addKolToCampaign: protectedProcedure
     .input(
       z.object({

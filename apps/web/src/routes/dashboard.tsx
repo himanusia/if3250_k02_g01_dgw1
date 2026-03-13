@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 
 import type { CampaignRecord, KolRecord } from "@/lib/app-types";
 
@@ -15,6 +16,14 @@ function RouteComponent() {
   const kolsQuery = useQuery(orpc.kol.list.queryOptions());
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
+
+  const tierBreakdown = useMemo(() => {
+    const counts = { nano: 0, micro: 0, macro: 0, mega: 0 };
+    for (const kol of kols) {
+      counts[kol.followerTier] += 1;
+    }
+    return counts;
+  }, [kols]);
 
   return (
     <div className="container mx-auto grid gap-6 px-4 py-6">
@@ -39,6 +48,29 @@ function RouteComponent() {
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Access</p>
           <p className="text-3xl font-semibold">{privateData.data?.access?.role ?? "user"}</p>
           <p className="text-muted-foreground">Role aktif.</p>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-4">
+        <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Nano</p>
+          <p className="text-2xl font-semibold">{tierBreakdown.nano}</p>
+          <p className="text-muted-foreground text-sm">&lt; 10K followers</p>
+        </div>
+        <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Micro</p>
+          <p className="text-2xl font-semibold">{tierBreakdown.micro}</p>
+          <p className="text-muted-foreground text-sm">10K - 100K followers</p>
+        </div>
+        <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Macro</p>
+          <p className="text-2xl font-semibold">{tierBreakdown.macro}</p>
+          <p className="text-muted-foreground text-sm">100K - 1M followers</p>
+        </div>
+        <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Mega</p>
+          <p className="text-2xl font-semibold">{tierBreakdown.mega}</p>
+          <p className="text-muted-foreground text-sm">&gt; 1M followers</p>
         </div>
       </section>
 

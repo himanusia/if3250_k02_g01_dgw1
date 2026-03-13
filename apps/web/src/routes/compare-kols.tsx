@@ -24,6 +24,9 @@ function RouteComponent() {
   const campaigns = (campaignQuery.data as CampaignRecord[] | undefined) ?? [];
   const addKol = useMutation({
     mutationFn: (input: { campaignId: number; kolId: number }) => client.campaign.addKolToCampaign(input),
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal menambahkan KOL ke campaign");
+    },
   });
 
   const filteredKols = useMemo(() => {
@@ -128,16 +131,20 @@ function RouteComponent() {
               <Button
                 disabled={!selectedCampaignId || !selectedKolIds.length || addKol.isPending}
                 onClick={async () => {
-                  await Promise.all(
-                    selectedKolIds.map((kolId) =>
-                      addKol.mutateAsync({
-                        campaignId: Number(selectedCampaignId),
-                        kolId,
-                      }),
-                    ),
-                  );
-                  toast.success("KOL terpilih berhasil ditambahkan ke campaign");
-                  campaignQuery.refetch();
+                  try {
+                    await Promise.all(
+                      selectedKolIds.map((kolId) =>
+                        addKol.mutateAsync({
+                          campaignId: Number(selectedCampaignId),
+                          kolId,
+                        }),
+                      ),
+                    );
+                    toast.success("KOL terpilih berhasil ditambahkan ke campaign");
+                    campaignQuery.refetch();
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Gagal menambahkan KOL ke campaign");
+                  }
                 }}
               >
                 Tambahkan
@@ -163,12 +170,17 @@ function RouteComponent() {
                 <p>Views rata-rata: {kol.averageViews.toLocaleString()}</p>
                 <p>ER: {kol.engagementRate || "-"}</p>
               </div>
-              {kol.keywords && <p className="text-muted-foreground text-sm">Keywords: {kol.keywords}</p>}
               <div className="flex flex-wrap gap-2">
                 {kol.accounts.map((account) => (
-                  <span key={account.id} className="border-border text-muted-foreground border px-2 py-1 text-xs">
-                    {account.platform} • {account.followers.toLocaleString()} followers
-                  </span>
+                  <div key={account.id} className="border-border text-muted-foreground w-full border p-2 text-xs">
+                    <p className="font-medium capitalize">{account.platform} @{account.handle}</p>
+                    <div className="mt-1 grid grid-cols-2 gap-1">
+                      <p>Followers: {account.followers.toLocaleString()}</p>
+                      <p>Avg likes: {account.averageLikes.toLocaleString()}</p>
+                      <p>Avg views: {account.averageViews.toLocaleString()}</p>
+                      <p>ER: {account.engagementRate || "-"}</p>
+                    </div>
+                  </div>
                 ))}
               </div>
             </article>
