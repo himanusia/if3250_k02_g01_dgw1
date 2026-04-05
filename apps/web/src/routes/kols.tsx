@@ -45,6 +45,15 @@ function getDefaultForm(): KolFormState {
   };
 }
 
+function parseKeywordSegments(keywords: string | null | undefined): string[] {
+  const raw = keywords?.trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+}
+
 export const Route = createFileRoute("/kols")({
   component: RouteComponent,
 });
@@ -150,6 +159,45 @@ function RouteComponent() {
     });
     setIsDialogOpen(true);
   }
+
+  const allKeywords = useMemo(() => {
+    return Array.from(
+      new Set(filteredKols.flatMap((kol) => parseKeywordSegments(kol.keywords))),
+    );
+  }, [filteredKols]);
+
+  const displayNames = useMemo(() => {
+    return Array.from(
+      new Set(filteredKols.map((kol) => kol.displayName))
+    );
+  }, [filteredKols]);
+
+  const getBestMatch = (input: string) => {
+    const parts = input.split(",");
+    const lastRaw = parts[parts.length - 1];
+    const last = lastRaw.trim().toLowerCase();
+
+    if (!last) return "";
+
+    const matches = allKeywords.filter((k) =>
+      k.toLowerCase().startsWith(last)
+    );
+
+    if (matches.length === 0) return "";
+
+    matches.sort((a, b) => {
+      const aRemain = a.length - last.length;
+      const bRemain = b.length - last.length;
+      return aRemain - bRemain;
+    });
+
+    const best = matches[0];
+
+    return best.slice(last.length);
+  };
+
+  const suggestion = getBestMatch(form.keywords);
+
 
   function submit() {
     if (editingId) {
@@ -371,16 +419,37 @@ function RouteComponent() {
             }}
           >
             <div className="grid gap-5 md:grid-cols-2">
-              <FormInput
+              <DisplayNameInput
                 label="Display name"
                 value={form.displayName}
+                options={displayNames}
                 onChange={(value) => setForm((current) => ({ ...current, displayName: value }))}
               />
               <FormInput
                 label="Keywords"
                 value={form.keywords}
-                onChange={(value) => setForm((current) => ({ ...current, keywords: value }))}
-                placeholder="Pisahkan dengan koma"
+                onChange={(value) => {setForm((current) => ({ ...current, keywords: value }));}}
+                ghost={suggestion}
+                onKeyDown={(e) => {
+                  if (e.key === "Tab" && suggestion) {
+                    e.preventDefault();
+
+                    const parts = form.keywords.split(",");
+                    const last = parts.pop() ?? "";
+
+                    const trimmed = last.trim();
+                    const completed = trimmed + suggestion;
+
+                    parts.push(" " + completed);
+
+                    const newValue = parts.join(",").replace(/^ /, "");
+
+                    setForm((current) => ({
+                      ...current,
+                      keywords: newValue,
+                    }));
+                  }
+                }}
               />
             </div>
 
@@ -517,26 +586,103 @@ function RouteComponent() {
   );
 }
 
+function DisplayNameInput({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  const filtered = options.filter((opt) =>
+    opt.toLowerCase().includes(value.toLowerCase())
+  );
+
+  return (
+    <div className="relative">
+      <label className="grid gap-2">
+        <span>{label}</span>
+
+        <input
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            setTimeout(() => setOpen(false), 100);
+          }}
+          className="border px-3 py-2 w-full"
+        />
+      </label>
+
+      {open && filtered.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full border border-gray-700 bg-gray-900 shadow-lg max-h-28 overflow-y-auto">
+          {filtered.map((opt) => (
+            <div
+              key={opt}
+              className="cursor-pointer px-3 py-2 hover:bg-gray-800 text-gray-200"
+              onMouseDown={() => {
+                onChange(opt);
+                setOpen(false);
+              }}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FormInput({
   label,
   onChange,
   placeholder,
   value,
+  onKeyDown,
+  ghost,
 }: {
   label: string;
   onChange: (value: string) => void;
   placeholder?: string;
   value: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  ghost?: string;
 }) {
   return (
     <Label className="grid min-w-0 gap-2">
       <span>{label}</span>
-      <Input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={!placeholder}
-      />
+
+      <div className="relative">
+        {ghost && (
+          <div className="pointer-events-none absolute inset-0 flex items-center">
+            <span className="w-full px-3 pb-0.25 text-transparent">
+              {value}
+              <span className="text-gray-400">{ghost}</span>
+            </span>
+          </div>
+        )}
+
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          required={!placeholder}
+          className={`
+            relative w-full
+            ${ghost ? "bg-transparent" : ""}
+          `}
+        />
+      </div>
     </Label>
   );
 }
