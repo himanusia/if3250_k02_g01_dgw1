@@ -47,6 +47,26 @@ function RouteComponent() {
 
   const selectedKols = filteredKols.filter((kol) => selectedKolIds.includes(kol.id));
 
+  const groupedByPlatform = useMemo(() => {
+    const map = {};
+    selectedKols.forEach((kol) => {
+      kol.accounts.forEach((account) => {
+        const platform = account.platform;
+
+        if (!map[platform]) {
+          map[platform] = [];
+        }
+
+        map[platform].push({
+          kolId: kol.id,
+          displayName: kol.displayName,
+          ...account,
+        });
+      });
+    });
+
+    return map;
+  }, [selectedKols]);
   return (
     <div className="container mx-auto grid gap-6 px-4 py-6 xl:grid-cols-[0.9fr_1.1fr]">
       <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
@@ -153,45 +173,124 @@ function RouteComponent() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          {selectedKols.map((kol) => (
-            <article key={kol.id} className="border-border space-y-3 border p-3">
-              <div>
-                <p className="font-medium">{kol.displayName}</p>
-                <p className="text-muted-foreground text-sm">
-                  {kol.accounts.map((account) => `${account.platform}: @${account.handle}`).join(" • ")}
-                </p>
-              </div>
-              <div className="text-muted-foreground grid gap-1 text-sm">
-                <p>Keywords: {kol.keywords || "-"}</p>
-                <p>Tier: {kol.followerTier}</p>
-                <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
-                <p>Likes rata-rata: {kol.averageLikes.toLocaleString()}</p>
-                <p>Views rata-rata: {kol.averageViews.toLocaleString()}</p>
-                <p>ER: {kol.engagementRate || "-"}</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {kol.accounts.map((account) => (
-                  <div key={account.id} className="border-border text-muted-foreground w-full border p-2 text-xs">
-                    <p className="font-medium capitalize">{account.platform} @{account.handle}</p>
-                    <div className="mt-1 grid grid-cols-2 gap-1">
-                      <p>Followers: {account.followers.toLocaleString()}</p>
-                      <p>Avg likes: {account.averageLikes.toLocaleString()}</p>
-                      <p>Avg views: {account.averageViews.toLocaleString()}</p>
-                      <p>ER: {account.engagementRate || "-"}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
+        {/* TODO: kalau fix, rapiin jadi komponen */}
+        <div className="overflow-x-auto">
+          <h2 className="mb-2 text-lg font-semibold capitalize text-gray-200">
+            Overall
+          </h2>
+          <table className="w-full border border-gray-700 text-sm">
+            <thead className="bg-gray-900 text-gray-300">
+              <tr>
+                <th className="border border-gray-700 px-3 py-2 text-left">
+                  Name
+                </th>
+                <th className="border border-gray-700 px-3 py-2 text-left">
+                  Followers
+                </th>
+                <th className="border border-gray-700 px-3 py-2 text-left">
+                  Avg Likes
+                </th>
+                <th className="border border-gray-700 px-3 py-2 text-left">
+                  Avg Views
+                </th>
+                <th className="border border-gray-700 px-3 py-2 text-left">
+                  ER
+                </th>
+              </tr>
+            </thead>
 
-          {!selectedKols.length && (
-            <p className="text-muted-foreground text-sm">
-              Pilih minimal satu akun dari panel kiri untuk mulai membandingkan.
-            </p>
-          )}
+            <tbody className="text-gray-200">
+              {selectedKols.map((kol) => (
+                <tr key={kol.id} className="hover:bg-gray-800">
+                  <td className="border border-gray-700 px-3 py-2 font-medium">
+                    {kol.displayName}
+                  </td>
+
+                  <td className="border border-gray-700 px-3 py-2">
+                    {kol.totalFollowers.toLocaleString()}
+                  </td>
+
+                  <td className="border border-gray-700 px-3 py-2">
+                    {kol.averageLikes.toLocaleString()}
+                  </td>
+
+                  <td className="border border-gray-700 px-3 py-2">
+                    {kol.averageViews.toLocaleString()}
+                  </td>
+
+                  <td className="border border-gray-700 px-3 py-2">
+                    {kol.engagementRate || "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+
+        {Object.entries(groupedByPlatform).map(([platform, accounts]) => (
+        <div key={platform} className="mb-6">
+          <h2 className="mb-2 text-lg font-semibold capitalize text-gray-200">
+            {platform}
+          </h2>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border border-gray-700 text-sm">
+              <thead className="bg-gray-900 text-gray-300">
+                <tr>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    Name
+                  </th>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    Handle
+                  </th>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    Followers
+                  </th>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    Avg Likes
+                  </th>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    Avg Views
+                  </th>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    ER
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="text-gray-200">
+                {accounts.map((acc) => (
+                  <tr key={acc.id} className="hover:bg-gray-800">
+                    <td className="border border-gray-700 px-3 py-2 font-medium">
+                      {acc.displayName}
+                    </td>
+
+                    <td className="border border-gray-700 px-3 py-2">
+                      @{acc.handle}
+                    </td>
+
+                    <td className="border border-gray-700 px-3 py-2">
+                      {acc.followers.toLocaleString()}
+                    </td>
+
+                    <td className="border border-gray-700 px-3 py-2">
+                      {acc.averageLikes.toLocaleString()}
+                    </td>
+
+                    <td className="border border-gray-700 px-3 py-2">
+                      {acc.averageViews.toLocaleString()}
+                    </td>
+
+                    <td className="border border-gray-700 px-3 py-2">
+                      {acc.engagementRate || "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
       </section>
     </div>
   );
