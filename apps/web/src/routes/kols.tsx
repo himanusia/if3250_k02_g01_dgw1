@@ -160,7 +160,12 @@ function RouteComponent() {
     );
   }, [filteredKols]);
 
-  // 2. Get best match (SMART)
+  const displayNames = useMemo(() => {
+    return Array.from(
+      new Set(filteredKols.map((kol) => kol.displayName))
+    );
+  }, [filteredKols]);
+
   const getBestMatch = (input) => {
     const parts = input.split(",");
     const lastRaw = parts[parts.length - 1];
@@ -174,7 +179,6 @@ function RouteComponent() {
 
     if (matches.length === 0) return "";
 
-    // Sort by shortest completion first
     matches.sort((a, b) => {
       const aRemain = a.length - last.length;
       const bRemain = b.length - last.length;
@@ -183,32 +187,11 @@ function RouteComponent() {
 
     const best = matches[0];
 
-    return best.slice(last.length); // only the missing part
+    return best.slice(last.length);
   };
 
   const suggestion = getBestMatch(form.keywords);
 
-  // 3. Handle Tab autocomplete
-  const handleKeyDown = (e) => {
-    if (e.key === "Tab" && suggestion) {
-      e.preventDefault();
-
-      const parts = form.keywords.split(",");
-      let last = parts.pop();
-
-      const trimmed = last.trim();
-      const completed = trimmed + suggestion;
-
-      parts.push(" " + completed);
-
-      const newValue = parts.join(",").replace(/^ /, "");
-
-      setForm((c) => ({
-        ...c,
-        keywords: newValue,
-      }));
-    }
-  };
 
   function submit() {
     if (editingId) {
@@ -430,9 +413,10 @@ function RouteComponent() {
             }}
           >
             <div className="grid gap-5 md:grid-cols-2">
-              <FormInput
+              <DisplayNameInput
                 label="Display name"
                 value={form.displayName}
+                options={displayNames}
                 onChange={(value) => setForm((current) => ({ ...current, displayName: value }))}
               />
               <FormInput
@@ -593,6 +577,62 @@ function RouteComponent() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function DisplayNameInput({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  const filtered = options.filter((opt) =>
+    opt.toLowerCase().includes(value.toLowerCase())
+  );
+
+  return (
+    <div className="relative">
+      <label className="grid gap-2">
+        <span>{label}</span>
+
+        <input
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            setTimeout(() => setOpen(false), 100);
+          }}
+          className="border px-3 py-2 w-full"
+        />
+      </label>
+
+      {open && filtered.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full border border-gray-700 bg-gray-900 shadow-lg max-h-28 overflow-y-auto">
+          {filtered.map((opt) => (
+            <div
+              key={opt}
+              className="cursor-pointer px-3 py-2 hover:bg-gray-800 text-gray-200"
+              onMouseDown={() => {
+                onChange(opt);
+                setOpen(false);
+              }}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
