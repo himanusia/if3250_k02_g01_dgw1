@@ -55,6 +55,7 @@ function RouteComponent() {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
+  const [suggestions, setSuggestions] = useState([]);
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
   const filteredKols = useMemo(() => {
@@ -150,6 +151,64 @@ function RouteComponent() {
     });
     setIsDialogOpen(true);
   }
+
+  const allKeywords = useMemo(() => {
+    return Array.from(
+      new Set(
+        filteredKols.flatMap((kol) => kol.keywords || [])
+      )
+    );
+  }, [filteredKols]);
+
+  // 2. Get best match (SMART)
+  const getBestMatch = (input) => {
+    const parts = input.split(",");
+    const lastRaw = parts[parts.length - 1];
+    const last = lastRaw.trim().toLowerCase();
+
+    if (!last) return "";
+
+    const matches = allKeywords.filter((k) =>
+      k.toLowerCase().startsWith(last)
+    );
+
+    if (matches.length === 0) return "";
+
+    // Sort by shortest completion first
+    matches.sort((a, b) => {
+      const aRemain = a.length - last.length;
+      const bRemain = b.length - last.length;
+      return aRemain - bRemain;
+    });
+
+    const best = matches[0];
+
+    return best.slice(last.length); // only the missing part
+  };
+
+  const suggestion = getBestMatch(form.keywords);
+
+  // 3. Handle Tab autocomplete
+  const handleKeyDown = (e) => {
+    if (e.key === "Tab" && suggestion) {
+      e.preventDefault();
+
+      const parts = form.keywords.split(",");
+      let last = parts.pop();
+
+      const trimmed = last.trim();
+      const completed = trimmed + suggestion;
+
+      parts.push(" " + completed);
+
+      const newValue = parts.join(",").replace(/^ /, "");
+
+      setForm((c) => ({
+        ...c,
+        keywords: newValue,
+      }));
+    }
+  };
 
   function submit() {
     if (editingId) {
@@ -379,8 +438,28 @@ function RouteComponent() {
               <FormInput
                 label="Keywords"
                 value={form.keywords}
-                onChange={(value) => setForm((current) => ({ ...current, keywords: value }))}
-                placeholder="Pisahkan dengan koma"
+                onChange={(value) => {setForm((current) => ({ ...current, keywords: value }));}}
+                ghost={suggestion}
+                onKeyDown={(e) => {
+                  if (e.key === "Tab" && suggestion) {
+                    e.preventDefault();
+
+                    const parts = form.keywords.split(",");
+                    let last = parts.pop();
+
+                    const trimmed = last.trim();
+                    const completed = trimmed + suggestion;
+
+                    parts.push(" " + completed);
+
+                    const newValue = parts.join(",").replace(/^ /, "");
+
+                    setForm((current) => ({
+                      ...current,
+                      keywords: newValue,
+                    }));
+                  }
+                }}
               />
             </div>
 
@@ -522,21 +601,42 @@ function FormInput({
   onChange,
   placeholder,
   value,
+  onKeyDown,
+  ghost,
 }: {
   label: string;
   onChange: (value: string) => void;
   placeholder?: string;
   value: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  ghost?: string;
 }) {
   return (
     <Label className="grid min-w-0 gap-2">
       <span>{label}</span>
-      <Input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={!placeholder}
-      />
+
+      <div className="relative">
+        {ghost && (
+          <div className="pointer-events-none absolute inset-0 flex items-center">
+            <span className="w-full px-3 pb-0.25 text-transparent">
+              {value}
+              <span className="text-gray-400">{ghost}</span>
+            </span>
+          </div>
+        )}
+
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          required={!placeholder}
+          className={`
+            relative w-full
+            ${ghost ? "bg-transparent" : ""}
+          `}
+        />
+      </div>
     </Label>
   );
 }
