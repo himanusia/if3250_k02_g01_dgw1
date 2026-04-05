@@ -45,6 +45,15 @@ function getDefaultForm(): KolFormState {
   };
 }
 
+function parseKeywordSegments(keywords: string | null | undefined): string[] {
+  const raw = keywords?.trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+}
+
 export const Route = createFileRoute("/kols")({
   component: RouteComponent,
 });
@@ -55,7 +64,6 @@ function RouteComponent() {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
-  const [suggestions, setSuggestions] = useState([]);
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
   const filteredKols = useMemo(() => {
@@ -154,9 +162,7 @@ function RouteComponent() {
 
   const allKeywords = useMemo(() => {
     return Array.from(
-      new Set(
-        filteredKols.flatMap((kol) => kol.keywords || [])
-      )
+      new Set(filteredKols.flatMap((kol) => parseKeywordSegments(kol.keywords))),
     );
   }, [filteredKols]);
 
@@ -166,7 +172,7 @@ function RouteComponent() {
     );
   }, [filteredKols]);
 
-  const getBestMatch = (input) => {
+  const getBestMatch = (input: string) => {
     const parts = input.split(",");
     const lastRaw = parts[parts.length - 1];
     const last = lastRaw.trim().toLowerCase();
@@ -429,7 +435,7 @@ function RouteComponent() {
                     e.preventDefault();
 
                     const parts = form.keywords.split(",");
-                    let last = parts.pop();
+                    const last = parts.pop() ?? "";
 
                     const trimmed = last.trim();
                     const completed = trimmed + suggestion;
