@@ -2,6 +2,13 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&family=Poppins:wght@400;500;600;700&display=swap');
+
+@theme {
+  --font-poppins: "Poppins", sans-serif;
+  --font-goldman: "Goldman", cursive;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
