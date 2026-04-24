@@ -3,6 +3,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import type { CampaignRecord, KolRecord } from "@/lib/app-types";
+import { formatCurrencyIdr } from "@/lib/kol-utils";
 
 import { orpc } from "@/utils/orpc";
 
@@ -25,6 +26,22 @@ function RouteComponent() {
     return counts;
   }, [kols]);
 
+  const rateCardSummary = useMemo(() => {
+    const suggestedPosts = kols
+      .map((kol) => kol.estimatedRateCard?.post.suggested ?? 0)
+      .filter((value) => value > 0);
+
+    if (!suggestedPosts.length) {
+      return null;
+    }
+
+    const min = Math.min(...suggestedPosts);
+    const max = Math.max(...suggestedPosts);
+    const average = Math.round(suggestedPosts.reduce((sum, value) => sum + value, 0) / suggestedPosts.length);
+
+    return { average, max, min };
+  }, [kols]);
+
   return (
     <div className="container mx-auto grid gap-6 px-4 py-6">
       <section className="grid gap-2">
@@ -33,7 +50,7 @@ function RouteComponent() {
         <p className="text-muted-foreground max-w-2xl">Ringkasan data utama.</p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Campaign</p>
           <p className="text-3xl font-semibold">{campaigns.length}</p>
@@ -48,6 +65,17 @@ function RouteComponent() {
           <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Access</p>
           <p className="text-3xl font-semibold">{privateData.data?.access?.role ?? "user"}</p>
           <p className="text-muted-foreground">Role aktif.</p>
+        </div>
+        <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Rate Card</p>
+          <p className="text-sm font-semibold">
+            {rateCardSummary ? formatCurrencyIdr(rateCardSummary.average) : "-"}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {rateCardSummary
+              ? `${formatCurrencyIdr(rateCardSummary.min)} - ${formatCurrencyIdr(rateCardSummary.max)}`
+              : "Belum ada estimasi"}
+          </p>
         </div>
       </section>
 

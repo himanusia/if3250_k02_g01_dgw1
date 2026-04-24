@@ -3,6 +3,26 @@ export type SocialPlatform = "instagram" | "tiktok" | "shopee";
 export type SyncStatus = "pending" | "success" | "failed";
 export type FollowerTier = "nano" | "micro" | "macro" | "mega";
 
+export type RateCardRange = {
+  max: number;
+  min: number;
+  suggested: number;
+};
+
+export type RateCardValue = {
+  currency: "IDR";
+  post: RateCardRange;
+  reel: RateCardRange;
+  story: RateCardRange;
+};
+
+export type RateCardMetadata = {
+  confidence: number;
+  lastComputedAt: string;
+  modelVersion: string;
+  source: "formula";
+};
+
 export type AccessEntry = {
   createdAt: string;
   createdByUserId: string | null;
@@ -46,6 +66,16 @@ export type KolCampaignHistoryRecord = {
   startedAt: string | null;
 };
 
+export type KolRateCardHistoryRecord = {
+  changedByUserId: string | null;
+  createdAt: string;
+  id: number;
+  kolId: number;
+  newActualRateCard: RateCardValue | null;
+  oldActualRateCard: RateCardValue | null;
+  reason: string | null;
+};
+
 export type KolRecord = {
   accounts: KolAccountRecord[];
   createdAt: string;
@@ -62,6 +92,10 @@ export type KolRecord = {
   updatedAt: string;
   averageLikes: number;
   averageViews: number;
+  estimatedRateCard: RateCardValue | null;
+  actualRateCard: RateCardValue | null;
+  rateCardMetadata: RateCardMetadata | null;
+  rateCardHistory: KolRateCardHistoryRecord[];
 };
 
 export type CampaignRecord = {

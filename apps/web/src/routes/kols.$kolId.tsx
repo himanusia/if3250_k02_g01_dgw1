@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Plus, RefreshCcw, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import type { KolRecord, SocialPlatform } from "@/lib/app-types";
-import { formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
+import type { KolRecord, RateCardValue, SocialPlatform } from "@/lib/app-types";
+import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,19 @@ type HistoryFormState = {
   startedAt: string;
 };
 
+type RateCardFormState = {
+  postMax: string;
+  postMin: string;
+  postSuggested: string;
+  reason: string;
+  reelMax: string;
+  reelMin: string;
+  reelSuggested: string;
+  storyMax: string;
+  storyMin: string;
+  storySuggested: string;
+};
+
 function getDefaultHistoryForm(): HistoryFormState {
   return {
     brand: "",
@@ -43,12 +56,79 @@ function getDefaultHistoryForm(): HistoryFormState {
   };
 }
 
+function toRateInput(value: number | null | undefined) {
+  return value && Number.isFinite(value) ? String(Math.round(value)) : "";
+}
+
+function getDefaultRateCardForm(kol: KolRecord | null | undefined): RateCardFormState {
+  const rateCard = kol?.actualRateCard ?? kol?.estimatedRateCard;
+
+  return {
+    postMax: toRateInput(rateCard?.post.max),
+    postMin: toRateInput(rateCard?.post.min),
+    postSuggested: toRateInput(rateCard?.post.suggested),
+    reason: "",
+    reelMax: toRateInput(rateCard?.reel.max),
+    reelMin: toRateInput(rateCard?.reel.min),
+    reelSuggested: toRateInput(rateCard?.reel.suggested),
+    storyMax: toRateInput(rateCard?.story.max),
+    storyMin: toRateInput(rateCard?.story.min),
+    storySuggested: toRateInput(rateCard?.story.suggested),
+  };
+}
+
+function parsePositiveInt(value: string) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return Math.round(parsed);
+}
+
+function buildRateCardValue(form: RateCardFormState): RateCardValue | null {
+  const postMin = parsePositiveInt(form.postMin);
+  const postSuggested = parsePositiveInt(form.postSuggested);
+  const postMax = parsePositiveInt(form.postMax);
+  const storyMin = parsePositiveInt(form.storyMin);
+  const storySuggested = parsePositiveInt(form.storySuggested);
+  const storyMax = parsePositiveInt(form.storyMax);
+  const reelMin = parsePositiveInt(form.reelMin);
+  const reelSuggested = parsePositiveInt(form.reelSuggested);
+  const reelMax = parsePositiveInt(form.reelMax);
+
+  if (!postMin || !postSuggested || !postMax || !storyMin || !storySuggested || !storyMax || !reelMin || !reelSuggested || !reelMax) {
+    return null;
+  }
+
+  const isRangeValid =
+    postMin <= postSuggested &&
+    postSuggested <= postMax &&
+    storyMin <= storySuggested &&
+    storySuggested <= storyMax &&
+    reelMin <= reelSuggested &&
+    reelSuggested <= reelMax;
+
+  if (!isRangeValid) {
+    return null;
+  }
+
+  return {
+    currency: "IDR",
+    post: { max: postMax, min: postMin, suggested: postSuggested },
+    reel: { max: reelMax, min: reelMin, suggested: reelSuggested },
+    story: { max: storyMax, min: storyMin, suggested: storySuggested },
+  };
+}
+
 function RouteComponent() {
   const { kolId } = Route.useParams();
   const navigate = useNavigate();
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [historyForm, setHistoryForm] = useState<HistoryFormState>(getDefaultHistoryForm());
+  const [rateCardForm, setRateCardForm] = useState<RateCardFormState>(getDefaultRateCardForm(null));
 
   const kolQuery = useQuery(orpc.kol.getById.queryOptions({ input: { id: Number(kolId) } }));
   const kol = kolQuery.data as KolRecord | null | undefined;
@@ -99,6 +179,26 @@ function RouteComponent() {
       toast.error("Gagal menghapus riwayat campaign");
     },
   });
+
+  const updateActualRateCard = useMutation({
+    mutationFn: (input: { actualRateCard: RateCardValue; kolId: number; reason: string }) =>
+      client.kol.updateActualRateCard(input),
+    onSuccess: () => {
+      toast.success("Rate card aktual berhasil diperbarui");
+      kolQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal memperbarui rate card aktual");
+    },
+  });
+
+  useEffect(() => {
+    if (!kol) {
+      return;
+    }
+
+    setRateCardForm(getDefaultRateCardForm(kol));
+  }, [kol]);
 
   if (kolQuery.isLoading) {
     return (
@@ -196,6 +296,118 @@ function RouteComponent() {
               {kol.syncMessage}
             </p>
           )}
+        </section>
+
+        <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+          <h2 className="text-lg font-medium">Rate Card</h2>
+
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            <MetricBox
+              label="Estimated post (suggested)"
+              value={formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}
+            />
+            <MetricBox
+              label="Estimated story (suggested)"
+              value={formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}
+            />
+            <MetricBox
+              label="Estimated reel (suggested)"
+              value={formatCurrencyIdr(kol.estimatedRateCard?.reel.suggested)}
+            />
+          </div>
+
+          <div className="text-muted-foreground grid gap-1 text-sm md:grid-cols-2">
+            <p>Source: {kol.rateCardMetadata?.source ?? "-"}</p>
+            <p>Model: {kol.rateCardMetadata?.modelVersion ?? "-"}</p>
+            <p>Confidence: {kol.rateCardMetadata ? `${Math.round(kol.rateCardMetadata.confidence * 100)}%` : "-"}</p>
+            <p>Computed at: {formatDateTime(kol.rateCardMetadata?.lastComputedAt ?? null)}</p>
+          </div>
+
+          <form
+            className="grid gap-4 border p-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+
+              const nextRateCard = buildRateCardValue(rateCardForm);
+
+              if (!nextRateCard) {
+                toast.error("Input rate card tidak valid. Pastikan min <= suggested <= max untuk semua format.");
+                return;
+              }
+
+              updateActualRateCard.mutate({
+                actualRateCard: nextRateCard,
+                kolId: Number(kolId),
+                reason: rateCardForm.reason,
+              });
+            }}
+          >
+            <h3 className="text-sm font-medium">Update rate card aktual</h3>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <RateCardInputs
+                label="Post"
+                min={rateCardForm.postMin}
+                suggested={rateCardForm.postSuggested}
+                max={rateCardForm.postMax}
+                onChange={(next) => setRateCardForm((current) => ({ ...current, ...next }))}
+                minField="postMin"
+                suggestedField="postSuggested"
+                maxField="postMax"
+              />
+              <RateCardInputs
+                label="Story"
+                min={rateCardForm.storyMin}
+                suggested={rateCardForm.storySuggested}
+                max={rateCardForm.storyMax}
+                onChange={(next) => setRateCardForm((current) => ({ ...current, ...next }))}
+                minField="storyMin"
+                suggestedField="storySuggested"
+                maxField="storyMax"
+              />
+              <RateCardInputs
+                label="Reel"
+                min={rateCardForm.reelMin}
+                suggested={rateCardForm.reelSuggested}
+                max={rateCardForm.reelMax}
+                onChange={(next) => setRateCardForm((current) => ({ ...current, ...next }))}
+                minField="reelMin"
+                suggestedField="reelSuggested"
+                maxField="reelMax"
+              />
+            </div>
+
+            <Label className="grid gap-2">
+              <span>Alasan perubahan (opsional)</span>
+              <Input
+                value={rateCardForm.reason}
+                onChange={(event) => setRateCardForm((current) => ({ ...current, reason: event.target.value }))}
+                placeholder="Contoh: konfirmasi rate resmi dari KOL"
+              />
+            </Label>
+
+            <DialogFooter>
+              <Button type="submit" disabled={updateActualRateCard.isPending}>
+                {updateActualRateCard.isPending ? "Menyimpan..." : "Simpan rate card aktual"}
+              </Button>
+            </DialogFooter>
+          </form>
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Riwayat perubahan rate card aktual</h3>
+            {kol.rateCardHistory.slice(0, 5).map((item) => (
+              <div key={item.id} className="border-border text-muted-foreground grid gap-1 border p-2 text-sm">
+                <p>Waktu: {formatDateTime(item.createdAt)}</p>
+                <p>Alasan: {item.reason || "-"}</p>
+                <p>
+                  Suggested post: {formatCurrencyIdr(item.oldActualRateCard?.post.suggested)} -&gt; {formatCurrencyIdr(item.newActualRateCard?.post.suggested)}
+                </p>
+              </div>
+            ))}
+            {!kol.rateCardHistory.length && (
+              <p className="text-muted-foreground text-sm">Belum ada riwayat perubahan rate card.</p>
+            )}
+          </div>
         </section>
 
         <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
@@ -467,4 +679,60 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 
 function MetaBadge({ children }: { children: string }) {
   return <span className="bg-muted border-border border px-2 py-1">{children}</span>;
+}
+
+function RateCardInputs<T extends string>({
+  label,
+  min,
+  suggested,
+  max,
+  onChange,
+  minField,
+  suggestedField,
+  maxField,
+}: {
+  label: string;
+  max: string;
+  maxField: T;
+  min: string;
+  minField: T;
+  onChange: (next: Record<T, string>) => void;
+  suggested: string;
+  suggestedField: T;
+}) {
+  return (
+    <div className="grid gap-2 border p-2">
+      <p className="text-sm font-medium">{label}</p>
+      <Label className="grid gap-1 text-xs">
+        <span>Min (IDR)</span>
+        <Input
+          type="number"
+          min={1}
+          step={1000}
+          value={min}
+          onChange={(event) => onChange({ [minField]: event.target.value } as Record<T, string>)}
+        />
+      </Label>
+      <Label className="grid gap-1 text-xs">
+        <span>Suggested (IDR)</span>
+        <Input
+          type="number"
+          min={1}
+          step={1000}
+          value={suggested}
+          onChange={(event) => onChange({ [suggestedField]: event.target.value } as Record<T, string>)}
+        />
+      </Label>
+      <Label className="grid gap-1 text-xs">
+        <span>Max (IDR)</span>
+        <Input
+          type="number"
+          min={1}
+          step={1000}
+          value={max}
+          onChange={(event) => onChange({ [maxField]: event.target.value } as Record<T, string>)}
+        />
+      </Label>
+    </div>
+  );
 }

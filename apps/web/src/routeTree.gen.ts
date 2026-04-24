@@ -12,12 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KolsRouteImport } from './routes/kols'
-import { Route as KolsKolIdRouteImport } from './routes/kols.$kolId'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CompareKolsRouteImport } from './routes/compare-kols'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as AccessRouteImport } from './routes/access'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as KolsKolIdRouteImport } from './routes/kols.$kolId'
 import { Route as ApiAvatarRouteImport } from './routes/api/avatar'
 import { Route as ApiRpcSplatRouteImport } from './routes/api/rpc/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -35,11 +35,6 @@ const LoginRoute = LoginRouteImport.update({
 const KolsRoute = KolsRouteImport.update({
   id: '/kols',
   path: '/kols',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const KolsKolIdRoute = KolsKolIdRouteImport.update({
-  id: '/kols/$kolId',
-  path: '/kols/$kolId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -67,6 +62,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KolsKolIdRoute = KolsKolIdRouteImport.update({
+  id: '/$kolId',
+  path: '/$kolId',
+  getParentRoute: () => KolsRoute,
+} as any)
 const ApiAvatarRoute = ApiAvatarRouteImport.update({
   id: '/api/avatar',
   path: '/api/avatar',
@@ -89,11 +89,11 @@ export interface FileRoutesByFullPath {
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
-  '/kols': typeof KolsRoute
-  '/kols/$kolId': typeof KolsKolIdRoute
+  '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/avatar': typeof ApiAvatarRoute
+  '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
@@ -103,11 +103,11 @@ export interface FileRoutesByTo {
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
-  '/kols': typeof KolsRoute
-  '/kols/$kolId': typeof KolsKolIdRoute
+  '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/avatar': typeof ApiAvatarRoute
+  '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
@@ -118,11 +118,11 @@ export interface FileRoutesById {
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
-  '/kols': typeof KolsRoute
-  '/kols/$kolId': typeof KolsKolIdRoute
+  '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
   '/api/avatar': typeof ApiAvatarRoute
+  '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
@@ -135,10 +135,10 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/dashboard'
     | '/kols'
-    | '/kols/$kolId'
     | '/login'
     | '/unauthorized'
     | '/api/avatar'
+    | '/kols/$kolId'
     | '/api/auth/$'
     | '/api/rpc/$'
   fileRoutesByTo: FileRoutesByTo
@@ -149,10 +149,10 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/dashboard'
     | '/kols'
-    | '/kols/$kolId'
     | '/login'
     | '/unauthorized'
     | '/api/avatar'
+    | '/kols/$kolId'
     | '/api/auth/$'
     | '/api/rpc/$'
   id:
@@ -163,10 +163,10 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/dashboard'
     | '/kols'
-    | '/kols/$kolId'
     | '/login'
     | '/unauthorized'
     | '/api/avatar'
+    | '/kols/$kolId'
     | '/api/auth/$'
     | '/api/rpc/$'
   fileRoutesById: FileRoutesById
@@ -177,8 +177,7 @@ export interface RootRouteChildren {
   CampaignsRoute: typeof CampaignsRoute
   CompareKolsRoute: typeof CompareKolsRoute
   DashboardRoute: typeof DashboardRoute
-  KolsRoute: typeof KolsRoute
-  KolsKolIdRoute: typeof KolsKolIdRoute
+  KolsRoute: typeof KolsRouteWithChildren
   LoginRoute: typeof LoginRoute
   UnauthorizedRoute: typeof UnauthorizedRoute
   ApiAvatarRoute: typeof ApiAvatarRoute
@@ -207,13 +206,6 @@ declare module '@tanstack/react-router' {
       path: '/kols'
       fullPath: '/kols'
       preLoaderRoute: typeof KolsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/kols/$kolId': {
-      id: '/kols/$kolId'
-      path: '/kols/$kolId'
-      fullPath: '/kols/$kolId'
-      preLoaderRoute: typeof KolsKolIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -251,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kols/$kolId': {
+      id: '/kols/$kolId'
+      path: '/$kolId'
+      fullPath: '/kols/$kolId'
+      preLoaderRoute: typeof KolsKolIdRouteImport
+      parentRoute: typeof KolsRoute
+    }
     '/api/avatar': {
       id: '/api/avatar'
       path: '/api/avatar'
@@ -275,14 +274,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface KolsRouteChildren {
+  KolsKolIdRoute: typeof KolsKolIdRoute
+}
+
+const KolsRouteChildren: KolsRouteChildren = {
+  KolsKolIdRoute: KolsKolIdRoute,
+}
+
+const KolsRouteWithChildren = KolsRoute._addFileChildren(KolsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessRoute: AccessRoute,
   CampaignsRoute: CampaignsRoute,
   CompareKolsRoute: CompareKolsRoute,
   DashboardRoute: DashboardRoute,
-  KolsRoute: KolsRoute,
-  KolsKolIdRoute: KolsKolIdRoute,
+  KolsRoute: KolsRouteWithChildren,
   LoginRoute: LoginRoute,
   UnauthorizedRoute: UnauthorizedRoute,
   ApiAvatarRoute: ApiAvatarRoute,
