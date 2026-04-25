@@ -1,8 +1,9 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
-import { kolAccount, kolCampaignHistory, kolProfile } from "@if3250_k02_g01_dgw1/db/schema/kol";
+import { kolAccount, kolCampaignHistory, kolProfile, kolRateCardHistory } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { desc, eq } from "drizzle-orm";
 import z from "zod";
 
+import { estimateRateCard } from "../lib/rate-card-estimator";
 import { syncAccountWithApify } from "../lib/apify";
 import { protectedProcedure } from "../index";
 
@@ -26,6 +27,19 @@ const historyInputSchema = z.object({
   platform: z.enum(["instagram", "tiktok", "shopee"]),
   startedAt: z.string().optional().default(""),
   endedAt: z.string().optional().default(""),
+});
+
+const rateCardRangeInputSchema = z.object({
+  max: z.number().int().positive(),
+  min: z.number().int().positive(),
+  suggested: z.number().int().positive(),
+});
+
+const rateCardValueInputSchema = z.object({
+  currency: z.literal("IDR"),
+  post: rateCardRangeInputSchema,
+  reel: rateCardRangeInputSchema,
+  story: rateCardRangeInputSchema,
 });
 
 function toNullableDate(value?: string) {
@@ -82,6 +96,10 @@ async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSc
 
 async function syncKolProfile(kolId: number) {
   const accounts = await db.select().from(kolAccount).where(eq(kolAccount.kolId, kolId));
+  const campaignHistoryRows = await db
+    .select({ id: kolCampaignHistory.id })
+    .from(kolCampaignHistory)
+    .where(eq(kolCampaignHistory.kolId, kolId));
 
   let totalFollowers = 0;
   let totalAverageLikes = 0;
@@ -164,6 +182,27 @@ async function syncKolProfile(kolId: number) {
       updatedAt: new Date(),
     })
     .where(eq(kolProfile.id, kolId));
+
+  if (syncStatus === "success") {
+    const estimation = estimateRateCard({
+      averageLikes: totalAverageLikes,
+      averageViews: totalAverageViews,
+      campaignHistoryCount: campaignHistoryRows.length,
+      engagementRate,
+      followerTier: getFollowerTier(totalFollowers),
+      platformCount: accounts.length,
+      totalFollowers,
+    });
+
+    await db
+      .update(kolProfile)
+      .set({
+        estimatedRateCard: estimation.estimatedRateCard,
+        rateCardMetadata: estimation.metadata,
+        updatedAt: new Date(),
+      })
+      .where(eq(kolProfile.id, kolId));
+  }
 }
 
 async function mapKolRecord(kolId: number) {
@@ -183,6 +222,11 @@ async function mapKolRecord(kolId: number) {
     .from(kolCampaignHistory)
     .where(eq(kolCampaignHistory.kolId, kolId))
     .orderBy(desc(kolCampaignHistory.createdAt));
+  const rateCardHistory = await db
+    .select()
+    .from(kolRateCardHistory)
+    .where(eq(kolRateCardHistory.kolId, kolId))
+    .orderBy(desc(kolRateCardHistory.createdAt));
 
   return {
     ...profile,
@@ -199,6 +243,10 @@ async function mapKolRecord(kolId: number) {
       createdAt: item.createdAt.toISOString(),
       endedAt: formatDate(item.endedAt),
       startedAt: formatDate(item.startedAt),
+    })),
+    rateCardHistory: rateCardHistory.map((item) => ({
+      ...item,
+      createdAt: item.createdAt.toISOString(),
     })),
     lastSyncedAt: profile.lastSyncedAt?.toISOString() ?? null,
     updatedAt: profile.updatedAt.toISOString(),
@@ -267,6 +315,20 @@ export const kolRouter = {
     .handler(async ({ input }) => {
       return await mapKolRecord(input.id);
     }),
+  listRateCardHistory: protectedProcedure
+    .input(z.object({ kolId: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      const history = await db
+        .select()
+        .from(kolRateCardHistory)
+        .where(eq(kolRateCardHistory.kolId, input.kolId))
+        .orderBy(desc(kolRateCardHistory.createdAt));
+
+      return history.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+      }));
+    }),
   list: protectedProcedure.handler(async () => {
     const rows = await db.select({ id: kolProfile.id }).from(kolProfile).orderBy(desc(kolProfile.createdAt));
 
@@ -277,6 +339,39 @@ export const kolRouter = {
     .handler(async ({ input }) => {
       await syncKolProfile(input.id);
       return await mapKolRecord(input.id);
+    }),
+  updateActualRateCard: protectedProcedure
+    .input(
+      z.object({
+        actualRateCard: rateCardValueInputSchema,
+        kolId: z.number().int().positive(),
+        reason: z.string().trim().optional().default(""),
+      }),
+    )
+    .handler(async ({ context, input }) => {
+      const [profile] = await db.select().from(kolProfile).where(eq(kolProfile.id, input.kolId)).limit(1);
+
+      if (!profile) {
+        throw new Error("KOL tidak ditemukan.");
+      }
+
+      await db.insert(kolRateCardHistory).values({
+        changedByUserId: context.session.user.id,
+        kolId: input.kolId,
+        newActualRateCard: input.actualRateCard,
+        oldActualRateCard: profile.actualRateCard,
+        reason: input.reason || null,
+      });
+
+      await db
+        .update(kolProfile)
+        .set({
+          actualRateCard: input.actualRateCard,
+          updatedAt: new Date(),
+        })
+        .where(eq(kolProfile.id, input.kolId));
+
+      return await mapKolRecord(input.kolId);
     }),
   update: protectedProcedure
     .input(

@@ -3,7 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import type { CampaignRecord, KolRecord } from "@/lib/app-types";
+import type { CampaignRecord, KolRecord, SocialPlatform } from "@/lib/app-types";
+import { formatCurrencyIdr } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { client, orpc } from "@/utils/orpc";
@@ -11,6 +12,12 @@ import { client, orpc } from "@/utils/orpc";
 export const Route = createFileRoute("/compare-kols")({
   component: RouteComponent,
 });
+
+type GroupedPlatformAccount = KolRecord["accounts"][number] & {
+  actualPostRate: number | null;
+  displayName: string;
+  estimatedPostRate: number | null;
+};
 
 function RouteComponent() {
   const [search, setSearch] = useState("");
@@ -47,20 +54,22 @@ function RouteComponent() {
 
   const selectedKols = filteredKols.filter((kol) => selectedKolIds.includes(kol.id));
 
-  const groupedByPlatform = useMemo(() => {
-    const map = {};
+  const groupedByPlatform = useMemo<Record<SocialPlatform, GroupedPlatformAccount[]>>(() => {
+    const map: Record<SocialPlatform, GroupedPlatformAccount[]> = {
+      instagram: [],
+      shopee: [],
+      tiktok: [],
+    };
+
     selectedKols.forEach((kol) => {
       kol.accounts.forEach((account) => {
         const platform = account.platform;
 
-        if (!map[platform]) {
-          map[platform] = [];
-        }
-
         map[platform].push({
-          kolId: kol.id,
-          displayName: kol.displayName,
           ...account,
+          actualPostRate: kol.actualRateCard?.post.suggested ?? null,
+          displayName: kol.displayName,
+          estimatedPostRate: kol.estimatedRateCard?.post.suggested ?? null,
         });
       });
     });
@@ -196,6 +205,12 @@ function RouteComponent() {
                 <th className="border border-gray-700 px-3 py-2 text-left">
                   ER
                 </th>
+                <th className="border border-gray-700 px-3 py-2 text-left">
+                  Est. Post
+                </th>
+                <th className="border border-gray-700 px-3 py-2 text-left">
+                  Actual Post
+                </th>
               </tr>
             </thead>
 
@@ -221,13 +236,21 @@ function RouteComponent() {
                   <td className="border border-gray-700 px-3 py-2">
                     {kol.engagementRate || "-"}
                   </td>
+
+                  <td className="border border-gray-700 px-3 py-2">
+                    {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}
+                  </td>
+
+                  <td className="border border-gray-700 px-3 py-2">
+                    {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {Object.entries(groupedByPlatform).map(([platform, accounts]) => (
+        {(Object.entries(groupedByPlatform) as Array<[SocialPlatform, GroupedPlatformAccount[]]>).map(([platform, accounts]) => (
         <div key={platform} className="mb-6">
           <h2 className="mb-2 text-lg font-semibold capitalize text-gray-200">
             {platform}
@@ -254,6 +277,12 @@ function RouteComponent() {
                   </th>
                   <th className="border border-gray-700 px-3 py-2 text-left">
                     ER
+                  </th>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    Est. Post
+                  </th>
+                  <th className="border border-gray-700 px-3 py-2 text-left">
+                    Actual Post
                   </th>
                 </tr>
               </thead>
@@ -283,6 +312,14 @@ function RouteComponent() {
 
                     <td className="border border-gray-700 px-3 py-2">
                       {acc.engagementRate || "-"}
+                    </td>
+
+                    <td className="border border-gray-700 px-3 py-2">
+                      {formatCurrencyIdr(acc.estimatedPostRate)}
+                    </td>
+
+                    <td className="border border-gray-700 px-3 py-2">
+                      {formatCurrencyIdr(acc.actualPostRate)}
                     </td>
                   </tr>
                 ))}

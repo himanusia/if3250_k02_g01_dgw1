@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KolsRouteImport } from './routes/kols'
-import { Route as DashboardcopyRouteImport } from './routes/dashboard copy'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CompareKolsRouteImport } from './routes/compare-kols'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
@@ -36,11 +35,6 @@ const LoginRoute = LoginRouteImport.update({
 const KolsRoute = KolsRouteImport.update({
   id: '/kols',
   path: '/kols',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardcopyRoute = DashboardcopyRouteImport.update({
-  id: '/dashboard copy',
-  path: '/dashboard copy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -95,7 +89,6 @@ export interface FileRoutesByFullPath {
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
-  '/dashboard copy': typeof DashboardcopyRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
@@ -110,7 +103,6 @@ export interface FileRoutesByTo {
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
-  '/dashboard copy': typeof DashboardcopyRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
@@ -126,7 +118,6 @@ export interface FileRoutesById {
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
   '/dashboard': typeof DashboardRoute
-  '/dashboard copy': typeof DashboardcopyRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
   '/unauthorized': typeof UnauthorizedRoute
@@ -189,7 +180,6 @@ export interface RootRouteChildren {
   CampaignsRoute: typeof CampaignsRoute
   CompareKolsRoute: typeof CompareKolsRoute
   DashboardRoute: typeof DashboardRoute
-  DashboardcopyRoute: typeof DashboardcopyRoute
   KolsRoute: typeof KolsRouteWithChildren
   LoginRoute: typeof LoginRoute
   UnauthorizedRoute: typeof UnauthorizedRoute
@@ -219,13 +209,6 @@ declare module '@tanstack/react-router' {
       path: '/kols'
       fullPath: '/kols'
       preLoaderRoute: typeof KolsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard copy': {
-      id: '/dashboard copy'
-      path: '/dashboard copy'
-      fullPath: '/dashboard copy'
-      preLoaderRoute: typeof DashboardcopyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -310,7 +293,6 @@ const rootRouteChildren: RootRouteChildren = {
   CampaignsRoute: CampaignsRoute,
   CompareKolsRoute: CompareKolsRoute,
   DashboardRoute: DashboardRoute,
-  DashboardcopyRoute: DashboardcopyRoute,
   KolsRoute: KolsRouteWithChildren,
   LoginRoute: LoginRoute,
   UnauthorizedRoute: UnauthorizedRoute,

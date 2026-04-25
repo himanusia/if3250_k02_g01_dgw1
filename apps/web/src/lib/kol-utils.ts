@@ -147,6 +147,18 @@ export function formatNumber(value: number) {
   return value.toLocaleString("id-ID");
 }
 
+export function formatCurrencyIdr(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("id-ID", {
+    currency: "IDR",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(value);
+}
+
 export function formatDateTime(value: string | null) {
   if (!value) {
     return "-";

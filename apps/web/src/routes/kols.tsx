@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { KolRecord, SocialPlatform } from "@/lib/app-types";
-import { formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
+import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -299,6 +299,8 @@ function RouteComponent() {
                   <p>Tier: {kol.followerTier}</p>
                   <p>Status sync: {kol.syncStatus}</p>
                   <p>Last sync: {formatDateTime(kol.lastSyncedAt)}</p>
+                  <p>Est. post: {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
+                  <p>Actual post: {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
                 </div>
 
                 {kol.syncMessage && (
