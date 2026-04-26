@@ -1,5 +1,5 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
-import { allowedEmail } from "@if3250_k02_g01_dgw1/db/schema/access";
+import { allowedEmail, appSettings } from "@if3250_k02_g01_dgw1/db/schema/access";
 import { ORPCError } from "@orpc/server";
 import { desc, eq } from "drizzle-orm";
 import z from "zod";
@@ -71,4 +71,79 @@ export const accessRouter = {
       updatedAt: row.updatedAt.toISOString(),
     }));
   }),
+
+  getSyncSettings: protectedProcedure.handler(async () => {
+    const interval = await getSettingNumber("kol_sync_interval_minutes", 30);
+    const enabled = (await getSetting("kol_sync_enabled")) !== "false";
+
+    return {
+      intervalMinutes: interval,
+      enabled,
+    };
+  }),
+
+  updateSyncSettings: protectedProcedure
+    .input(
+      z.object({
+        intervalMinutes: z.number().int().positive(),
+        enabled: z.boolean(),
+      })
+    )
+    .handler(async ({ input }) => {
+      await db
+        .insert(appSettings)
+        .values({
+          key: "kol_sync_interval_minutes",
+          value: String(input.intervalMinutes),
+        })
+        .onConflictDoUpdate({
+          target: appSettings.key,
+          set: { value: String(input.intervalMinutes) },
+        });
+
+      await db
+        .insert(appSettings)
+        .values({
+          key: "kol_sync_enabled",
+          value: String(input.enabled),
+        })
+        .onConflictDoUpdate({
+          target: appSettings.key,
+          set: { value: String(input.enabled) },
+        });
+
+      return { success: true };
+    })
 };
+
+export async function getSetting(key: string): Promise<string | null> {
+  const [row] = await db
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, key))
+    .limit(1);
+
+  return row?.value ?? null;
+}
+
+export async function getSettingNumber(
+  key: string,
+  fallback: number
+) {
+  const existing = await getSetting(key);
+
+  if (existing !== null) {
+    const parsed = Number(existing);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  await db
+    .insert(appSettings)
+    .values({
+      key,
+      value: String(fallback),
+    })
+    .onConflictDoNothing();
+
+  return fallback;
+}

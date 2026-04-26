@@ -28,3 +28,8 @@ export const allowedEmail = pgTable(
     index("allowed_email_role_idx").on(table.role),
   ],
 );
+
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
