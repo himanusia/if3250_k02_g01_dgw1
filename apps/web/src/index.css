@@ -133,3 +133,65 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+
+  html.digiTheme,
+  body.digiTheme,
+  .dark.digiTheme {
+    --background: oklch(0.985 0.01 3);
+    --foreground: oklch(0.24 0.03 10);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.24 0.03 10);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.24 0.03 10);
+    --primary: oklch(0.47 0.12 16);
+    --primary-foreground: oklch(0.98 0.01 3);
+    --secondary: oklch(0.95 0.015 8);
+    --secondary-foreground: oklch(0.24 0.03 10);
+    --muted: oklch(0.96 0.015 10);
+    --muted-foreground: oklch(0.47 0.03 10);
+    --accent: oklch(0.95 0.02 8);
+    --accent-foreground: oklch(0.28 0.05 12);
+    --destructive: oklch(0.6 0.21 25);
+    --border: oklch(0.78 0.05 12 / 45%);
+    --input: oklch(0.78 0.05 12 / 45%);
+    --ring: oklch(0.53 0.11 17);
+    --chart-1: oklch(0.74 0.12 20);
+    --chart-2: oklch(0.68 0.14 45);
+    --chart-3: oklch(0.62 0.15 75);
+    --chart-4: oklch(0.58 0.14 130);
+    --chart-5: oklch(0.54 0.13 200);
+    --sidebar: oklch(0.985 0.01 3);
+    --sidebar-foreground: oklch(0.24 0.03 10);
+    --sidebar-primary: oklch(0.47 0.12 16);
+    --sidebar-primary-foreground: oklch(0.98 0.01 3);
+    --sidebar-accent: oklch(0.95 0.02 8);
+    --sidebar-accent-foreground: oklch(0.28 0.05 12);
+    --sidebar-border: oklch(0.78 0.05 12 / 45%);
+    --sidebar-ring: oklch(0.53 0.11 17);
+
+    background-color: #fff8f9;
+    color: #2b1418;
+  }
+
+  .digiTheme .text-gray-200 {
+    color: #2b1418 !important;
+  }
+
+  .digiTheme .text-gray-300 {
+    color: #7a2233 !important;
+  }
+
+  .digiTheme .bg-gray-900 {
+    background-color: #f7e7eb !important;
+  }
+
+  .digiTheme .border-gray-700 {
+    border-color: rgba(152, 46, 65, 0.45) !important;
+  }
+
+  .digiTheme .hover\:bg-gray-800:hover {
+    background-color: #fff2f5 !important;
+  }
+}
