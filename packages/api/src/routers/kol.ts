@@ -1,5 +1,6 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { kolAccount, kolCampaignHistory, kolProfile, kolRateCardHistory } from "@if3250_k02_g01_dgw1/db/schema/kol";
+import { ORPCError } from "@orpc/server";
 import { desc, eq, asc, isNull, lt, or, sql } from "drizzle-orm";
 import z from "zod";
 
@@ -9,21 +10,21 @@ import { protectedProcedure } from "../index";
 import { getSettingNumber, getSetting } from "./access";
 
 const kolAccountInputSchema = z.object({
-  handle: z.string().trim().min(1),
+  handle: z.string().trim().min(1, "Handle tidak boleh kosong"),
   platform: z.enum(["instagram", "tiktok", "shopee"]),
   profileUrl: z.string().trim().optional().default(""),
 });
 
 const kolInputSchema = z.object({
-  accounts: z.array(kolAccountInputSchema).min(1),
-  displayName: z.string().trim().min(1),
+  accounts: z.array(kolAccountInputSchema).min(1, "Minimal 1 akun sosial media harus ditambahkan"),
+  displayName: z.string().trim().min(1, "Nama display KOL tidak boleh kosong"),
   keywords: z.string().trim().default(""),
 });
 
 const historyInputSchema = z.object({
-  brand: z.string().trim().min(1),
-  campaignName: z.string().trim().min(1),
-  kolId: z.number().int().positive(),
+  brand: z.string().trim().min(1, "Nama brand tidak boleh kosong"),
+  campaignName: z.string().trim().min(1, "Nama campaign tidak boleh kosong"),
+  kolId: z.number().int().positive("ID KOL harus valid"),
   notes: z.string().trim().optional().default(""),
   platform: z.enum(["instagram", "tiktok", "shopee"]),
   startedAt: z.string().optional().default(""),
@@ -31,10 +32,13 @@ const historyInputSchema = z.object({
 });
 
 const rateCardRangeInputSchema = z.object({
-  max: z.number().int().positive(),
-  min: z.number().int().positive(),
-  suggested: z.number().int().positive(),
-});
+  max: z.number().int().positive("Nilai maksimal harus lebih dari 0"),
+  min: z.number().int().positive("Nilai minimal harus lebih dari 0"),
+  suggested: z.number().int().positive("Nilai saran harus lebih dari 0"),
+}).refine(
+  (data) => data.min <= data.max,
+  { message: "Nilai minimal tidak boleh lebih besar dari maksimal", path: ["min"] }
+);
 
 const rateCardValueInputSchema = z.object({
   currency: z.literal("IDR"),
@@ -90,7 +94,30 @@ async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSc
     }
 
     if (metrics.syncStatus !== "success" || !hasData) {
-      throw new Error(`Akun ${account.platform} @${account.handle} tidak valid atau data tidak ditemukan.`);
+      const errorMessage = `Akun ${account.platform} @${account.handle} tidak valid atau tidak ditemukan.`;
+      const isUpstreamFailure = [
+        "APIFY_BAD_REQUEST",
+        "APIFY_TIMEOUT",
+        "APIFY_RATE_LIMIT",
+        "APIFY_UNAVAILABLE",
+        "APIFY_UNKNOWN",
+      ].includes(metrics.errorCode ?? "");
+
+      if (isUpstreamFailure) {
+        throw new ORPCError("SERVICE_UNAVAILABLE", {
+          data: {
+            reason: metrics.errorCode ?? "APIFY_UNKNOWN",
+          },
+          message: "Layanan sinkronisasi akun sedang bermasalah.",
+        });
+      }
+
+      throw new ORPCError("BAD_REQUEST", {
+        data: {
+          reason: metrics.errorCode ?? "INVALID_ACCOUNT",
+        },
+        message: metrics.message || errorMessage,
+      });
     }
   }
 }
@@ -353,7 +380,12 @@ export const kolRouter = {
       const [profile] = await db.select().from(kolProfile).where(eq(kolProfile.id, input.kolId)).limit(1);
 
       if (!profile) {
-        throw new Error("KOL tidak ditemukan.");
+        throw new ORPCError("NOT_FOUND", {
+          data: {
+            reason: "KOL_NOT_FOUND",
+          },
+          message: "KOL tidak ditemukan.",
+        });
       }
 
       await db.insert(kolRateCardHistory).values({
