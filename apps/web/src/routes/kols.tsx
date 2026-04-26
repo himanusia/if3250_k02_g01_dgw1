@@ -542,7 +542,7 @@ function RouteComponent() {
         <DialogContent
           className="max-h-[92vh] max-w-6xl overflow-y-auto border p-0"
           style={{
-            backgroundColor: KOLS_COLORS.surface,
+            backgroundColor: "#FFFFFF",
             borderColor: KOLS_COLORS.stroke,
             color: KOLS_COLORS.text,
           }}
@@ -601,7 +601,7 @@ function RouteComponent() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
+                  className="h-8 rounded-none !border-2 !border-[#982E41] !bg-[#F3D7DE] px-3 !text-[13px] !font-medium !text-[#7A2233] shadow-[0_0_0_1px_rgba(152,46,65,0.08)] transition-colors hover:!bg-[#982E41] hover:!text-white focus-visible:!ring-2 focus-visible:!ring-[#982E41]/30"
                   onClick={() => {
                     setForm((current) => ({
                       ...current,
