@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { PencilLine, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 import type { CampaignRecord, KolRecord } from "@/lib/app-types";
@@ -59,10 +59,39 @@ function RouteComponent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
+  const [kolSearch, setKolSearch] = useState("");
+  const [selectedKeywordFilter, setSelectedKeywordFilter] = useState<string[]>([]);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
   const kolsQuery = useQuery(orpc.kol.list.queryOptions());
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
+
+  const filteredKols = useMemo(() => {
+  return kols.filter((kol) => {
+    const normalizedSearch = kolSearch.trim().toLowerCase();
+    const matchesSearch =
+      !normalizedSearch ||
+      kol.displayName.toLowerCase().includes(normalizedSearch);
+
+    const matchesKeywords =
+      selectedKeywordFilter.length === 0 ||
+      selectedKeywordFilter.some((keyword) =>
+        kol.keywords.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+    return matchesSearch && matchesKeywords;
+  });
+}, [kols, kolSearch, selectedKeywordFilter]);
+
+  const allKeywords = useMemo(() => {
+    return Array.from(
+      new Set(
+        kols
+          .flatMap((kol) => kol.keywords.split(",").map((k) => k.trim()))
+          .filter(Boolean)
+      )
+    );
+  }, [kols]);
 
   const createCampaign = useMutation({
     mutationFn: (input: CampaignFormState) => client.campaign.create(input),
@@ -75,6 +104,7 @@ function RouteComponent() {
       toast.error(error instanceof Error ? error.message : "Gagal membuat campaign");
     },
   });
+
 
   const updateCampaign = useMutation({
     mutationFn: (input: CampaignFormState & { id: number }) => client.campaign.update(input),
@@ -103,6 +133,8 @@ function RouteComponent() {
     setEditingId(null);
     setIsDialogOpen(false);
     setForm(getDefaultForm());
+    setKolSearch("");
+    setSelectedKeywordFilter([]);
   }
 
   function openCreateDialog() {
@@ -319,8 +351,48 @@ function RouteComponent() {
 
             <div className="grid gap-2">
               <Label>Pilih KOL untuk campaign ini</Label>
+              
+              <div className="space-y-3">
+                <Input
+                  placeholder="Cari KOL berdasarkan nama, keyword, atau handle"
+                  value={kolSearch}
+                  onChange={(event) => setKolSearch(event.target.value)}
+                />
+
+                {allKeywords.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Filter by keyword</p>
+                    <div className="flex flex-wrap gap-2">
+                      {allKeywords.map((keyword) => (
+                        <button
+                          key={keyword}
+                          type="button"
+                          onClick={() => {
+                            setSelectedKeywordFilter((current) =>
+                              current.includes(keyword)
+                                ? current.filter((k) => k !== keyword)
+                                : [...current, keyword]
+                            );
+                          }}
+                          className={`
+                            border px-2 py-1 text-xs transition-colors
+                            ${
+                              selectedKeywordFilter.includes(keyword)
+                                ? "border-foreground bg-foreground text-background"
+                                : "border-border text-muted-foreground hover:border-foreground"
+                            }
+                          `}
+                        >
+                          {keyword}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="border-border grid max-h-64 gap-2 overflow-y-auto overflow-x-hidden border p-3">
-                {kols.map((kol) => {
+                {filteredKols.map((kol) => {
                   const checked = form.selectedKolIds.includes(kol.id);
 
                   return (
@@ -345,14 +417,18 @@ function RouteComponent() {
                             .map((account) => `${account.platform}: @${account.handle}`)
                             .join(" • ")}
                         </span>
-                          {kol.keywords && <span className="text-muted-foreground block">{kol.keywords}</span>}
+                        {kol.keywords && <span className="text-muted-foreground block">{kol.keywords}</span>}
                       </span>
                     </label>
                   );
                 })}
 
-                {!kols.length && (
-                  <p className="text-muted-foreground">Belum ada KOL. Tambah dulu di halaman KOL.</p>
+                {!filteredKols.length && (
+                  <p className="text-muted-foreground text-sm">
+                    {kols.length === 0
+                      ? "Belum ada KOL. Tambah dulu di halaman KOL."
+                      : "Tidak ada KOL yang sesuai dengan filter."}
+                  </p>
                 )}
               </div>
             </div>
