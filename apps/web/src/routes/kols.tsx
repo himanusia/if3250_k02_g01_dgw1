@@ -301,6 +301,8 @@ function RouteComponent() {
                   <p>Last sync: {formatDateTime(kol.lastSyncedAt)}</p>
                   <p>Est. post: {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
                   <p>Actual post: {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
+                  <p>Est. story: {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}</p>
+                  <p>Actual story: {formatCurrencyIdr(kol.actualRateCard?.story.suggested)}</p>
                 </div>
 
                 {kol.syncMessage && (
