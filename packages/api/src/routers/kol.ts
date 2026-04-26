@@ -1,11 +1,12 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { kolAccount, kolCampaignHistory, kolProfile, kolRateCardHistory } from "@if3250_k02_g01_dgw1/db/schema/kol";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, asc, isNull, lt, or, sql } from "drizzle-orm";
 import z from "zod";
 
 import { estimateRateCard } from "../lib/rate-card-estimator";
 import { syncAccountWithApify } from "../lib/apify";
 import { protectedProcedure } from "../index";
+import { getSettingNumber, getSetting } from "./access";
 
 const kolAccountInputSchema = z.object({
   handle: z.string().trim().min(1),
@@ -410,3 +411,49 @@ export const kolRouter = {
       return await mapKolRecord(input.id);
     }),
 };
+
+// global sync
+export async function runGlobalSyncBatch(limit = 5) {
+  const enabled = (await getSetting("kol_sync_enabled")) !== "false";
+
+  if (!enabled) {
+    console.log("[SYNC] disabled");
+    return 0;
+  }
+
+  const intervalMinutes = await getSettingNumber(
+    "kol_sync_interval_minutes",
+    30
+  );
+
+  const cutoff = new Date(Date.now() - intervalMinutes * 60 * 1000);
+
+  const kols = await db
+    .select({ id: kolProfile.id })
+    .from(kolProfile)
+    .where(
+      or(
+        isNull(kolProfile.lastSyncedAt),
+        lt(kolProfile.lastSyncedAt, cutoff)
+      )
+    )
+    .orderBy(
+      sql`COALESCE(${kolProfile.lastSyncedAt}, '1970-01-01') ASC`
+    )
+    .limit(limit);
+
+  console.log(
+    `[SYNC] interval=${intervalMinutes}m | selected=${kols.length}`
+  );
+
+  for (const kol of kols) {
+    try {
+      console.log(`[SYNC] syncing KOL ${kol.id}`);
+      await syncKolProfile(kol.id);
+    } catch (err) {
+      console.error(`[SYNC] failed KOL ${kol.id}`, err);
+    }
+  }
+
+  return kols.length;
+}
