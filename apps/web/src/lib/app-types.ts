@@ -1,5 +1,5 @@
 export type AccessRole = "admin" | "user";
-export type SocialPlatform = "instagram" | "tiktok" | "shopee";
+export type SocialPlatform = "instagram" | "tiktok";
 export type SyncStatus = "pending" | "success" | "failed";
 export type FollowerTier = "nano" | "micro" | "macro" | "mega";
 

@@ -1,7 +1,7 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { kolAccount, kolCampaignHistory, kolProfile, kolRateCardHistory } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
-import { desc, eq, asc, isNull, lt, or, sql } from "drizzle-orm";
+import { desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import z from "zod";
 
 import { estimateRateCard } from "../lib/rate-card-estimator";
@@ -11,7 +11,7 @@ import { getSettingNumber, getSetting } from "./access";
 
 const kolAccountInputSchema = z.object({
   handle: z.string().trim().min(1, "Handle tidak boleh kosong"),
-  platform: z.enum(["instagram", "tiktok", "shopee"]),
+  platform: z.enum(["instagram", "tiktok"]),
   profileUrl: z.string().trim().optional().default(""),
 });
 
@@ -26,7 +26,7 @@ const historyInputSchema = z.object({
   campaignName: z.string().trim().min(1, "Nama campaign tidak boleh kosong"),
   kolId: z.number().int().positive("ID KOL harus valid"),
   notes: z.string().trim().optional().default(""),
-  platform: z.enum(["instagram", "tiktok", "shopee"]),
+  platform: z.enum(["instagram", "tiktok"]),
   startedAt: z.string().optional().default(""),
   endedAt: z.string().optional().default(""),
 });
