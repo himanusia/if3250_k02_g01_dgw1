@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as KolsKolIdRouteImport } from './routes/kols.$kolId'
 import { Route as ApiAvatarRouteImport } from './routes/api/avatar'
 import { Route as ApiRpcSplatRouteImport } from './routes/api/rpc/$'
+import { Route as ApiCronSyncKolsRouteImport } from './routes/api/cron/sync-kols'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const UnauthorizedRoute = UnauthorizedRouteImport.update({
@@ -77,6 +78,11 @@ const ApiRpcSplatRoute = ApiRpcSplatRouteImport.update({
   path: '/api/rpc/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronSyncKolsRoute = ApiCronSyncKolsRouteImport.update({
+  id: '/api/cron/sync-kols',
+  path: '/api/cron/sync-kols',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/sync-kols': typeof ApiCronSyncKolsRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesByTo {
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/sync-kols': typeof ApiCronSyncKolsRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesById {
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/sync-kols': typeof ApiCronSyncKolsRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRouteTypes {
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
+    | '/api/cron/sync-kols'
     | '/api/rpc/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
+    | '/api/cron/sync-kols'
     | '/api/rpc/$'
   id:
     | '__root__'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
+    | '/api/cron/sync-kols'
     | '/api/rpc/$'
   fileRoutesById: FileRoutesById
 }
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   UnauthorizedRoute: typeof UnauthorizedRoute
   ApiAvatarRoute: typeof ApiAvatarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCronSyncKolsRoute: typeof ApiCronSyncKolsRoute
   ApiRpcSplatRoute: typeof ApiRpcSplatRoute
 }
 
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRpcSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/sync-kols': {
+      id: '/api/cron/sync-kols'
+      path: '/api/cron/sync-kols'
+      fullPath: '/api/cron/sync-kols'
+      preLoaderRoute: typeof ApiCronSyncKolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -295,6 +315,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnauthorizedRoute: UnauthorizedRoute,
   ApiAvatarRoute: ApiAvatarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCronSyncKolsRoute: ApiCronSyncKolsRoute,
   ApiRpcSplatRoute: ApiRpcSplatRoute,
 }
 export const routeTree = rootRouteImport

@@ -30,6 +30,18 @@ type KolFormState = {
   keywords: string;
 };
 
+type RpcLikeError = {
+  code?: string;
+  data?: {
+    reason?: string;
+    issues?: Array<{
+      message: string;
+      path?: string[];
+    }>;
+  };
+  message?: string;
+};
+
 function getDefaultAccount(platform: SocialPlatform = "instagram"): KolAccountFormState {
   return {
     handle: "",
@@ -65,6 +77,31 @@ const KOLS_COLORS = {
 
 const KOL_ACTION_BUTTON_CLASS =
   "h-7 rounded-none !border !border-[#982E41] !bg-[#F7E7EB] px-2.5 !text-[12px] !font-normal !text-[#982E41] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
+function getKolErrorMessage(error: unknown, fallback: string) {
+  const rpcError = error as RpcLikeError;
+  const reason = rpcError?.data?.reason;
+  const code = rpcError?.code;
+
+  if (code === "BAD_REQUEST") {
+    if (reason === "INVALID_ACCOUNT") {
+      return rpcError?.message || "Akun tidak valid atau tidak ditemukan di platform.";
+    }
+
+    if (rpcError?.data?.issues?.[0]?.message) {
+      return rpcError.data.issues[0].message;
+    }
+  }
+
+  if (code === "SERVICE_UNAVAILABLE") {
+    return "Layanan sinkronisasi akun sedang bermasalah. Coba lagi nanti.";
+  }
+
+  if (code === "NOT_FOUND" && reason === "KOL_NOT_FOUND") {
+    return "KOL tidak ditemukan.";
+  }
+
+  return error instanceof Error ? error.message : fallback;
+}
 
 export const Route = createFileRoute("/kols")({
   component: RouteComponent,
@@ -107,7 +144,7 @@ function RouteComponent() {
       resetForm();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal menambahkan KOL");
+      toast.error(getKolErrorMessage(error, "Gagal menambahkan KOL"));
     },
   });
 
@@ -119,7 +156,7 @@ function RouteComponent() {
       resetForm();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal memperbarui KOL");
+      toast.error(getKolErrorMessage(error, "Gagal memperbarui KOL"));
     },
   });
 
@@ -129,8 +166,8 @@ function RouteComponent() {
       toast.success("Data KOL berhasil disinkronkan");
       kolQuery.refetch();
     },
-    onError: () => {
-      toast.error("Sinkronisasi KOL gagal");
+    onError: (error) => {
+      toast.error(getKolErrorMessage(error, "Sinkronisasi KOL gagal"));
     },
   });
 
@@ -142,7 +179,7 @@ function RouteComponent() {
       setDeleteTargetId(null);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus KOL");
+      toast.error(getKolErrorMessage(error, "Gagal menghapus KOL"));
       setDeleteTargetId(null);
     },
   });

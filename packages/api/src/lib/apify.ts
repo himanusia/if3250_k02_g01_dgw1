@@ -17,6 +17,16 @@ type SyncedMetrics = {
   averageLikes: number;
   averageViews: number;
   biography?: string | null;
+  errorCode?:
+    | "INVALID_ACCOUNT"
+    | "NO_DATA"
+    | "APIFY_BAD_REQUEST"
+    | "APIFY_TIMEOUT"
+    | "APIFY_RATE_LIMIT"
+    | "APIFY_UNAVAILABLE"
+    | "APIFY_UNKNOWN"
+    | "APIFY_NOT_CONFIGURED"
+    | "PLATFORM_NOT_SUPPORTED";
   engagementRate: string;
   externalId?: string | null;
   followers: number;
@@ -204,6 +214,7 @@ function extractInstagramMetrics(item: Record<string, unknown> | undefined): Syn
       averageLikes: 0,
       averageViews: 0,
       biography: null,
+      errorCode: "NO_DATA",
       engagementRate: "",
       followers: 0,
       metadata: null,
@@ -217,6 +228,7 @@ function extractInstagramMetrics(item: Record<string, unknown> | undefined): Syn
       averageLikes: 0,
       averageViews: 0,
       biography: null,
+      errorCode: "INVALID_ACCOUNT",
       engagementRate: "",
       followers: 0,
       metadata: item,
@@ -290,6 +302,7 @@ function extractTikTokMetrics(items: Array<Record<string, unknown>>): SyncedMetr
       averageLikes: 0,
       averageViews: 0,
       biography: null,
+      errorCode: "NO_DATA",
       engagementRate: "",
       followers: 0,
       metadata: null,
@@ -305,6 +318,7 @@ function extractTikTokMetrics(items: Array<Record<string, unknown>>): SyncedMetr
       averageLikes: 0,
       averageViews: 0,
       biography: null,
+      errorCode: "INVALID_ACCOUNT",
       engagementRate: "",
       followers: 0,
       metadata: firstItem,
@@ -356,6 +370,7 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
       averageLikes: 0,
       averageViews: 0,
       biography: null,
+      errorCode: env.APIFY_API_TOKEN ? "PLATFORM_NOT_SUPPORTED" : "APIFY_NOT_CONFIGURED",
       engagementRate: "",
       followers: 0,
       metadata: null,
@@ -391,6 +406,16 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
       averageLikes: 0,
       averageViews: 0,
       biography: null,
+      errorCode:
+        response.status === 400
+          ? "APIFY_BAD_REQUEST"
+          : response.status === 408
+            ? "APIFY_TIMEOUT"
+            : response.status === 429
+              ? "APIFY_RATE_LIMIT"
+              : response.status >= 500
+                ? "APIFY_UNAVAILABLE"
+                : "APIFY_UNKNOWN",
       engagementRate: "",
       followers: 0,
       metadata: null,
@@ -415,5 +440,15 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
     ),
   );
 
-  return extractMetrics(account.platform, items);
+  const metrics = extractMetrics(account.platform, items);
+
+  if (metrics.errorCode === "INVALID_ACCOUNT" || metrics.errorCode === "NO_DATA") {
+    const contextMessage = `Akun ${account.platform} @${normalizeHandle(account.handle)} tidak valid atau data tidak ditemukan.`;
+    return {
+      ...metrics,
+      message: metrics.message ? `${contextMessage}` : contextMessage,
+    };
+  }
+
+  return metrics;
 }

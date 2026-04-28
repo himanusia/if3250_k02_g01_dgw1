@@ -4,3 +4,11 @@
   "buildCommand": "bun --filter web build",
   "outputDirectory": null
 }
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-kols",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -17,7 +18,123 @@ export const Route = createFileRoute("/access")({
   component: RouteComponent,
 });
 
+function formatTimeUntilDetailed(ms: number) {
+  if (ms <= 0) return "next sync now";
+
+  const totalMinutes = Math.floor(ms / 60000);
+
+  if (totalMinutes < 1) {
+    return "next sync in: < 1 minute";
+  }
+
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  const parts: string[] = [];
+
+  if (days > 0) {
+    parts.push(`${days} day${days > 1 ? "s" : ""}`);
+  }
+
+  if (hours > 0) {
+    parts.push(`${hours} hour${hours > 1 ? "s" : ""}`);
+  }
+
+  if (minutes > 0 && days === 0) {
+    // only show minutes if < 1 day to avoid clutter
+    parts.push(`${minutes} minute${minutes > 1 ? "s" : ""}`);
+  }
+
+  return `next sync in: ${parts.join(" ")}`;
+}
+
+function toMinutes(value: number, unit: "minute" | "hour" | "day") {
+  switch (unit) {
+    case "minute":
+      return value;
+    case "hour":
+      return value * 60;
+    case "day":
+      return value * 1440;
+  }
+}
+
+function fromMinutes(minutes: number) {
+  if (minutes % 1440 === 0) {
+    return { value: minutes / 1440, unit: "day" as const };
+  }
+
+  if (minutes % 60 === 0) {
+    return { value: minutes / 60, unit: "hour" as const };
+  }
+
+  return { value: minutes, unit: "minute" as const };
+}
+
+
+
 function RouteComponent() {
+  const syncSettingsQuery = useQuery(
+    orpc.access.getSyncSettings.queryOptions()
+  );
+
+  const syncSettings = syncSettingsQuery.data;
+  const [syncForm, setSyncForm] = useState({
+    intervalValue: 30,
+    intervalUnit: "minute" as "minute" | "hour" | "day",
+    enabled: true,
+  });
+
+  useEffect(() => {
+    if (!syncSettings) return;
+
+    const converted = fromMinutes(syncSettings.intervalMinutes);
+
+    setSyncForm({
+      intervalValue: converted.value,
+      intervalUnit: converted.unit,
+      enabled: syncSettings.enabled,
+    });
+  }, [syncSettings]);
+
+  const intervalMinutes =
+    syncSettings?.intervalMinutes ??
+    toMinutes(syncForm.intervalValue, syncForm.intervalUnit);
+
+  const enabled = syncSettings?.enabled ?? syncForm.enabled;
+
+  const now = Date.now();
+  const intervalMs = intervalMinutes * 60 * 1000;
+
+  const nextTick =
+    Math.ceil(now / intervalMs) * intervalMs;
+
+  const msUntilNext = nextTick - now;
+
+  const nextSyncLabel = enabled
+    ? formatTimeUntilDetailed(msUntilNext)
+    : "global sync disabled";
+
+  const updateSyncSettings = useMutation({
+    mutationFn: (input: { intervalMinutes: number; enabled: boolean }) =>
+      client.access.updateSyncSettings(input),
+    onSuccess: () => {
+      toast.success("Pengaturan sync diperbarui");
+      syncSettingsQuery.refetch();
+    },
+  });
+
+  function submitSyncSettings() {
+    updateSyncSettings.mutate({
+      intervalMinutes: toMinutes(
+        syncForm.intervalValue,
+        syncForm.intervalUnit
+      ),
+      enabled: syncForm.enabled,
+    });
+  }
+
   const [form, setForm] = useState({
     email: "",
     note: "",
@@ -136,6 +253,73 @@ function RouteComponent() {
             <p className="text-muted-foreground text-sm">Belum ada email di whitelist database.</p>
           )}
         </div>
+      </section>
+      <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+        <div>
+          <h2 className="text-xl font-semibold">Global Sync Settings</h2>
+          <p className="text-muted-foreground text-sm">
+            Atur seberapa sering semua KOL akan disinkronkan.
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {nextSyncLabel}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            value={syncForm.intervalValue}
+            onChange={(e) =>
+              setSyncForm((prev) => ({
+                ...prev,
+                intervalValue: Number(e.target.value),
+              }))
+            }
+            className="w-24"
+          />
+
+          <select
+            value={syncForm.intervalUnit}
+            onChange={(e) =>
+              setSyncForm((prev) => ({
+                ...prev,
+                intervalUnit: e.target.value as "minute" | "hour" | "day",
+              }))
+            }
+            className="
+              border-border bg-background text-foreground
+              focus-visible:border-ring focus-visible:ring-ring/50
+              min-h-10 rounded-none border px-3 text-sm outline-none
+            "
+          >
+            <option value="minute">Minute(s)</option>
+            <option value="hour">Hour(s)</option>
+            <option value="day">Day(s)</option>
+          </select>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={syncForm.enabled}
+            onChange={(e) =>
+              setSyncForm((prev) => ({
+                ...prev,
+                enabled: e.target.checked,
+              }))
+            }
+            className="accent-foreground"
+          />
+          Enable global sync
+        </label>
+
+        <Button
+          onClick={submitSyncSettings}
+          disabled={updateSyncSettings.isPending}
+        >
+          {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
+        </Button>
       </section>
     </div>
   );
