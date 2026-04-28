@@ -25,23 +25,25 @@ export default function UserMenu() {
   if (!session) {
     return (
       <Link to="/login">
-        <Button variant="outline">Sign In</Button>
+        <Button className="bg-black/25 text-white hover:bg-black/40 border-0 hover:text-white shadow-none">Sign In</Button>
       </Link>
     );
   }
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}>
+      <DropdownMenuTrigger render={<Button className="bg-black/25 text-white hover:bg-black/40 px-6 font-medium shadow-none border-0" />}>
         {session.user.name}
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card">
+      <DropdownMenuContent className="bg-white text-black border shadow-lg mt-2">
         <DropdownMenuGroup>
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-gray-200" />
+          <DropdownMenuItem className="focus:bg-[#7B204C] focus:text-white cursor-pointer">{session.user.email}</DropdownMenuItem>
+          <DropdownMenuSeparator className="bg-gray-200" />
+     
           <DropdownMenuItem
-            variant="destructive"
+            className="text-red-600 focus:bg-red-500 focus:text-white cursor-pointer"
             onClick={() => {
               authClient.signOut({
                 fetchOptions: {

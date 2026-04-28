@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { KolRecord, SocialPlatform } from "@/lib/app-types";
@@ -66,6 +66,17 @@ function parseKeywordSegments(keywords: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+const KOLS_COLORS = {
+  badgeFill: "#B33C39",
+  mutedText: "#6D3A44",
+  pageBackground: "#FFF8F9",
+  stroke: "#982E41",
+  surface: "#FFF8F9",
+  text: "#2B1418",
+} as const;
+
+const KOL_ACTION_BUTTON_CLASS =
+  "h-7 rounded-none !border !border-[#982E41] !bg-[#F7E7EB] px-2.5 !text-[12px] !font-normal !text-[#982E41] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
 function getKolErrorMessage(error: unknown, fallback: string) {
   const rpcError = error as RpcLikeError;
   const reason = rpcError?.data?.reason;
@@ -236,6 +247,19 @@ function RouteComponent() {
 
   const suggestion = getBestMatch(form.keywords);
 
+  useEffect(() => {
+    const previousBodyBackground = document.body.style.backgroundColor;
+    const previousHtmlBackground = document.documentElement.style.backgroundColor;
+
+    document.body.style.backgroundColor = KOLS_COLORS.pageBackground;
+    document.documentElement.style.backgroundColor = KOLS_COLORS.pageBackground;
+
+    return () => {
+      document.body.style.backgroundColor = previousBodyBackground;
+      document.documentElement.style.backgroundColor = previousHtmlBackground;
+    };
+  }, []);
+
 
   function submit() {
     if (editingId) {
@@ -251,23 +275,46 @@ function RouteComponent() {
 
   return (
     <>
-      <div className="container mx-auto space-y-6 px-4 py-6">
-        <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+      <div
+        className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] min-h-screen w-screen py-6"
+        style={{ backgroundColor: KOLS_COLORS.pageBackground }}
+      >
+        <div
+          className="mx-auto w-[98vw] max-w-[1700px] space-y-6 px-[10px] md:px-[14px] [font-family:var(--font-poppins)] font-normal"
+          style={{ color: KOLS_COLORS.text }}
+        >
+          <section
+            className="space-y-4 border p-4"
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderColor: `${KOLS_COLORS.stroke}80`,
+            }}
+          >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <h1 className="text-2xl font-semibold">Daftar KOL</h1>
-            <Button type="button" onClick={openCreateDialog}>
+            <h1 className="text-[22px] font-bold uppercase tracking-tight md:text-[32px]">Daftar KOL</h1>
+            <Button
+              type="button"
+              onClick={openCreateDialog}
+              className="h-8 rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
+            >
               <Plus className="mr-2 size-4" />
               Tambah KOL
             </Button>
           </div>
 
           <div className="max-w-md">
-            <FormInput label="Search" value={search} onChange={setSearch} placeholder="Cari nama, handle, keyword" />
+            <FormInput label="Search" value={search} onChange={setSearch} placeholder="Cari Nama, Handle, Keyword" />
           </div>
+
+          <div className="border-t border-dashed" style={{ borderColor: `${KOLS_COLORS.stroke}80` }} />
 
           <div className="space-y-3">
             {filteredKols.map((kol) => (
-              <div key={kol.id} className="border-border space-y-4 border p-4">
+              <div
+                key={kol.id}
+                className="space-y-4 border bg-white p-4"
+                style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+              >
                 {(() => {
                   const primaryAccount = kol.accounts[0];
                   const biography = kol.accounts.find((account) => account.biography)?.biography;
@@ -286,41 +333,91 @@ function RouteComponent() {
                       <img
                         src={getAvatarSrc(primaryMetadata.avatarUrl)}
                         alt={kol.displayName}
-                        className="border-border size-12 shrink-0 border object-cover"
+                        className="size-12 shrink-0 border object-cover"
+                        style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <div className="bg-muted text-foreground flex size-12 shrink-0 items-center justify-center border text-sm font-medium">
+                      <div
+                        className="flex size-12 shrink-0 items-center justify-center border text-[14px] font-medium"
+                        style={{
+                          backgroundColor: "#F8EAED",
+                          borderColor: `${KOLS_COLORS.stroke}66`,
+                        }}
+                      >
                         {initials}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <Link to="/kols/$kolId" params={{ kolId: String(kol.id) }} className="font-medium underline underline-offset-2 hover:no-underline">{kol.displayName}</Link>
-                      <p className="text-muted-foreground text-sm">{kol.accounts.length} akun terhubung</p>
+                      <Link
+                        to="/kols/$kolId"
+                        params={{ kolId: String(kol.id) }}
+                        className="text-[18px] font-semibold text-[#1D1114] hover:underline"
+                      >
+                        {kol.displayName}
+                      </Link>
+                      <p className="text-[13px]" style={{ color: KOLS_COLORS.text }}>
+                        {kol.accounts.length} akun terhubung
+                      </p>
                       {primaryMetadata?.category && (
-                        <p className="text-muted-foreground text-sm">{primaryMetadata.category}</p>
+                        <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
+                          {primaryMetadata.category}
+                        </p>
                       )}
-                      {biography && <p className="text-muted-foreground mt-1 text-sm wrap-break-word">{biography}</p>}
+                      {biography && (
+                        <p className="mt-1 text-[13px] wrap-break-word" style={{ color: KOLS_COLORS.mutedText }}>
+                          {biography}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => syncKol.mutate({ id: kol.id })}
-                      disabled={syncKol.isPending}
-                    >
-                      <RefreshCcw className="mr-1 size-4" />
-                      Sinkronkan
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => editKol(kol)}>
-                      <PencilLine className="mr-1 size-4" />
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setDeleteTargetId(kol.id)}>
-                      <Trash2 className="mr-1 size-4" />
-                      Hapus
-                    </Button>
+
+                  <div className="flex flex-col items-start gap-2 md:items-end">
+                    <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={KOL_ACTION_BUTTON_CLASS}
+                        onClick={() => {
+                          toast.info("masih dummy");
+                        }}
+                      >
+                        Atur Sinkronisasi
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => syncKol.mutate({ id: kol.id })}
+                        disabled={syncKol.isPending}
+                        className={KOL_ACTION_BUTTON_CLASS}
+                      >
+                        <RefreshCcw className="mr-1 size-3.5" />
+                        Sinkronkan
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => editKol(kol)}
+                        className={KOL_ACTION_BUTTON_CLASS}
+                      >
+                        <PencilLine className="mr-1 size-3.5" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeleteTargetId(kol.id)}
+                        className={KOL_ACTION_BUTTON_CLASS}
+                      >
+                        <Trash2 className="mr-1 size-3.5" />
+                        Hapus
+                      </Button>
+                    </div>
+
+                    <p className="text-[13px]" style={{ color: KOLS_COLORS.text }}>
+                      Auto Sinkron: -
+                    </p>
                   </div>
                 </div>
                   );
@@ -333,25 +430,35 @@ function RouteComponent() {
                   <MetricBox label="Engagement" value={kol.engagementRate || "-"} />
                 </div>
 
-                <div className="text-muted-foreground grid gap-1 text-sm md:grid-cols-2">
-                  <p>Tier: {kol.followerTier}</p>
-                  <p>Status sync: {kol.syncStatus}</p>
-                  <p>Last sync: {formatDateTime(kol.lastSyncedAt)}</p>
-                  <p>Est. post: {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
-                  <p>Actual post: {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
-                  <p>Est. story: {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}</p>
-                  <p>Actual story: {formatCurrencyIdr(kol.actualRateCard?.story.suggested)}</p>
+                <div className="grid gap-1 text-[13px] md:grid-cols-2" style={{ color: KOLS_COLORS.text }}>
+                  <p><span className="font-bold uppercase">Tier:</span> {kol.followerTier}</p>
+                  <p><span className="font-medium">Status sync:</span> {kol.syncStatus}</p>
+                  <p><span className="font-bold">Last Sync:</span> {formatDateTime(kol.lastSyncedAt)}</p>
+                  <p><span className="font-medium">Est. post:</span> {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
+                  <p><span className="font-medium">Actual post:</span> {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
+                  <p><span className="font-medium">Est. story:</span> {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}</p>
+                  <p><span className="font-medium">Actual story:</span> {formatCurrencyIdr(kol.actualRateCard?.story.suggested)}</p>
                 </div>
 
                 {kol.syncMessage && (
-                  <p className="text-muted-foreground border-border wrap-break-word border px-3 py-2 text-sm">
+                  <p
+                    className="wrap-break-word border px-3 py-2 text-[13px]"
+                    style={{
+                      borderColor: `${KOLS_COLORS.stroke}66`,
+                      color: KOLS_COLORS.mutedText,
+                    }}
+                  >
                     {kol.syncMessage}
                   </p>
                 )}
 
                 <div className="grid gap-2">
                   {kol.accounts.map((account) => (
-                    <div key={account.id} className="border-border grid gap-3 border p-3">
+                    <div
+                      key={account.id}
+                      className="grid gap-3 border bg-[#FFF5F7] p-3"
+                      style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+                    >
                       {(() => {
                         const metadata = getAccountMetadata(account.metadata);
 
@@ -363,22 +470,31 @@ function RouteComponent() {
                                   <img
                                     src={getAvatarSrc(metadata.avatarUrl)}
                                     alt={`@${account.handle}`}
-                                    className="border-border size-14 shrink-0 border object-cover"
+                                    className="size-14 shrink-0 border object-cover"
+                                    style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
                                     referrerPolicy="no-referrer"
                                   />
                                 ) : (
-                                  <div className="bg-muted text-foreground flex size-14 shrink-0 items-center justify-center border text-sm font-medium uppercase">
+                                  <div
+                                    className="flex size-14 shrink-0 items-center justify-center border text-[14px] font-medium uppercase"
+                                    style={{
+                                      backgroundColor: "#F8EAED",
+                                      borderColor: `${KOLS_COLORS.stroke}66`,
+                                    }}
+                                  >
                                     {account.handle.slice(0, 2) || account.platform.slice(0, 2)}
                                   </div>
                                 )}
 
                                 <div className="min-w-0 space-y-1">
-                                  <p className="font-medium capitalize">{account.platform}</p>
-                                  <p className="text-muted-foreground wrap-break-word text-sm">@{account.handle}</p>
+                                  <p className="text-[16px] font-bold uppercase leading-none">{account.platform}</p>
+                                  <p className="wrap-break-word text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
+                                    @{account.handle}
+                                  </p>
                                   {metadata?.fullName && metadata.fullName !== account.handle && (
-                                    <p className="text-sm">{metadata.fullName}</p>
+                                    <p className="text-[13px]">{metadata.fullName}</p>
                                   )}
-                                  <div className="flex flex-wrap gap-2 text-xs">
+                                  <div className="flex flex-wrap gap-2 text-[12px]">
                                     {metadata?.verified && <MetaBadge>Verified</MetaBadge>}
                                     {metadata?.isBusinessAccount && <MetaBadge>Business</MetaBadge>}
                                     {metadata?.isPrivate && <MetaBadge>Private</MetaBadge>}
@@ -389,7 +505,8 @@ function RouteComponent() {
                                       href={metadata.website}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="text-sm underline underline-offset-2"
+                                      className="text-[13px] underline underline-offset-2"
+                                      style={{ color: "#7C2536" }}
                                     >
                                       {metadata.website}
                                     </a>
@@ -397,9 +514,9 @@ function RouteComponent() {
                                 </div>
                               </div>
 
-                              <div className="text-muted-foreground grid gap-1 text-sm md:text-right">
-                                <p>Status: {account.syncStatus}</p>
-                                <p>Last sync: {formatDateTime(account.lastSyncedAt)}</p>
+                              <div className="grid gap-1 text-[13px] md:text-right" style={{ color: KOLS_COLORS.text }}>
+                                <p><span className="font-medium">Status:</span> {account.syncStatus}</p>
+                                <p><span className="font-medium">Last Sync:</span> {formatDateTime(account.lastSyncedAt)}</p>
                               </div>
                             </div>
 
@@ -413,7 +530,13 @@ function RouteComponent() {
                             </div>
 
                             {account.syncMessage && (
-                              <p className="text-muted-foreground border-border wrap-break-word border px-3 py-2 text-sm">
+                              <p
+                                className="wrap-break-word border px-3 py-2 text-[13px]"
+                                style={{
+                                  borderColor: `${KOLS_COLORS.stroke}66`,
+                                  color: KOLS_COLORS.mutedText,
+                                }}
+                              >
                                 {account.syncMessage}
                               </p>
                             )}
@@ -424,15 +547,22 @@ function RouteComponent() {
                   ))}
                 </div>
 
-                {kol.keywords && <p className="text-muted-foreground text-sm">Keywords: {kol.keywords}</p>}
+                {kol.keywords && (
+                  <p className="text-[13px]" style={{ color: KOLS_COLORS.text }}>
+                    <span className="font-semibold">Keywords:</span> {kol.keywords}
+                  </p>
+                )}
               </div>
             ))}
 
             {!filteredKols.length && (
-              <p className="text-muted-foreground text-sm">Belum ada KOL yang tersimpan.</p>
+              <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
+                Belum ada KOL yang tersimpan.
+              </p>
             )}
           </div>
         </section>
+        </div>
       </div>
 
       <Dialog
@@ -446,9 +576,16 @@ function RouteComponent() {
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto p-0">
+        <DialogContent
+          className="max-h-[92vh] max-w-6xl overflow-y-auto border p-0"
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderColor: KOLS_COLORS.stroke,
+            color: KOLS_COLORS.text,
+          }}
+        >
           <DialogHeader>
-            <div className="border-border border-b px-4 py-4 sm:px-6">
+            <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
               <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
             </div>
           </DialogHeader>
@@ -497,10 +634,11 @@ function RouteComponent() {
 
             <div className="grid gap-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-base font-medium">Akun</h2>
+                <h2 className="text-[15px] font-medium">Akun</h2>
                 <Button
                   type="button"
                   variant="outline"
+                  className="h-8 rounded-none !border-2 !border-[#982E41] !bg-[#F3D7DE] px-3 !text-[13px] !font-medium !text-[#7A2233] shadow-[0_0_0_1px_rgba(152,46,65,0.08)] transition-colors hover:!bg-[#982E41] hover:!text-white focus-visible:!ring-2 focus-visible:!ring-[#982E41]/30"
                   onClick={() => {
                     setForm((current) => ({
                       ...current,
@@ -516,12 +654,13 @@ function RouteComponent() {
               {form.accounts.map((account, index) => (
                 <div
                   key={`${account.platform}-${index}`}
-                  className="border-border grid min-w-0 gap-4 border p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
+                  className="grid min-w-0 gap-4 border bg-white/50 p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
+                  style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
                 >
                   <Label className="grid gap-2">
                     <span>Platform</span>
                     <select
-                      className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-full min-w-0 rounded-none border px-3 text-xs outline-none focus-visible:ring-1"
+                      className="min-h-10 w-full min-w-0 rounded-none border border-[#982E41]/60 bg-white/80 px-3 text-[12px] outline-none focus-visible:border-[#982E41] focus-visible:ring-1 focus-visible:ring-[#982E41]/30"
                       value={account.platform}
                       onChange={(event) => {
                         const platform = event.target.value as SocialPlatform;
@@ -556,6 +695,7 @@ function RouteComponent() {
                     <Button
                       type="button"
                       variant="ghost"
+                      className="text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
                       disabled={form.accounts.length === 1}
                       onClick={() => {
                         setForm((current) => ({
@@ -571,13 +711,22 @@ function RouteComponent() {
               ))}
             </div>
 
-            <DialogFooter className="border-border border-t pt-4">
+            <DialogFooter className="border-t pt-4" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
               {editingId && (
-                <Button type="button" variant="outline" onClick={resetForm}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
+                  onClick={resetForm}
+                >
                   Batal edit
                 </Button>
               )}
-              <Button type="submit" disabled={createKol.isPending || updateKol.isPending}>
+              <Button
+                type="submit"
+                disabled={createKol.isPending || updateKol.isPending}
+                className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
+              >
                 {editingId
                   ? updateKol.isPending
                     ? "Menyimpan perubahan..."
@@ -599,20 +748,31 @@ function RouteComponent() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent
+          className="border"
+          style={{
+            backgroundColor: KOLS_COLORS.surface,
+            borderColor: KOLS_COLORS.stroke,
+            color: KOLS_COLORS.text,
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Konfirmasi Hapus KOL</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
             Apakah Anda yakin ingin menghapus KOL ini? Semua data akun dan riwayat campaign terkait juga akan dihapus. Tindakan ini tidak dapat dibatalkan.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTargetId(null)}>
+            <Button
+              variant="outline"
+              className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
+              onClick={() => setDeleteTargetId(null)}
+            >
               Batal
             </Button>
             <Button
-              variant="destructive"
               disabled={deleteKol.isPending}
+              className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
               onClick={() => {
                 if (deleteTargetId !== null) {
                   deleteKol.mutate({ id: deleteTargetId });
@@ -660,16 +820,16 @@ function DisplayNameInput({
           onBlur={() => {
             setTimeout(() => setOpen(false), 100);
           }}
-          className="border px-3 py-2 w-full"
+          className="w-full rounded-[6px] border border-[#982E41]/70 bg-white px-3 py-2 text-[#2B1418] outline-none focus:border-[#982E41]"
         />
       </label>
 
       {open && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full border border-gray-700 bg-gray-900 shadow-lg max-h-28 overflow-y-auto">
+        <div className="absolute z-10 mt-1 max-h-28 w-full overflow-y-auto border border-[#982E41]/80 bg-[#FFF8F9] shadow-lg">
           {filtered.map((opt) => (
             <div
               key={opt}
-              className="cursor-pointer px-3 py-2 hover:bg-gray-800 text-gray-200"
+              className="cursor-pointer px-3 py-2 text-[#2B1418] hover:bg-[#F4DCE1]"
               onMouseDown={() => {
                 onChange(opt);
                 setOpen(false);
@@ -708,7 +868,7 @@ function FormInput({
           <div className="pointer-events-none absolute inset-0 flex items-center">
             <span className="w-full px-3 pb-0.25 text-transparent">
               {value}
-              <span className="text-gray-400">{ghost}</span>
+              <span className="text-[#B16A77]">{ghost}</span>
             </span>
           </div>
         )}
@@ -720,7 +880,9 @@ function FormInput({
           placeholder={placeholder}
           required={!placeholder}
           className={`
-            relative w-full
+            relative w-full rounded-[6px]
+            border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75]
+            focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30
             ${ghost ? "bg-transparent" : ""}
           `}
         />
@@ -731,9 +893,9 @@ function FormInput({
 
 function MetricBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-border bg-muted/30 grid gap-1 border px-3 py-2">
-      <p className="text-muted-foreground text-[11px] uppercase tracking-[0.18em]">{label}</p>
-      <p className="text-sm font-medium">{value}</p>
+    <div className="grid gap-1 border bg-white/70 px-3 py-2" style={{ borderColor: `${KOLS_COLORS.stroke}80` }}>
+      <p className="text-[11px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
+      <p className="text-[20px] font-semibold leading-none tracking-[0.04em]">{value}</p>
     </div>
   );
 }
@@ -741,12 +903,13 @@ function MetricBox({ label, value }: { label: string; value: string }) {
 function MetricInline({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-muted-foreground text-[11px] uppercase tracking-[0.18em]">{label}</p>
-      <p className="truncate text-sm">{value}</p>
+      <p className="text-[11px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
+      <p className="truncate text-[20px] font-semibold leading-none tracking-[0.04em]">{value}</p>
     </div>
   );
 }
 
 function MetaBadge({ children }: { children: string }) {
-  return <span className="bg-muted border-border border px-2 py-1">{children}</span>;
+  //badge metadata (Verified/Business/dll).
+  return <span className="border border-[#982E41] bg-[#B33C39] px-2 py-1 text-[12px] leading-none text-white">{children}</span>;
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { CampaignRecord, KolRecord, SocialPlatform } from "@/lib/app-types";
@@ -24,6 +24,16 @@ function RouteComponent() {
   const [keywordFilter, setKeywordFilter] = useState("");
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [selectedKolIds, setSelectedKolIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    document.documentElement.classList.add("digiTheme");
+    document.body.classList.add("digiTheme");
+
+    return () => {
+      document.documentElement.classList.remove("digiTheme");
+      document.body.classList.remove("digiTheme");
+    };
+  }, []);
 
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const campaignQuery = useQuery(orpc.campaign.list.queryOptions());
