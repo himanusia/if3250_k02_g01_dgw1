@@ -50,8 +50,4 @@ coverage
 .cache
 tmp
 temp
-
-/packages/ml/artifacts/*
-!/packages/ml/artifacts/.gitkeep
-
 /docs

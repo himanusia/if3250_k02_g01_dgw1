@@ -1,0 +1,72 @@
+{
+  "artifacts": {
+    "cleaned_training_data": "packages\\ml\\artifacts\\cleaned-training-data.csv",
+    "dropped_rows": "packages\\ml\\artifacts\\dropped-rows.csv",
+    "joblib_model_bundle": "packages\\ml\\artifacts\\rate-card-model.joblib",
+    "onnx_model": null
+  },
+  "dataset": {
+    "path": "Cleaned Rate Card.csv",
+    "total_rows": 277,
+    "trainable_rows": 237,
+    "dropped_rows": 40,
+    "barter_rows_imputed": 44,
+    "barter_proxy_idr": 150000,
+    "drop_reason_counts": {
+      "missing_or_invalid_followers": 34,
+      "missing_or_invalid_rate_card": 9
+    }
+  },
+  "feature_names": [
+    "followers",
+    "log_followers",
+    "platform__instagram",
+    "platform__tiktok",
+    "platform__other",
+    "creator_type__cat",
+    "creator_type__dog_small_breed",
+    "creator_type__dog_medium_breed",
+    "creator_type__dog_large_breed",
+    "creator_type__other",
+    "follower_tier__nano",
+    "follower_tier__micro",
+    "follower_tier__macro",
+    "follower_tier__mega",
+    "is_barter"
+  ],
+  "metrics": {
+    "cross_validation": {
+      "mae": 1390447.62,
+      "rmse": 5044720.83,
+      "rmse_log": 0.9572,
+      "r2": 0.0888,
+      "r2_log": 0.337
+    },
+    "train": {
+      "mae": 1129877.4,
+      "rmse": 6772131.25,
+      "rmse_log": 0.6958,
+      "r2": 0.1777,
+      "r2_log": 0.6589
+    },
+    "test": {
+      "mae": 1529255.45,
+      "rmse": 6702102.45,
+      "rmse_log": 0.9545,
+      "r2": 0.1088,
+      "r2_log": 0.3177
+    }
+  },
+  "model_version": "lightgbm-huber-v1",
+  "onnx_export": {
+    "exported": false,
+    "path": null,
+    "reason": "missing_dependency:onnxmltools"
+  },
+  "target_transform": "log1p",
+  "training_config": {
+    "min_trainable_rows": 30,
+    "random_state": 42,
+    "test_size": 0.2
+  }
+}
