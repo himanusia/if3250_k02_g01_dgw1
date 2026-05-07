@@ -1,11 +1,14 @@
 import type { FollowerTier, RateCardMetadata, RateCardRange, RateCardValue } from "@if3250_k02_g01_dgw1/db/schema/kol";
 
+import { predictRateCardIdr } from "./onnx-model";
+
 type EstimateRateCardInput = {
   averageLikes: number;
   averageViews: number;
   campaignHistoryCount: number;
   engagementRate: string;
   followerTier: FollowerTier;
+  platform?: string;
   platformCount: number;
   totalFollowers: number;
 };
@@ -15,7 +18,8 @@ type EstimateRateCardResult = {
   metadata: RateCardMetadata;
 };
 
-const RATE_CARD_MODEL_VERSION = "formula-v1";
+const FORMULA_VERSION = "formula-v1";
+const ML_VERSION = "lightgbm-huber-v1";
 
 function toPositiveInt(value: number) {
   if (!Number.isFinite(value)) {
@@ -93,7 +97,7 @@ function computeConfidenceScore(input: EstimateRateCardInput) {
   return Number(clamp(score, 0.4, 0.98).toFixed(2));
 }
 
-export function estimateRateCard(input: EstimateRateCardInput): EstimateRateCardResult {
+function formulaResult(input: EstimateRateCardInput): EstimateRateCardResult {
   const postSuggested = estimatePostSuggestedRate(input);
   const storySuggested = roundToThousand(postSuggested * 0.35);
   const reelSuggested = roundToThousand(postSuggested * 1.6);
@@ -108,8 +112,35 @@ export function estimateRateCard(input: EstimateRateCardInput): EstimateRateCard
     metadata: {
       confidence: computeConfidenceScore(input),
       lastComputedAt: new Date().toISOString(),
-      modelVersion: RATE_CARD_MODEL_VERSION,
+      modelVersion: FORMULA_VERSION,
       source: "formula",
     },
   };
+}
+
+export async function estimateRateCard(input: EstimateRateCardInput): Promise<EstimateRateCardResult> {
+  try {
+    const postSuggested = roundToThousand(
+      clamp(await predictRateCardIdr(input.totalFollowers, input.platform ?? "other"), 50_000, 500_000_000),
+    );
+    const storySuggested = roundToThousand(postSuggested * 0.35);
+    const reelSuggested = roundToThousand(postSuggested * 1.6);
+
+    return {
+      estimatedRateCard: {
+        currency: "IDR",
+        post: buildRange(postSuggested),
+        reel: buildRange(reelSuggested),
+        story: buildRange(storySuggested),
+      },
+      metadata: {
+        confidence: computeConfidenceScore(input),
+        lastComputedAt: new Date().toISOString(),
+        modelVersion: ML_VERSION,
+        source: "ml",
+      },
+    };
+  } catch {
+    return formulaResult(input);
+  }
 }

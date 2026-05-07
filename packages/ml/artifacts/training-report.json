@@ -3,7 +3,7 @@
     "cleaned_training_data": "packages\\ml\\artifacts\\cleaned-training-data.csv",
     "dropped_rows": "packages\\ml\\artifacts\\dropped-rows.csv",
     "joblib_model_bundle": "packages\\ml\\artifacts\\rate-card-model.joblib",
-    "onnx_model": null
+    "onnx_model": "packages\\ml\\artifacts\\rate-card-model.onnx"
   },
   "dataset": {
     "path": "Cleaned Rate Card.csv",
@@ -59,9 +59,9 @@
   },
   "model_version": "lightgbm-huber-v1",
   "onnx_export": {
-    "exported": false,
-    "path": null,
-    "reason": "missing_dependency:onnxmltools"
+    "exported": true,
+    "path": "packages\\ml\\artifacts\\rate-card-model.onnx",
+    "reason": null
   },
   "target_transform": "log1p",
   "training_config": {

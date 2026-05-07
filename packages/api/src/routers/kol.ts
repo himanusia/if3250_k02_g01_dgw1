@@ -1,7 +1,7 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { kolAccount, kolCampaignHistory, kolProfile, kolRateCardHistory } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
-import { desc, eq, asc, isNull, lt, or, sql } from "drizzle-orm";
+import { desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import z from "zod";
 
 import { estimateRateCard } from "../lib/rate-card-estimator";
@@ -212,12 +212,14 @@ async function syncKolProfile(kolId: number) {
     .where(eq(kolProfile.id, kolId));
 
   if (syncStatus === "success") {
-    const estimation = estimateRateCard({
+    const primaryAccount = accounts.reduce((best, acc) => (acc.followers > (best?.followers ?? 0) ? acc : best), accounts[0]);
+    const estimation = await estimateRateCard({
       averageLikes: totalAverageLikes,
       averageViews: totalAverageViews,
       campaignHistoryCount: campaignHistoryRows.length,
       engagementRate,
       followerTier: getFollowerTier(totalFollowers),
+      platform: primaryAccount?.platform,
       platformCount: accounts.length,
       totalFollowers,
     });
