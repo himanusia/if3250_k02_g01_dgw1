@@ -20,6 +20,7 @@
   "feature_names": [
     "followers",
     "log_followers",
+    "log_followers_sq",
     "platform__instagram",
     "platform__tiktok",
     "platform__other",
@@ -36,28 +37,28 @@
   ],
   "metrics": {
     "cross_validation": {
-      "mae": 1390447.62,
-      "rmse": 5044720.83,
-      "rmse_log": 0.9572,
-      "r2": 0.0888,
-      "r2_log": 0.337
+      "mae": 1655687.06,
+      "rmse": 5097851.94,
+      "rmse_log": 1.0876,
+      "r2": -0.1977,
+      "r2_log": 0.1369
     },
     "train": {
-      "mae": 1129877.4,
-      "rmse": 6772131.25,
-      "rmse_log": 0.6958,
-      "r2": 0.1777,
-      "r2_log": 0.6589
+      "mae": 1148462.0,
+      "rmse": 5340274.51,
+      "rmse_log": 0.8134,
+      "r2": 0.4886,
+      "r2_log": 0.5338
     },
     "test": {
-      "mae": 1529255.45,
-      "rmse": 6702102.45,
-      "rmse_log": 0.9545,
-      "r2": 0.1088,
-      "r2_log": 0.3177
+      "mae": 1363230.45,
+      "rmse": 4663835.3,
+      "rmse_log": 0.8764,
+      "r2": 0.5685,
+      "r2_log": 0.4247
     }
   },
-  "model_version": "lightgbm-huber-v1",
+  "model_version": "lightgbm-quantile-v2",
   "onnx_export": {
     "exported": true,
     "path": "packages\\ml\\artifacts\\rate-card-model.onnx",

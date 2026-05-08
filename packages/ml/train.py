@@ -21,12 +21,13 @@ from sklearn.model_selection import StratifiedKFold, train_test_split
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATASET_PATH = REPO_ROOT / "Cleaned Rate Card.csv"
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "artifacts"
-MODEL_VERSION = "lightgbm-huber-v1"
+MODEL_VERSION = "lightgbm-quantile-v2"
 BARTER_PROXY_IDR = 150_000
 
 PLATFORM_FEATURES = ("instagram", "tiktok", "other")
 CREATOR_TYPE_FEATURES = ("cat", "dog_small_breed", "dog_medium_breed", "dog_large_breed", "other")
 FOLLOWER_TIER_FEATURES = ("nano", "micro", "macro", "mega")
+
 
 
 @dataclass
@@ -152,9 +153,11 @@ def get_follower_tier(followers: int) -> str:
 
 def build_feature_vector(followers: int, platform: str, creator_type: str, is_barter: bool = False) -> tuple[list[float], str]:
     follower_tier = get_follower_tier(followers)
+    log_f = math.log1p(followers)
     feature_vector: list[float] = [
         float(followers),
-        float(math.log1p(followers)),
+        log_f,
+        log_f ** 2,  # quadratic in log space — steepens the curve for mega-tier without needing many samples
     ]
 
     for candidate in PLATFORM_FEATURES:
@@ -172,7 +175,7 @@ def build_feature_vector(followers: int, platform: str, creator_type: str, is_ba
 
 
 def feature_names() -> list[str]:
-    names = ["followers", "log_followers"]
+    names = ["followers", "log_followers", "log_followers_sq"]
     names.extend(f"platform__{candidate}" for candidate in PLATFORM_FEATURES)
     names.extend(f"creator_type__{candidate}" for candidate in CREATOR_TYPE_FEATURES)
     names.extend(f"follower_tier__{candidate}" for candidate in FOLLOWER_TIER_FEATURES)
@@ -260,13 +263,13 @@ def rounded_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
 
 def make_regressor(random_state: int) -> LGBMRegressor:
     return LGBMRegressor(
-        objective="huber",
-        alpha=0.9,          # linear penalty above 90th-percentile absolute error — suppresses outlier pull
-        n_estimators=500,
+        objective="quantile",
+        alpha=0.75,         # predict 75th-percentile — 3× more penalized for underestimating than overestimating
+        n_estimators=800,
         learning_rate=0.05,
-        max_depth=4,
-        num_leaves=15,
-        min_child_samples=10,
+        max_depth=5,
+        num_leaves=25,
+        min_child_samples=5,  # reduced so the ~6 mega samples can form their own leaf
         subsample=0.8,
         subsample_freq=1,
         colsample_bytree=0.8,

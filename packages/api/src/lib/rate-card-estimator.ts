@@ -18,7 +18,7 @@ type EstimateRateCardResult = {
   metadata: RateCardMetadata;
 };
 
-const ML_VERSION = "lightgbm-huber-v1";
+const ML_VERSION = "lightgbm-quantile-v2";
 
 function parseEngagementRate(engagementRate: string) {
   const parsed = Number(engagementRate.replace(/[^\d.-]/g, ""));
