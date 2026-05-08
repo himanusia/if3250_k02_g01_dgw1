@@ -224,7 +224,7 @@ function RouteComponent() {
             />
           </label>
 
-          <Button type="submit" disabled={createEntry.isPending}>
+          <Button type="submit" disabled={createEntry.isPending} className="bg-primary text-primary-foreground hover:bg-destructive">
             {createEntry.isPending ? "Menyimpan..." : "Simpan whitelist"}
           </Button>
         </form>
@@ -244,7 +244,8 @@ function RouteComponent() {
                 {entry.note && <p className="text-muted-foreground text-sm">{entry.note}</p>}
               </div>
               <Button
-                variant="destructive"
+                // variant="destructive"
+                className="bg-destructive/10 hover:bg-destructive focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive hover:text-white focus-visible:border-destructive/40 dark:hover:bg-destructive"
                 size="icon"
                 onClick={() => deleteEntry.mutate({ id: entry.id })}
                 disabled={deleteEntry.isPending}
@@ -321,6 +322,7 @@ function RouteComponent() {
         <Button
           onClick={submitSyncSettings}
           disabled={updateSyncSettings.isPending}
+          className="bg-primary text-primary-foreground hover:bg-destructive"
         >
           {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
         </Button>
