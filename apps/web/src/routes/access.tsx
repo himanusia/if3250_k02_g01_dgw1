@@ -72,9 +72,17 @@ function fromMinutes(minutes: number) {
   return { value: minutes, unit: "minute" as const };
 }
 
-
-
 function RouteComponent() {
+  useEffect(() => {
+    document.documentElement.classList.add("digiTheme");
+    document.body.classList.add("digiTheme");
+
+    return () => {
+      document.documentElement.classList.remove("digiTheme");
+      document.body.classList.remove("digiTheme");
+    };
+  }, []);
+
   const syncSettingsQuery = useQuery(
     orpc.access.getSyncSettings.queryOptions()
   );
@@ -98,11 +106,9 @@ function RouteComponent() {
     });
   }, [syncSettings]);
 
-  const intervalMinutes =
-    syncSettings?.intervalMinutes ??
-    toMinutes(syncForm.intervalValue, syncForm.intervalUnit);
+  const intervalMinutes = toMinutes(syncForm.intervalValue, syncForm.intervalUnit);
 
-  const enabled = syncSettings?.enabled ?? syncForm.enabled;
+  const enabled = syncForm.enabled;
 
   const now = Date.now();
   const intervalMs = intervalMinutes * 60 * 1000;
@@ -265,40 +271,6 @@ function RouteComponent() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={1}
-            value={syncForm.intervalValue}
-            onChange={(e) =>
-              setSyncForm((prev) => ({
-                ...prev,
-                intervalValue: Number(e.target.value),
-              }))
-            }
-            className="w-24"
-          />
-
-          <select
-            value={syncForm.intervalUnit}
-            onChange={(e) =>
-              setSyncForm((prev) => ({
-                ...prev,
-                intervalUnit: e.target.value as "minute" | "hour" | "day",
-              }))
-            }
-            className="
-              border-border bg-background text-foreground
-              focus-visible:border-ring focus-visible:ring-ring/50
-              min-h-10 rounded-none border px-3 text-sm outline-none
-            "
-          >
-            <option value="minute">Minute(s)</option>
-            <option value="hour">Hour(s)</option>
-            <option value="day">Day(s)</option>
-          </select>
-        </div>
-
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
@@ -313,6 +285,38 @@ function RouteComponent() {
           />
           Enable global sync
         </label>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            value={syncForm.intervalValue}
+            disabled={!enabled}
+            onChange={(e) =>
+              setSyncForm((prev) => ({
+                ...prev,
+                intervalValue: Number(e.target.value),
+              }))
+            }
+            className="border-border bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-28 rounded-none border px-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          />
+
+          <select
+            value={syncForm.intervalUnit}
+            disabled={!enabled}
+            onChange={(e) =>
+              setSyncForm((prev) => ({
+                ...prev,
+                intervalUnit: e.target.value as "minute" | "hour" | "day",
+              }))
+            }
+            className="border-border bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 rounded-none border px-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="minute">Minute(s)</option>
+            <option value="hour">Hour(s)</option>
+            <option value="day">Day(s)</option>
+          </select>
+        </div>
 
         <Button
           onClick={submitSyncSettings}
