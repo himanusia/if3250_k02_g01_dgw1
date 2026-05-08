@@ -1,8 +1,10 @@
-import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import * as ort from "onnxruntime-node";
 
-const MODEL_PATH = path.resolve(process.cwd(), "packages/ml/artifacts/rate-card-model.onnx");
+const MODEL_PATH = fileURLToPath(
+  new URL("../../../../packages/ml/artifacts/rate-card-model.onnx", import.meta.url),
+);
 
 const PLATFORM_FEATURES = ["instagram", "tiktok", "other"] as const;
 const CREATOR_TYPE_FEATURES = ["cat", "dog_small_breed", "dog_medium_breed", "dog_large_breed", "other"] as const;
