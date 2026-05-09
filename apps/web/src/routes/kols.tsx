@@ -674,7 +674,6 @@ function RouteComponent() {
                     >
                       <option value="instagram">Instagram</option>
                       <option value="tiktok">TikTok</option>
-                      <option value="shopee">Shopee</option>
                     </select>
                   </Label>
 

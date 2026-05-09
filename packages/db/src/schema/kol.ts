@@ -2,7 +2,7 @@ import { integer, jsonb, pgEnum, pgTable, serial, text, timestamp, uniqueIndex }
 
 import { user } from "./auth";
 
-export const socialPlatformEnum = pgEnum("social_platform", ["instagram", "tiktok", "shopee"]);
+export const socialPlatformEnum = pgEnum("social_platform", ["instagram", "tiktok"]);
 
 export const kolSyncStatusEnum = pgEnum("kol_sync_status", ["pending", "success", "failed"]);
 

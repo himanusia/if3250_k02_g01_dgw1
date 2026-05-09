@@ -67,7 +67,6 @@ function RouteComponent() {
   const groupedByPlatform = useMemo<Record<SocialPlatform, GroupedPlatformAccount[]>>(() => {
     const map: Record<SocialPlatform, GroupedPlatformAccount[]> = {
       instagram: [],
-      shopee: [],
       tiktok: [],
     };
 

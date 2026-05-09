@@ -596,7 +596,6 @@ function RouteComponent() {
               >
                 <option value="instagram">Instagram</option>
                 <option value="tiktok">TikTok</option>
-                <option value="shopee">Shopee</option>
               </select>
             </Label>
             <div className="grid gap-4 md:grid-cols-2">
