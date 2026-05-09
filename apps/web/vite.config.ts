@@ -7,6 +7,12 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [tsconfigPaths(), tailwindcss(), tanstackStart(), nitro(), viteReact()],
+  optimizeDeps: {
+    exclude: ["onnxruntime-node"],
+  },
+  ssr: {
+    external: ["onnxruntime-node"],
+  },
   server: {
     port: 3003,
   },

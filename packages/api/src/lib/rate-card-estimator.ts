@@ -1,11 +1,14 @@
 import type { FollowerTier, RateCardMetadata, RateCardRange, RateCardValue } from "@if3250_k02_g01_dgw1/db/schema/kol";
 
+import { predictRateCardIdr } from "./onnx-model";
+
 type EstimateRateCardInput = {
   averageLikes: number;
   averageViews: number;
   campaignHistoryCount: number;
   engagementRate: string;
   followerTier: FollowerTier;
+  platform?: string;
   platformCount: number;
   totalFollowers: number;
 };
@@ -15,19 +18,10 @@ type EstimateRateCardResult = {
   metadata: RateCardMetadata;
 };
 
-const RATE_CARD_MODEL_VERSION = "formula-v1";
-
-function toPositiveInt(value: number) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.round(value));
-}
+const ML_VERSION = "lightgbm-quantile-v2";
 
 function parseEngagementRate(engagementRate: string) {
   const parsed = Number(engagementRate.replace(/[^\d.-]/g, ""));
-
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
@@ -42,59 +36,27 @@ function roundToThousand(value: number) {
 function buildRange(suggested: number): RateCardRange {
   const min = roundToThousand(suggested * 0.8);
   const max = roundToThousand(suggested * 1.2);
-
-  return {
-    max,
-    min,
-    suggested,
-  };
-}
-
-function estimatePostSuggestedRate(input: EstimateRateCardInput) {
-  const followers = toPositiveInt(input.totalFollowers);
-  const averageLikes = toPositiveInt(input.averageLikes);
-  const averageViews = toPositiveInt(input.averageViews);
-  const engagement = parseEngagementRate(input.engagementRate);
-
-  const tierMultiplier: Record<FollowerTier, number> = {
-    nano: 1,
-    micro: 1.12,
-    macro: 1.28,
-    mega: 1.5,
-  };
-
-  const baseRate =
-    150_000 +
-    followers * 8 +
-    averageLikes * 1.2 +
-    averageViews * 0.5 +
-    engagement * 12_000;
-
-  const platformMultiplier = 1 + Math.max(0, input.platformCount - 1) * 0.08;
-  const campaignMultiplier = 1 + Math.min(10, Math.max(0, input.campaignHistoryCount)) * 0.01;
-
-  const suggested = roundToThousand(
-    clamp(baseRate * tierMultiplier[input.followerTier] * platformMultiplier * campaignMultiplier, 50_000, 500_000_000),
-  );
-
-  return suggested;
+  return { max, min, suggested };
 }
 
 function computeConfidenceScore(input: EstimateRateCardInput) {
   let score = 0.4;
-
   if (input.totalFollowers > 0) score += 0.15;
   if (input.averageLikes > 0) score += 0.1;
   if (input.averageViews > 0) score += 0.1;
   if (parseEngagementRate(input.engagementRate) > 0) score += 0.15;
   if (input.platformCount > 0) score += 0.05;
   if (input.campaignHistoryCount > 0) score += 0.05;
-
   return Number(clamp(score, 0.4, 0.98).toFixed(2));
 }
 
-export function estimateRateCard(input: EstimateRateCardInput): EstimateRateCardResult {
-  const postSuggested = estimatePostSuggestedRate(input);
+export async function estimateRateCard(input: EstimateRateCardInput): Promise<EstimateRateCardResult> {
+  const postSuggested = roundToThousand(
+    Math.max(50_000, await predictRateCardIdr(input.totalFollowers, input.platform ?? "other")),
+  );
+
+  // The training dataset has one rate card per KOL — treated as the post rate.
+  // Story and reel are derived from market-convention ratios since no per-format labels exist in the training data.
   const storySuggested = roundToThousand(postSuggested * 0.35);
   const reelSuggested = roundToThousand(postSuggested * 1.6);
 
@@ -108,8 +70,8 @@ export function estimateRateCard(input: EstimateRateCardInput): EstimateRateCard
     metadata: {
       confidence: computeConfidenceScore(input),
       lastComputedAt: new Date().toISOString(),
-      modelVersion: RATE_CARD_MODEL_VERSION,
-      source: "formula",
+      modelVersion: ML_VERSION,
+      source: "ml",
     },
   };
 }

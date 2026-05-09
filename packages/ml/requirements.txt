@@ -1,0 +1,6 @@
+joblib>=1.5
+lightgbm>=4.0
+numpy>=2.3
+scikit-learn>=1.7
+skl2onnx>=1.17
+onnx>=1.16

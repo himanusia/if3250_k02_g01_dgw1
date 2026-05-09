@@ -29,7 +29,7 @@ export type RateCardMetadata = {
   confidence: number;
   lastComputedAt: string;
   modelVersion: string;
-  source: "formula";
+  source: "formula" | "ml";
 };
 
 export const kolProfile = pgTable("kol_profile", {

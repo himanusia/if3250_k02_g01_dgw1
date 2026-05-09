@@ -212,12 +212,14 @@ async function syncKolProfile(kolId: number) {
     .where(eq(kolProfile.id, kolId));
 
   if (syncStatus === "success") {
-    const estimation = estimateRateCard({
+    const primaryAccount = accounts.reduce((best, acc) => (acc.followers > (best?.followers ?? 0) ? acc : best), accounts[0]);
+    const estimation = await estimateRateCard({
       averageLikes: totalAverageLikes,
       averageViews: totalAverageViews,
       campaignHistoryCount: campaignHistoryRows.length,
       engagementRate,
       followerTier: getFollowerTier(totalFollowers),
+      platform: primaryAccount?.platform,
       platformCount: accounts.length,
       totalFollowers,
     });
