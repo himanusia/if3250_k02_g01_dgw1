@@ -52,7 +52,7 @@ function computeConfidenceScore(input: EstimateRateCardInput) {
 
 export async function estimateRateCard(input: EstimateRateCardInput): Promise<EstimateRateCardResult> {
   const postSuggested = roundToThousand(
-    clamp(await predictRateCardIdr(input.totalFollowers, input.platform ?? "other"), 50_000, 500_000_000),
+    Math.max(50_000, await predictRateCardIdr(input.totalFollowers, input.platform ?? "other")),
   );
 
   // The training dataset has one rate card per KOL — treated as the post rate.
