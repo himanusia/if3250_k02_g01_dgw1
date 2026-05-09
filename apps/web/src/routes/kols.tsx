@@ -69,6 +69,7 @@ function parseKeywordSegments(keywords: string | null | undefined): string[] {
 const KOLS_COLORS = {
   badgeFill: "#B33C39",
   mutedText: "#6D3A44",
+  darkText: "#722331",
   pageBackground: "#FFF8F9",
   stroke: "#982E41",
   surface: "#FFF8F9",
@@ -306,13 +307,13 @@ function RouteComponent() {
             <FormInput label="Search" value={search} onChange={setSearch} placeholder="Cari Nama, Handle, Keyword" />
           </div>
 
-          <div className="border-t border-dashed" style={{ borderColor: `${KOLS_COLORS.stroke}80` }} />
+          <div className="border-[1.2px] border-dashed" style={{ borderColor: `${KOLS_COLORS.stroke}80` }} />
 
-          <div className="space-y-3">
+          <div className="space-y-5">
             {filteredKols.map((kol) => (
               <div
                 key={kol.id}
-                className="space-y-4 border bg-white p-4"
+                className="space-y-4 border-[1.6px] bg-white p-4"
                 style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
               >
                 {(() => {
@@ -415,7 +416,7 @@ function RouteComponent() {
                       </Button>
                     </div>
 
-                    <p className="text-[13px]" style={{ color: KOLS_COLORS.text }}>
+                    <p className="text-[13px]" style={{ color: KOLS_COLORS.darkText }}>
                       Auto Sinkron: -
                     </p>
                   </div>
@@ -423,7 +424,7 @@ function RouteComponent() {
                   );
                 })()}
 
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[6px]" style={{ color: KOLS_COLORS.darkText }}>
                   <MetricBox label="Total followers" value={formatNumber(kol.totalFollowers)} />
                   <MetricBox label="Avg likes" value={formatNumber(kol.averageLikes)} />
                   <MetricBox label="Avg views" value={formatNumber(kol.averageViews)} />
@@ -452,12 +453,12 @@ function RouteComponent() {
                   </p>
                 )}
 
-                <div className="grid gap-2">
+                <div className="grid gap-5">
                   {kol.accounts.map((account) => (
                     <div
                       key={account.id}
-                      className="grid gap-3 border bg-[#FFF5F7] p-3"
-                      style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+                      className="grid gap-3 border-[1.6px] bg-[#FFF5F7] p-3"
+                      style={{ borderColor: `${KOLS_COLORS.darkText}66` }}
                     >
                       {(() => {
                         const metadata = getAccountMetadata(account.metadata);
@@ -520,7 +521,7 @@ function RouteComponent() {
                               </div>
                             </div>
 
-                            <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+                            <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6" style={{ color: KOLS_COLORS.darkText }}>
                               <MetricInline label="Followers" value={formatNumber(account.followers)} />
                               <MetricInline label="Following" value={formatNumber(metadata?.followingCount ?? 0)} />
                               <MetricInline label="Posts" value={formatNumber(metadata?.postsCount ?? 0)} />
@@ -892,9 +893,9 @@ function FormInput({
 
 function MetricBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 border bg-white/70 px-3 py-2" style={{ borderColor: `${KOLS_COLORS.stroke}80` }}>
-      <p className="text-[11px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
-      <p className="text-[20px] font-semibold leading-none tracking-[0.04em]">{value}</p>
+    <div className="grid gap-1 border-[1.6px] bg-white/70 px-3 py-2" style={{ borderColor: `${KOLS_COLORS.stroke}80` }}>
+      <p className="text-[13px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
+      <p className="text-[19px] font-[560] leading-none tracking-[0.04em]">{value}</p>
     </div>
   );
 }
@@ -902,8 +903,8 @@ function MetricBox({ label, value }: { label: string; value: string }) {
 function MetricInline({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
-      <p className="truncate text-[20px] font-semibold leading-none tracking-[0.04em]">{value}</p>
+      <p className="text-[11px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.darkText }}>{label}</p>
+      <p className="truncate text-[17px] font-[500] leading-none tracking-[0.04em]">{value}</p>
     </div>
   );
 }

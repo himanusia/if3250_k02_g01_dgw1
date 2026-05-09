@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { PencilLine, Plus, Trash2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 
 import type { CampaignRecord, KolRecord } from "@/lib/app-types";
@@ -66,6 +66,16 @@ function RouteComponent() {
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
 
+  useEffect(() => {
+      document.documentElement.classList.add("digiTheme");
+      document.body.classList.add("digiTheme");
+  
+      return () => {
+        document.documentElement.classList.remove("digiTheme");
+        document.body.classList.remove("digiTheme");
+      };
+    }, []);
+    
   const filteredKols = useMemo(() => {
   return kols.filter((kol) => {
     const normalizedSearch = kolSearch.trim().toLowerCase();
@@ -90,7 +100,7 @@ function RouteComponent() {
           .flatMap((kol) => kol.keywords.split(",").map((k) => k.trim()))
           .filter(Boolean)
       )
-    );
+    ).sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
   }, [kols]);
 
   const createCampaign = useMutation({
@@ -183,7 +193,7 @@ function RouteComponent() {
                 Halaman ini berisi list campaign. Tambah dan edit dilakukan lewat dialog.
               </p>
             </div>
-            <Button type="button" onClick={openCreateDialog}>
+            <Button type="button" onClick={openCreateDialog} className="hover:bg-primary-hover">
               <Plus className="mr-2 size-4" />
               Tambah campaign
             </Button>
@@ -378,8 +388,8 @@ function RouteComponent() {
                             border px-2 py-1 text-xs transition-colors
                             ${
                               selectedKeywordFilter.includes(keyword)
-                                ? "border-foreground bg-foreground text-background"
-                                : "border-border text-muted-foreground hover:border-foreground"
+                                ? "border-foreground bg-primary text-background"
+                                : "border-border text-muted-foreground hover:border-primary"
                             }
                           `}
                         >
@@ -439,7 +449,7 @@ function RouteComponent() {
                   Batal edit
                 </Button>
               )}
-              <Button type="submit" disabled={createCampaign.isPending || updateCampaign.isPending}>
+              <Button type="submit" disabled={createCampaign.isPending || updateCampaign.isPending} className="hover:bg-primary-hover">
                 {editingId
                   ? updateCampaign.isPending
                     ? "Menyimpan perubahan..."
