@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef  } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 import type { KolRecord, SocialPlatform } from "@/lib/app-types";
 import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
@@ -28,6 +29,12 @@ type KolFormState = {
   accounts: KolAccountFormState[];
   displayName: string;
   keywords: string;
+};
+
+type RawExcelRow = {
+  Nama?: string;
+  username?: string;
+  "Persona kreator"?: string;
 };
 
 type RpcLikeError = {
@@ -271,8 +278,250 @@ function RouteComponent() {
       return;
     }
 
+    console.log(
+      "CREATE KOL PAYLOAD",
+      JSON.stringify(form, null, 2),
+    );
     createKol.mutate(form);
   }
+
+  // spreadsheet import
+  const [importPreview, setImportPreview] =
+    useState<KolFormState[]>([]);
+
+  const [importResult, setImportResult] =
+    useState<any>(null);
+
+  const [
+    isImportResultDialogOpen,
+    setIsImportResultDialogOpen,
+  ] = useState(false);
+
+  const [isImportDialogOpen, setIsImportDialogOpen] =
+    useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const importKol = useMutation({
+    mutationFn: (input: KolFormState[]) =>
+      client.kol.bulkImport(input),
+
+    onSuccess: (result) => {
+      console.log(
+        "IMPORT RESULT",
+        result,
+      );
+
+      toast.success(
+        `Import selesai • ${result.summary.success} sukses • ${result.summary.skipped} skip • ${result.summary.failed} gagal`,
+      );
+
+      kolQuery.refetch();
+
+      setImportResult(result);
+
+      setIsImportDialogOpen(false);
+
+      setIsImportResultDialogOpen(true);
+
+      setImportPreview([]);
+    },
+
+    onError: (error) => {
+      toast.error(
+        getKolErrorMessage(
+          error,
+          "Import spreadsheet gagal",
+        ),
+      );
+    },
+  });
+
+
+function parseSocialUrl(url: string): {
+  platform: SocialPlatform;
+  handle: string;
+} | null {
+  if (!url?.trim()) return null;
+
+  try {
+    const parsed = new URL(url.trim());
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    const segments = parsed.pathname
+      .split("/")
+      .filter(Boolean);
+
+    // TikTok
+    if (hostname.includes("tiktok.com")) {
+      const handleSegment = segments.find((s) =>
+        s.startsWith("@"),
+      );
+
+      if (!handleSegment) return null;
+
+      return {
+        platform: "tiktok",
+        handle: handleSegment.replace("@", "").trim(),
+      };
+    }
+
+    // Instagram
+    if (hostname.includes("instagram.com")) {
+      const handle = segments[0];
+
+      if (!handle) return null;
+
+      return {
+        platform: "instagram",
+        handle: handle.trim(),
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function mergeKeywords(
+    existing: string,
+    incoming?: string,
+  ) {
+    const set = new Set<string>();
+
+    existing
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean)
+      .forEach((k) => set.add(k));
+
+    (incoming ?? "")
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean)
+      .forEach((k) => set.add(k));
+
+    return Array.from(set).join(",");
+  }
+
+  async function handleImportFile(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+
+      const workbook = XLSX.read(buffer);
+
+      const rows: RawExcelRow[] = [];
+
+      for (const sheetName of workbook.SheetNames) {
+        const sheet =
+          workbook.Sheets[sheetName];
+
+        const parsedRows =
+          XLSX.utils.sheet_to_json<RawExcelRow>(
+            sheet,
+          );
+
+        rows.push(...parsedRows);
+      }
+
+      const kolMap: Record<
+        string,
+        KolFormState
+      > = {};
+
+      for (const row of rows) {
+        const normalizedRow = Object.fromEntries(
+          Object.entries(row).map(([key, value]) => [
+            key.trim().toLowerCase(),
+            String(value ?? "").trim(),
+          ]),
+        );
+
+        const nama =
+          normalizedRow["nama"] ?? "";
+
+        const username =
+          normalizedRow["username"] ?? "";
+
+        const persona =
+          normalizedRow["persona kreator"] ?? "";
+
+        // stop if all empty
+        if (!nama && !username && !persona) {
+          break;
+        }
+
+        // username required
+        if (!username) {
+          continue;
+        }
+
+        const key = username.toLowerCase();
+
+        // create empty KOL
+        if (!kolMap[key]) {
+          kolMap[key] = {
+            displayName: username,
+            keywords: "",
+            accounts: [],
+          };
+        }
+
+        const kol = kolMap[key];
+
+        // parse social account
+        const social = parseSocialUrl(nama);
+
+        if (social) {
+          const exists = kol.accounts.some(
+            (acc) =>
+              acc.platform === social.platform &&
+              acc.handle.toLowerCase() ===
+                social.handle.toLowerCase(),
+          );
+
+          if (!exists) {
+            kol.accounts.push(social);
+          }
+        }
+
+        // merge keywords
+        kol.keywords = mergeKeywords(
+          kol.keywords,
+          persona,
+        );
+      }
+
+      const parsed =
+        Object.values(kolMap);
+
+      if (!parsed.length) {
+        toast.error(
+          "Tidak ada data valid ditemukan",
+        );
+        return;
+      }
+
+      setImportPreview(parsed);
+      setIsImportDialogOpen(true);
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        "Gagal membaca spreadsheet",
+      );
+    } finally {
+      event.target.value = "";
+    }
+  }
+
 
   return (
     <>
@@ -301,6 +550,27 @@ function RouteComponent() {
               <Plus className="mr-2 size-4" />
               Tambah KOL
             </Button>
+
+            <Button
+              type="button"
+              className="h-8 rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
+              onClick={() =>
+                fileInputRef.current?.click()
+              }
+              disabled={importKol.isPending}
+            >
+              {importKol.isPending
+                ? "Mengimport..."
+                : "Import Spreadsheet"}
+            </Button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleImportFile}
+            />
           </div>
 
           <div className="max-w-md">
@@ -782,6 +1052,415 @@ function RouteComponent() {
               {deleteKol.isPending ? "Menghapus..." : "Hapus"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* import dialog */}
+      <Dialog
+        open={isImportDialogOpen}
+        onOpenChange={(open) => {
+          setIsImportDialogOpen(open);
+
+          if (!open) {
+            setImportPreview([]);
+          }
+        }}
+      >
+        <DialogContent
+          className="max-h-[90vh] max-w-5xl overflow-hidden border p-0"
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderColor: KOLS_COLORS.stroke,
+            color: KOLS_COLORS.text,
+          }}
+        >
+          <DialogHeader>
+            <div
+              className="border-b px-4 py-4 sm:px-6"
+              style={{
+                borderColor: `${KOLS_COLORS.stroke}66`,
+              }}
+            >
+              <DialogTitle>
+                Preview Import Spreadsheet
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <div className="px-4 pb-4 sm:px-6">
+            <div
+              className="mb-4 rounded border px-3 py-2 text-[13px]"
+              style={{
+                borderColor: `${KOLS_COLORS.stroke}66`,
+                backgroundColor: "#FFF8F9",
+              }}
+            >
+              {importPreview.length} KOL siap diimport
+            </div>
+
+            <div
+              className="max-h-[60vh] overflow-auto border"
+              style={{
+                borderColor: `${KOLS_COLORS.stroke}66`,
+              }}
+            >
+              <table className="w-full border-collapse text-[13px]">
+                <thead
+                  className="sticky top-0"
+                  style={{
+                    backgroundColor: "#F8EAED",
+                  }}
+                >
+                  <tr>
+                    <th className="border-b px-3 py-2 text-left">
+                      Display Name
+                    </th>
+
+                    <th className="border-b px-3 py-2 text-left">
+                      Accounts
+                    </th>
+
+                    <th className="border-b px-3 py-2 text-left">
+                      Keywords
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {importPreview.map((kol, index) => (
+                    <tr
+                      key={`${kol.displayName}-${index}`}
+                      className="align-top"
+                    >
+                      <td className="border-b px-3 py-2 font-medium">
+                        {kol.displayName}
+                      </td>
+
+                      <td className="border-b px-3 py-2">
+                        <div className="flex flex-col gap-1">
+                          {kol.accounts.map((account) => (
+                            <div
+                              key={`${account.platform}-${account.handle}`}
+                            >
+                              <span className="font-medium uppercase">
+                                {account.platform}
+                              </span>
+                              {" — "}
+                              @{account.handle}
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+
+                      <td className="border-b px-3 py-2">
+                        {kol.keywords || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsImportDialogOpen(false);
+                  setImportPreview([]);
+                }}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                disabled={
+                  importKol.isPending ||
+                  importPreview.length === 0
+                }
+                className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
+                onClick={() => {
+                  console.log(
+                    "IMPORT PAYLOAD",
+                    JSON.stringify(importPreview, null, 2),
+                  );
+                  importKol.mutate(importPreview);
+                }}
+              >
+                {importKol.isPending
+                  ? "Importing..."
+                  : `Import ${importPreview.length} KOL`}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={isImportResultDialogOpen}
+        onOpenChange={(open) => {
+          setIsImportResultDialogOpen(open);
+
+          if (!open) {
+            setImportResult(null);
+          }
+        }}
+      >
+        <DialogContent
+          className="max-h-[90vh] max-w-5xl overflow-hidden border p-0"
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderColor: KOLS_COLORS.stroke,
+            color: KOLS_COLORS.text,
+          }}
+        >
+          <DialogHeader>
+            <div
+              className="border-b px-4 py-4 sm:px-6"
+              style={{
+                borderColor: `${KOLS_COLORS.stroke}66`,
+              }}
+            >
+              <DialogTitle>
+                Hasil Import Spreadsheet
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+
+          {importResult && (
+            <div className="px-4 pb-4 sm:px-6">
+              {/* summary */}
+              <div className="grid gap-3 md:grid-cols-4">
+                <div
+                  className="border p-3"
+                  style={{
+                    borderColor: `${KOLS_COLORS.stroke}66`,
+                    backgroundColor: "#FFF8F9",
+                  }}
+                >
+                  <p
+                    className="text-[12px] uppercase tracking-[0.2em]"
+                    style={{
+                      color: KOLS_COLORS.stroke,
+                    }}
+                  >
+                    Total
+                  </p>
+
+                  <p className="mt-1 text-[24px] font-semibold">
+                    {importResult.summary.total}
+                  </p>
+                </div>
+
+                <div
+                  className="border p-3"
+                  style={{
+                    borderColor: `${KOLS_COLORS.stroke}66`,
+                    backgroundColor: "#FFF8F9",
+                  }}
+                >
+                  <p
+                    className="text-[12px] uppercase tracking-[0.2em]"
+                    style={{
+                      color: KOLS_COLORS.stroke,
+                    }}
+                  >
+                    Success
+                  </p>
+
+                  <p className="mt-1 text-[24px] font-semibold">
+                    {importResult.summary.success}
+                  </p>
+                </div>
+
+                <div
+                  className="border p-3"
+                  style={{
+                    borderColor: `${KOLS_COLORS.stroke}66`,
+                    backgroundColor: "#FFF8F9",
+                  }}
+                >
+                  <p
+                    className="text-[12px] uppercase tracking-[0.2em]"
+                    style={{
+                      color: KOLS_COLORS.stroke,
+                    }}
+                  >
+                    Skipped
+                  </p>
+
+                  <p className="mt-1 text-[24px] font-semibold">
+                    {importResult.summary.skipped}
+                  </p>
+                </div>
+
+                <div
+                  className="border p-3"
+                  style={{
+                    borderColor: `${KOLS_COLORS.stroke}66`,
+                    backgroundColor: "#FFF8F9",
+                  }}
+                >
+                  <p
+                    className="text-[12px] uppercase tracking-[0.2em]"
+                    style={{
+                      color: KOLS_COLORS.stroke,
+                    }}
+                  >
+                    Failed
+                  </p>
+
+                  <p className="mt-1 text-[24px] font-semibold">
+                    {importResult.summary.failed}
+                  </p>
+                </div>
+              </div>
+
+              {/* skipped */}
+              {importResult.skipped.length > 0 && (
+                <div className="mt-5">
+                  <div
+                    className="mb-2 border-b pb-2"
+                    style={{
+                      borderColor: `${KOLS_COLORS.stroke}66`,
+                    }}
+                  >
+                    <h3 className="text-[14px] font-semibold">
+                      Skipped
+                    </h3>
+
+                    <p
+                      className="text-[12px]"
+                      style={{
+                        color: KOLS_COLORS.mutedText,
+                      }}
+                    >
+                      KOL sudah ada di database
+                    </p>
+                  </div>
+
+                  <div
+                    className="max-h-[220px] overflow-auto border"
+                    style={{
+                      borderColor: `${KOLS_COLORS.stroke}66`,
+                    }}
+                  >
+                    <table className="w-full border-collapse text-[13px]">
+                      <thead
+                        className="sticky top-0"
+                        style={{
+                          backgroundColor: "#F8EAED",
+                        }}
+                      >
+                        <tr>
+                          <th className="border-b px-3 py-2 text-left">
+                            Display Name
+                          </th>
+
+                          <th className="border-b px-3 py-2 text-left">
+                            Reason
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {importResult.skipped.map(
+                          (item: any, index: number) => (
+                            <tr key={index}>
+                              <td className="border-b px-3 py-2 font-medium">
+                                {item.displayName}
+                              </td>
+
+                              <td className="border-b px-3 py-2">
+                                {item.reason}
+                              </td>
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* failed */}
+              {importResult.failed.length > 0 && (
+                <div className="mt-5">
+                  <div
+                    className="mb-2 border-b pb-2"
+                    style={{
+                      borderColor: `${KOLS_COLORS.stroke}66`,
+                    }}
+                  >
+                    <h3 className="text-[14px] font-semibold">
+                      Failed
+                    </h3>
+
+                    <p
+                      className="text-[12px]"
+                      style={{
+                        color: KOLS_COLORS.mutedText,
+                      }}
+                    >
+                      KOL gagal divalidasi atau akun tidak ditemukan
+                    </p>
+                  </div>
+
+                  <div
+                    className="max-h-[220px] overflow-auto border"
+                    style={{
+                      borderColor: `${KOLS_COLORS.stroke}66`,
+                    }}
+                  >
+                    <table className="w-full border-collapse text-[13px]">
+                      <thead
+                        className="sticky top-0"
+                        style={{
+                          backgroundColor: "#F8EAED",
+                        }}
+                      >
+                        <tr>
+                          <th className="border-b px-3 py-2 text-left">
+                            Display Name
+                          </th>
+
+                          <th className="border-b px-3 py-2 text-left">
+                            Reason
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {importResult.failed.map(
+                          (item: any, index: number) => (
+                            <tr key={index}>
+                              <td className="border-b px-3 py-2 font-medium">
+                                {item.displayName}
+                              </td>
+
+                              <td className="border-b px-3 py-2">
+                                {item.reason}
+                              </td>
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter className="mt-5 border-t pt-4">
+                <Button
+                  className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
+                  onClick={() => {
+                    setIsImportResultDialogOpen(false);
+                    setImportResult(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
