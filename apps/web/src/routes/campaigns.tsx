@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Download, ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -84,6 +84,7 @@ function RouteComponent() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [addContentCampaignId, setAddContentCampaignId] = useState<number | null>(null);
   const [isAddContentDialogOpen, setIsAddContentDialogOpen] = useState(false);
+  const [syncingContentId, setSyncingContentId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
@@ -98,6 +99,7 @@ function RouteComponent() {
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
   const detailCampaignData = (detailCampaignQuery.data as CampaignDetailRecord | null | undefined) ?? null;
+  const campaignReportUrl = detailCampaignId !== null ? `/api/rpc/campaign-report?campaignId=${detailCampaignId}` : "";
 
   const addContentCampaign = useMemo(() => {
     if (addContentCampaignId === null) {
@@ -663,11 +665,28 @@ function RouteComponent() {
       >
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto p-0">
           <DialogHeader>
-            <div className="border-border border-b px-4 py-4 sm:px-6">
-              <DialogTitle>Detail campaign</DialogTitle>
-              <DialogDescription>
-                Ringkasan campaign dan daftar konten yang sudah di-scrap.
-              </DialogDescription>
+            <div className="border-border border-b-[1.6px] px-4 py-4 sm:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <DialogTitle className="!text-[22px] !font-bold tracking-tight text-foreground">
+                    Detail campaign
+                  </DialogTitle>
+                  <DialogDescription className="!text-xs !leading-6 text-muted-foreground">
+                    Ringkasan campaign dan daftar konten yang sudah di-scrap.
+                  </DialogDescription>
+                </div>
+
+                {detailCampaignId !== null && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    render={<a href={campaignReportUrl} download={`campaign-${detailCampaignId}-report.pdf`} />}
+                  >
+                    <Download className="mr-1 size-4" />
+                    Buat laporan PDF
+                  </Button>
+                )}
+              </div>
             </div>
           </DialogHeader>
 
@@ -681,36 +700,37 @@ function RouteComponent() {
             </div>
           ) : (
             <div className="grid gap-6 px-4 pb-4 sm:px-6 sm:pb-6">
-              <section className="space-y-4">
+              <section className="space-y-4 border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <DetailStat label="Nama campaign" value={detailCampaignSummary?.name ?? detailCampaignData?.name ?? "-"} />
-                  <DetailStat label="Brand" value={detailCampaignSummary?.brand ?? detailCampaignData?.brand ?? "-"} />
-                  <DetailStat label="Status" value={detailCampaignSummary?.status ?? detailCampaignData?.status ?? "-"} />
+                  <DetailStat boxed label="Nama campaign" value={detailCampaignSummary?.name ?? detailCampaignData?.name ?? "-"} />
+                  <DetailStat boxed label="Brand" value={detailCampaignSummary?.brand ?? detailCampaignData?.brand ?? "-"} />
+                  <DetailStat boxed label="Status" value={detailCampaignSummary?.status ?? detailCampaignData?.status ?? "-"} />
                   <DetailStat
+                    boxed
                     label="Periode"
                     value={`${detailCampaignSummary?.periodStart ?? detailCampaignData?.periodStart ?? "-"} → ${detailCampaignSummary?.periodEnd ?? detailCampaignData?.periodEnd ?? "-"}`}
                   />
-                  <DetailStat label="Target KOL" value={String(detailCampaignSummary?.targetKolCount ?? detailCampaignData?.targetKolCount ?? 0)} />
-                  <DetailStat label="Follower tier" value={detailCampaignSummary?.targetFollowerTier ?? detailCampaignData?.targetFollowerTier ?? "-"} />
+                  <DetailStat boxed label="Target KOL" value={String(detailCampaignSummary?.targetKolCount ?? detailCampaignData?.targetKolCount ?? 0)} />
+                  <DetailStat boxed label="Follower tier" value={detailCampaignSummary?.targetFollowerTier ?? detailCampaignData?.targetFollowerTier ?? "-"} />
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <DetailStat label="Objective" value={detailCampaignSummary?.objective ?? detailCampaignData?.objective ?? "-"} />
-                  <DetailStat label="Keywords" value={detailCampaignSummary?.keywords ?? detailCampaignData?.keywords ?? "-"} />
-                  <DetailStat label="Created at" value={detailCampaignSummary?.createdAt ?? detailCampaignData?.createdAt ?? "-"} />
-                  <DetailStat label="Updated at" value={detailCampaignSummary?.updatedAt ?? detailCampaignData?.updatedAt ?? "-"} />
+                  <DetailStat boxed label="Objective" value={detailCampaignSummary?.objective ?? detailCampaignData?.objective ?? "-"} />
+                  <DetailStat boxed label="Keywords" value={detailCampaignSummary?.keywords ?? detailCampaignData?.keywords ?? "-"} />
+                  <DetailStat boxed label="Created at" value={detailCampaignSummary?.createdAt ?? detailCampaignData?.createdAt ?? "-"} />
+                  <DetailStat boxed label="Updated at" value={detailCampaignSummary?.updatedAt ?? detailCampaignData?.updatedAt ?? "-"} />
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <DetailStat label="Deskripsi" value={detailCampaignSummary?.description ?? detailCampaignData?.description ?? "-"} />
-                  <DetailStat label="Post brief" value={detailCampaignSummary?.postBriefs ?? detailCampaignData?.postBriefs ?? "-"} />
+                  <DetailStat boxed label="Deskripsi" value={detailCampaignSummary?.description ?? detailCampaignData?.description ?? "-"} />
+                  <DetailStat boxed label="Post brief" value={detailCampaignSummary?.postBriefs ?? detailCampaignData?.postBriefs ?? "-"} />
                 </div>
               </section>
 
               <section className="space-y-3">
                 <div>
-                  <h3 className="text-sm font-medium">Konten campaign</h3>
-                  <p className="text-muted-foreground text-xs">
+                  <h3 className="text-[15px] font-semibold text-foreground">Konten campaign</h3>
+                  <p className="text-xs text-muted-foreground">
                     Konten dikelompokkan per KOL. Sync dan hapus dilakukan pada tiap item konten.
                   </p>
                 </div>
@@ -718,42 +738,49 @@ function RouteComponent() {
                 {detailCampaignData.contentsByKol.length ? (
                   <div className="space-y-4">
                     {detailCampaignData.contentsByKol.map((group) => (
-                      <article key={group.kolId} className="border-border space-y-3 border p-3 sm:p-4">
+                      <article key={group.kolId} className="border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
                         <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
                           <div>
-                            <p className="font-medium">{group.displayName}</p>
-                            <p className="text-muted-foreground text-xs">
+                            <p className="text-[18px] font-semibold leading-none text-foreground">{group.displayName}</p>
+                            <p className="text-[13px] text-muted-foreground">
                               {group.handles.length ? group.handles.join(" / ") : "Tidak ada handle yang tersimpan."}
                             </p>
                           </div>
-                          <span className="text-muted-foreground text-xs">{group.contents.length} konten</span>
+                          <span className="border border-border bg-[#F8EAED] px-2 py-1 text-xs text-[#6D3A44]">
+                            {group.contents.length} konten
+                          </span>
                         </div>
 
                         <div className="space-y-3">
                           {group.contents.map((content) => (
-                            <article key={content.id} className="bg-background/50 border-border space-y-3 border p-3">
+                            <article key={content.id} className="border-[1.6px] border-border/70 bg-[#FFF5F7] space-y-3 p-3 sm:p-4">
                               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                 <div className="min-w-0 space-y-1">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="border-border text-muted-foreground border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em]">
-                                      {content.platform}
-                                    </span>
-                                    <span
-                                      className={`border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] ${
-                                        content.syncStatus === "success"
-                                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                                          : content.syncStatus === "failed"
-                                            ? "border-red-500/40 bg-red-500/10 text-red-300"
-                                            : "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                                      }`}
-                                    >
-                                      {content.syncStatus}
-                                    </span>
-                                  </div>
+                                        {(() => {
+                                          const isSyncingThisContent = syncingContentId === content.id;
 
-                                  <p className="font-medium">
-                                    {content.title || content.caption || "Konten tanpa judul"}
-                                  </p>
+                                          return (
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <span className="border-border text-muted-foreground border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em]">
+                                                {content.platform}
+                                              </span>
+                                              <span
+                                                className={`border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] ${
+                                                  isSyncingThisContent
+                                                    ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                                                    : content.syncStatus === "success"
+                                                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                                                      : content.syncStatus === "failed"
+                                                        ? "border-red-500/40 bg-red-500/10 text-red-300"
+                                                        : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                                                }`}
+                                              >
+                                                {isSyncingThisContent ? "sync in progress..." : content.syncStatus}
+                                              </span>
+                                            </div>
+                                          );
+                                        })()}
+
                                   <a
                                     className="text-primary break-all text-xs underline-offset-4 hover:underline"
                                     href={content.contentUrl}
@@ -768,11 +795,19 @@ function RouteComponent() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={syncContent.isPending}
-                                    onClick={() => syncContent.mutate({ id: content.id })}
+                                    disabled={syncContent.isPending || syncingContentId !== null}
+                                    onClick={async () => {
+                                      setSyncingContentId(content.id);
+
+                                      try {
+                                        await syncContent.mutateAsync({ id: content.id });
+                                      } finally {
+                                        setSyncingContentId((current) => (current === content.id ? null : current));
+                                      }
+                                    }}
                                   >
-                                    <RefreshCcw className="mr-1 size-4" />
-                                    Sync now
+                                    <RefreshCcw className={`mr-1 size-4 ${syncingContentId === content.id ? "animate-spin" : ""}`} />
+                                    {syncingContentId === content.id ? "Sync in progress..." : "Sync now"}
                                   </Button>
                                   <Button
                                     variant="destructive"
@@ -790,14 +825,14 @@ function RouteComponent() {
                                 </div>
                               </div>
 
-                              <div className="text-muted-foreground grid gap-2 text-sm md:grid-cols-2 xl:grid-cols-4">
-                                <DetailStat label="Likes" value={formatNumber(content.likeCount)} compact />
-                                <DetailStat label="Views" value={formatNumber(content.viewCount)} compact />
-                                <DetailStat label="Comments" value={formatNumber(content.commentCount)} compact />
-                                <DetailStat label="Shares" value={formatNumber(content.shareCount)} compact />
+                              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4 text-[6px]">
+                                <DetailStat boxed compact label="Likes" value={formatNumber(content.likeCount)} />
+                                <DetailStat boxed compact label="Views" value={formatNumber(content.viewCount)} />
+                                <DetailStat boxed compact label="Comments" value={formatNumber(content.commentCount)} />
+                                <DetailStat boxed compact label="Shares" value={formatNumber(content.shareCount)} />
                               </div>
 
-                              <div className="text-muted-foreground grid gap-2 text-sm md:grid-cols-2">
+                              <div className="grid gap-2 text-sm md:grid-cols-2">
                                 <DetailStat label="Posted at" value={formatDateTime(content.postedAt)} compact />
                                 <DetailStat label="Synced at" value={formatDateTime(content.syncedAt)} compact />
                                 <DetailStat label="Author" value={content.authorDisplayName || content.authorHandle || "-"} compact />
@@ -1034,17 +1069,35 @@ function FormTextarea({
 
 function DetailStat({
   compact = false,
+  boxed = false,
   label,
   value,
 }: {
   compact?: boolean;
+  boxed?: boolean;
   label: string;
   value: string;
 }) {
+  const labelClassName = boxed
+    ? "text-[13px] uppercase tracking-[0.22em] text-[#982E41]"
+    : "text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground";
+
+  const valueClassName = boxed
+    ? compact
+      ? "text-[17px] font-[500] leading-none tracking-[0.04em] text-foreground"
+      : "text-sm font-medium text-foreground"
+    : compact
+      ? "text-xs text-foreground"
+      : "text-sm text-foreground";
+
   return (
-    <div className={compact ? "space-y-0.5" : "space-y-1"}>
-      <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</p>
-      <p className={compact ? "text-xs text-foreground" : "text-sm text-foreground"}>{value}</p>
+    <div
+      className={`${compact ? "space-y-0.5" : "space-y-1"} ${boxed ? "border-[1.6px] border-border/80 bg-white/70 px-3 py-2" : ""}`}
+    >
+      <p className={labelClassName}>{label}</p>
+      <p className={`${valueClassName} break-words whitespace-pre-line`}>
+        {value}
+      </p>
     </div>
   );
 }

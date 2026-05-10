@@ -18,10 +18,12 @@
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "@types/pdfkit": "^0.17.6",
     "@types/pg": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
     "onnxruntime-node": "^1.25.1",
+    "pdfkit": "^0.18.0",
     "zod": "catalog:"
   },
   "devDependencies": {
