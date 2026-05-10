@@ -5,6 +5,12 @@ import { and, desc, eq } from "drizzle-orm";
 import z from "zod";
 
 import { protectedProcedure } from "../index";
+import {
+  addCampaignContents,
+  deleteCampaignContent,
+  getCampaignDetail,
+  syncCampaignContent,
+} from "../lib/campaign-content";
 
 const campaignInputSchema = z.object({
   brand: z.string().trim().min(1),
@@ -19,6 +25,18 @@ const campaignInputSchema = z.object({
   status: z.enum(["draft", "active", "completed", "archived"]),
   targetFollowerTier: z.string().trim().default(""),
   targetKolCount: z.number().int().nonnegative(),
+});
+
+const campaignContentInputSchema = z.object({
+  campaignId: z.number().int().positive(),
+  contents: z
+    .array(
+      z.object({
+        kolId: z.number().int().positive(),
+        contentUrl: z.string().trim().min(1, "Link konten wajib diisi."),
+      }),
+    )
+    .min(1, "Minimal 1 konten harus diisi."),
 });
 
 function toDate(value: string) {
@@ -99,6 +117,9 @@ export const campaignRouter = {
 
       return { success: true };
     }),
+  addContent: protectedProcedure.input(campaignContentInputSchema).handler(async ({ context, input }) => {
+    return await addCampaignContents(input, context.session.user.id);
+  }),
   create: protectedProcedure.input(campaignInputSchema).handler(async ({ context, input }) => {
     const result = await db
       .insert(campaign)
@@ -127,30 +148,7 @@ export const campaignRouter = {
   getById: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .handler(async ({ input }) => {
-      const campaigns = await db.select().from(campaign).where(eq(campaign.id, input.id)).limit(1);
-      const item = campaigns[0];
-
-      if (!item) {
-        return null;
-      }
-
-      const links = await getCampaignKolLinks();
-
-      return {
-        ...item,
-        createdAt: item.createdAt.toISOString(),
-        kols: links
-          .filter((link) => link.campaignId === item.id)
-          .map((link) => ({
-            displayName: link.displayName,
-            handles: link.handles,
-            id: link.id,
-          })),
-        periodEnd: item.periodEnd.toISOString().slice(0, 10),
-        periodStart: item.periodStart.toISOString().slice(0, 10),
-        selectedKolIds: links.filter((link) => link.campaignId === item.id).map((link) => link.id),
-        updatedAt: item.updatedAt.toISOString(),
-      };
+      return await getCampaignDetail(input.id);
     }),
   list: protectedProcedure.handler(async () => {
     const campaigns = await db.select().from(campaign).orderBy(desc(campaign.createdAt));
@@ -200,5 +198,15 @@ export const campaignRouter = {
       await replaceCampaignKols(input.id, input.selectedKolIds);
 
       return { id: input.id };
+    }),
+  deleteContent: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      return await deleteCampaignContent(input.id);
+    }),
+  syncContent: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      return await syncCampaignContent(input.id);
     }),
 };
