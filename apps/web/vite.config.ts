@@ -13,6 +13,11 @@ export default defineConfig({
   ssr: {
     external: ["onnxruntime-node"],
   },
+  build: {
+    rollupOptions: {
+      external: ["onnxruntime-node"],
+    },
+  },
   server: {
     port: 3003,
   },
