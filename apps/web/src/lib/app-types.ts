@@ -116,3 +116,43 @@ export type CampaignRecord = {
   targetKolCount: number;
   updatedAt: string;
 };
+
+export type CampaignContentRecord = {
+  authorDisplayName: string;
+  authorHandle: string;
+  campaignId: number;
+  caption: string;
+  commentCount: number;
+  contentUrl: string;
+  createdAt: string;
+  externalId: string | null;
+  engagementRate: string;
+  id: number;
+  kolDisplayName: string;
+  kolHandles: string[];
+  kolId: number;
+  likeCount: number;
+  metadata: Record<string, unknown> | null;
+  platform: SocialPlatform;
+  postedAt: string | null;
+  shareCount: number;
+  syncErrorCode: string | null;
+  syncMessage: string | null;
+  syncStatus: SyncStatus;
+  syncedAt: string | null;
+  thumbnailUrl: string | null;
+  title: string;
+  updatedAt: string;
+  viewCount: number;
+};
+
+export type CampaignContentGroupRecord = {
+  contents: CampaignContentRecord[];
+  displayName: string;
+  handles: string[];
+  kolId: number;
+};
+
+export type CampaignDetailRecord = CampaignRecord & {
+  contentsByKol: CampaignContentGroupRecord[];
+};
