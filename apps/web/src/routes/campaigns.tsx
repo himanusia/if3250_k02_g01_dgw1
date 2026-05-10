@@ -86,6 +86,8 @@ function RouteComponent() {
   const [isAddContentDialogOpen, setIsAddContentDialogOpen] = useState(false);
   const [syncingContentId, setSyncingContentId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const [debouncedCampaignSearch, setDebouncedCampaignSearch] = useState("");
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
   const [kolSearch, setKolSearch] = useState("");
@@ -130,6 +132,16 @@ function RouteComponent() {
         document.body.classList.remove("digiTheme");
       };
     }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedCampaignSearch(campaignSearch.trim().toLowerCase());
+    }, 250);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [campaignSearch]);
     
   const filteredKols = useMemo(() => {
   return kols.filter((kol) => {
@@ -147,6 +159,24 @@ function RouteComponent() {
     return matchesSearch && matchesKeywords;
   });
 }, [kols, kolSearch, selectedKeywordFilter]);
+
+  const filteredCampaigns = useMemo(() => {
+    if (!debouncedCampaignSearch) {
+      return campaigns;
+    }
+
+    return campaigns.filter((campaign) => {
+      const haystack = [
+        campaign.name,
+        campaign.brand,
+        campaign.keywords,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(debouncedCampaignSearch);
+    });
+  }, [campaigns, debouncedCampaignSearch]);
 
   const addContent = useMutation({
     mutationFn: (input: { campaignId: number; contents: Array<{ contentUrl: string; kolId: number }> }) =>
@@ -375,8 +405,17 @@ function RouteComponent() {
             </Button>
           </div>
 
+          <div className="max-w-md">
+            <FormInput
+              label="Search"
+              value={campaignSearch}
+              onChange={setCampaignSearch}
+              placeholder="Cari Nama campaign, brand, keyword"
+            />
+          </div>
+
           <div className="space-y-3">
-            {campaigns.map((campaign) => (
+            {filteredCampaigns.map((campaign) => (
               <article key={campaign.id} className="border-border space-y-3 border p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -437,7 +476,7 @@ function RouteComponent() {
               </article>
             ))}
 
-            {!campaigns.length && (
+            {!filteredCampaigns.length && (
               <p className="text-muted-foreground text-sm">Belum ada campaign yang dibuat.</p>
             )}
           </div>
