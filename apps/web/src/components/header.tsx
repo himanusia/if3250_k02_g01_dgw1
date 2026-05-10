@@ -1,15 +1,29 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+
+import { orpc } from "@/utils/orpc";
+
+import { authClient } from "@/lib/auth-client";
 
 import UserMenu from "./user-menu";
 
 export default function Header() {
+  const { data: session } = authClient.useSession();
+  const privateDataQuery = useQuery({
+    ...orpc.privateData.queryOptions(),
+    enabled: Boolean(session),
+  });
+
+  const isAdmin = privateDataQuery.data?.access?.role === "admin";
+
   const links = [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/campaigns", label: "Campaigns" },
     { to: "/kols", label: "KOL" },
     { to: "/compare-kols", label: "CompareKOL" },
-    { to: "/access", label: "Access" },
   ] as const;
+
+  const navLinks = isAdmin ? [...links, { to: "/access", label: "Access" }] : links;
 
   return (
     <div className="w-full bg-gradient-to-r from-[#B43C39] to-[#7B204C] shadow-md py-4 px-6 sm:px-12 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -32,7 +46,7 @@ export default function Header() {
       {/* Navigasi Menu & User Menu */}
       <div className="flex items-center gap-8">
         <nav className="hidden md:flex items-center gap-6 font-poppins text-[15px]">
-          {links.map(({ to, label }) => {
+          {navLinks.map(({ to, label }) => {
             return (
               <Link 
                 key={to} 
