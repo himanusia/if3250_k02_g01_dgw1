@@ -340,6 +340,122 @@ export const kolRouter = {
     await syncKolProfile(created!.id);
     return await mapKolRecord(created!.id);
   }),
+  bulkImport: protectedProcedure
+  .input(z.array(kolInputSchema))
+  .handler(async ({ input }) => {
+    const success: Array<{
+      displayName: string;
+    }> = [];
+
+    const skipped: Array<{
+      displayName: string;
+      reason: string;
+    }> = [];
+
+    const failed: Array<{
+      displayName: string;
+      reason: string;
+    }> = [];
+
+    for (const kol of input) {
+      try {
+        let duplicateFound = false;
+
+        // check duplicates
+        for (const account of kol.accounts) {
+          const existing = await db
+            .select({ id: kolAccount.id })
+            .from(kolAccount)
+            .where(
+              sql`
+                LOWER(${kolAccount.handle}) = LOWER(${account.handle})
+                AND ${kolAccount.platform} = ${account.platform}
+              `,
+            )
+            .limit(1);
+
+          if (existing.length > 0) {
+            duplicateFound = true;
+            break;
+          }
+        }
+
+        if (duplicateFound) {
+          skipped.push({
+            displayName: kol.displayName,
+            reason: "Duplicate account",
+          });
+
+          continue;
+        }
+
+        // validate account
+        await validateAccounts(kol.accounts);
+
+        // create profile
+        const [created] = await db
+          .insert(kolProfile)
+          .values({
+            displayName: kol.displayName,
+            keywords: kol.keywords,
+          })
+          .returning({
+            id: kolProfile.id,
+          });
+
+        // create accounts
+        await db.insert(kolAccount).values(
+          kol.accounts.map((account) => ({
+            handle: account.handle,
+            kolId: created!.id,
+            platform: account.platform,
+            profileUrl:
+              account.profileUrl || null,
+          })),
+        );
+
+        await syncKolProfile(created!.id);
+
+        success.push({
+          displayName: kol.displayName,
+        });
+      } catch (error) {
+        console.error(
+          "[IMPORT FAILED]",
+          kol.displayName,
+          error,
+        );
+
+        let reason =
+          "Unknown import failure";
+
+        if (error instanceof ORPCError) {
+          reason =
+            error.message || reason;
+        } else if (error instanceof Error) {
+          reason = error.message;
+        }
+
+        failed.push({
+          displayName: kol.displayName,
+          reason,
+        });
+      }
+    }
+
+    return {
+      success,
+      skipped,
+      failed,
+
+      summary: {
+        success: success.length,
+        skipped: skipped.length,
+        failed: failed.length,
+        total: input.length,
+      },
+    };
+  }),
   getById: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .handler(async ({ input }) => {
