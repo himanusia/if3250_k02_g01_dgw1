@@ -3,7 +3,7 @@ import { allowedEmail, type AppRole } from "@if3250_k02_g01_dgw1/db/schema/acces
 import { env } from "@if3250_k02_g01_dgw1/env/server";
 import { and, eq } from "drizzle-orm";
 
-export type AccessState = {
+export type WhitelistState = {
   email: string;
   role: AppRole;
   source: "bootstrap" | "whitelist";
@@ -21,7 +21,7 @@ function getBootstrapAdminEmails() {
   );
 }
 
-export async function getAccessForEmail(email?: string | null): Promise<AccessState> {
+export async function getWhitelistForEmail(email?: string | null): Promise<WhitelistState> {
   if (!email) {
     return null;
   }

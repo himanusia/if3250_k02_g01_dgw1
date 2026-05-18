@@ -5,15 +5,15 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { AccessEntry, AccessRole } from "@/lib/app-types";
+import type { WhitelistEntry, WhitelistRole } from "@/lib/app-types";
 
 import { Button } from "@/components/ui/button";
-import { requireAdminAccess } from "@/lib/auth-guard";
+import { requireAdminWhitelist } from "@/lib/auth-guard";
 import { client, orpc } from "@/utils/orpc";
 
-export const Route = createFileRoute("/access")({
+export const Route = createFileRoute("/whitelist")({
   beforeLoad: async () => {
-    await requireAdminAccess();
+    await requireAdminWhitelist();
   },
   component: RouteComponent,
 });
@@ -84,7 +84,7 @@ function RouteComponent() {
   }, []);
 
   const syncSettingsQuery = useQuery(
-    orpc.access.getSyncSettings.queryOptions()
+    orpc.whitelist.getSyncSettings.queryOptions()
   );
 
   const syncSettings = syncSettingsQuery.data;
@@ -124,7 +124,7 @@ function RouteComponent() {
 
   const updateSyncSettings = useMutation({
     mutationFn: (input: { intervalMinutes: number; enabled: boolean }) =>
-      client.access.updateSyncSettings(input),
+      client.whitelist.updateSyncSettings(input),
     onSuccess: () => {
       toast.success("Pengaturan sync diperbarui");
       syncSettingsQuery.refetch();
@@ -144,29 +144,30 @@ function RouteComponent() {
   const [form, setForm] = useState({
     email: "",
     note: "",
-    role: "user" as AccessRole,
+    role: "user" as WhitelistRole,
   });
 
-  const accessEntriesQuery = useQuery(orpc.access.list.queryOptions());
-  const accessEntries = (accessEntriesQuery.data as AccessEntry[] | undefined) ?? [];
+  const whitelistEntriesQuery = useQuery(orpc.whitelist.list.queryOptions());
+  const whitelistEntries = (whitelistEntriesQuery.data as WhitelistEntry[] | undefined) ?? [];
   const createEntry = useMutation({
-    mutationFn: (input: { email: string; note: string; role: AccessRole }) => client.access.create(input),
+    mutationFn: (input: { email: string; note: string; role: WhitelistRole }) => client.whitelist.create(input),
     onSuccess: () => {
       toast.success("Whitelist berhasil diperbarui");
-      accessEntriesQuery.refetch();
+      whitelistEntriesQuery.refetch();
       setForm({ email: "", note: "", role: "user" });
     },
   });
   const deleteEntry = useMutation({
-    mutationFn: (input: { id: number }) => client.access.delete(input),
+    mutationFn: (input: { id: number }) => client.whitelist.delete(input),
     onSuccess: () => {
       toast.success("Email berhasil dihapus dari whitelist");
-      accessEntriesQuery.refetch();
+      whitelistEntriesQuery.refetch();
     },
   });
 
   return (
-    <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
       <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
         <div>
           <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
@@ -205,7 +206,7 @@ function RouteComponent() {
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
-                  role: event.target.value as AccessRole,
+                  role: event.target.value as WhitelistRole,
                 }))
               }
             >
@@ -236,7 +237,7 @@ function RouteComponent() {
         </div>
 
         <div className="space-y-3">
-          {accessEntries.map((entry) => (
+          {whitelistEntries.map((entry) => (
             <div key={entry.id} className="border-border flex items-start justify-between gap-4 border p-3">
               <div className="space-y-1">
                 <p className="font-medium">{entry.email}</p>
@@ -256,7 +257,7 @@ function RouteComponent() {
             </div>
           ))}
 
-          {!accessEntries.length && (
+          {!whitelistEntries.length && (
             <p className="text-muted-foreground text-sm">Belum ada email di whitelist database.</p>
           )}
         </div>
@@ -327,6 +328,7 @@ function RouteComponent() {
           {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
         </Button>
       </section>
+      </div>
     </div>
   );
 }

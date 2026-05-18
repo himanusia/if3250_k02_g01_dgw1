@@ -7,7 +7,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 
-import { getAccessForEmail, normalizeEmail } from "./access.js";
+import { getWhitelistForEmail, normalizeEmail } from "./whitelist.js";
 
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -27,9 +27,9 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
-          const access = await getAccessForEmail(user.email);
+          const whitelist = await getWhitelistForEmail(user.email);
 
-          if (!access) {
+          if (!whitelist) {
             throw new APIError("BAD_REQUEST", {
               message: "Email ini belum masuk whitelist aplikasi.",
             });
@@ -53,9 +53,9 @@ export const auth = betterAuth({
             .where(eq(schema.user.id, session.userId))
             .limit(1);
 
-          const access = await getAccessForEmail(existingUser?.email);
+          const whitelist = await getWhitelistForEmail(existingUser?.email);
 
-          if (!access) {
+          if (!whitelist) {
             throw new APIError("BAD_REQUEST", {
               message: "Akses aplikasi untuk email ini sudah tidak aktif.",
             });

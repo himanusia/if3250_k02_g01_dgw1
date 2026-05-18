@@ -5,8 +5,6 @@ export const Route = createFileRoute("/api/cron/sync-kols")({
   server: {
     handlers: {
       GET: async () => {
-        console.log("[CRON] triggered");
-
         const count = await runGlobalSyncBatch(5);
 
         return new Response(

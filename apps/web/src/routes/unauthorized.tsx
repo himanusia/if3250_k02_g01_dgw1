@@ -12,8 +12,9 @@ function RouteComponent() {
   const navigate = useNavigate();
 
   return (
-    <div className="mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-xl items-center px-4 py-10">
-      <div className="bg-card ring-foreground/10 w-full space-y-4 p-6 text-center ring-1">
+    <div className="flex h-full overflow-y-auto px-4 py-10">
+      <div className="mx-auto flex min-h-full w-full max-w-xl items-center">
+        <div className="bg-card ring-foreground/10 w-full space-y-4 p-6 text-center ring-1">
         <div className="mx-auto flex size-12 items-center justify-center border">
           <ShieldAlert className="size-5" />
         </div>
@@ -42,6 +43,7 @@ function RouteComponent() {
             Keluar
           </Button>
           <Button onClick={() => navigate({ to: "/login" })}>Kembali ke login</Button>
+        </div>
         </div>
       </div>
     </div>
