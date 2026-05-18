@@ -515,11 +515,11 @@ function mergeKeywords(
   return (
     <>
       <div
-        className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] min-h-screen w-screen py-6"
+        className="h-full overflow-y-auto overflow-x-hidden py-6"
         style={{ backgroundColor: KOLS_COLORS.pageBackground }}
       >
         <div
-          className="mx-auto w-[98vw] max-w-[1700px] space-y-6 px-[10px] md:px-[14px] [font-family:var(--font-poppins)] font-normal"
+          className="mx-auto w-full max-w-[1700px] space-y-6 px-[10px] md:px-[14px] [font-family:var(--font-poppins)] font-normal"
           style={{ color: KOLS_COLORS.text }}
         >
           <section
