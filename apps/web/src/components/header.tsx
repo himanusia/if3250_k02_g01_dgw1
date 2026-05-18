@@ -1,9 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { Menu } from "lucide-react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { orpc } from "@/utils/orpc";
 
 import UserMenu from "./user-menu";
+import { Button } from "./ui/button";
 
 export default function Header() {
   const privateData = useQuery(orpc.privateData.queryOptions());
@@ -18,26 +26,26 @@ export default function Header() {
   const visibleLinks = [...links, ...adminLinks];
 
   return (
-    <div className="w-full bg-gradient-to-r from-[#B43C39] to-[#7B204C] shadow-md py-4 px-6 sm:px-12 flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="flex w-full items-center justify-between gap-3 bg-gradient-to-r from-[#B43C39] to-[#7B204C] px-4 py-3 shadow-md sm:px-6 lg:px-12">
       {/* Logo & Tulisan */}
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-3">
         {/* LOGO PLACEHOLDER`public/images/logo.png` */}
-        <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shrink-0 overflow-hidden border-2 border-white">
+        <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-white md:size-14">
           <img 
             src="/images/logo-placeholder.svg" 
             alt="Digi Wonder Logo" 
-            className="w-full h-full object-cover" 
+            className="h-full w-full object-cover"
           />
         </div>
         {/* goldman font*/}
-        <span className="font-goldman text-white text-2xl font-bold tracking-widest uppercase mt-1">
+        <span className="hidden font-goldman text-2xl font-bold uppercase tracking-widest text-white lg:inline">
           Digi Wonder
         </span>
       </div>
 
       {/* Navigasi Menu & User Menu */}
-      <div className="flex items-center gap-8">
-        <nav className="hidden md:flex items-center gap-6 font-poppins text-[15px]">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-4 lg:gap-8">
+        <nav className="hidden lg:flex items-center gap-6 font-poppins text-[15px]">
           {visibleLinks.map(({ to, label }) => {
             return (
               <Link 
@@ -53,6 +61,28 @@ export default function Header() {
             );
           })}
         </nav>
+
+        <div className="lg:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  aria-label="Buka menu navigasi"
+                  className="border-0 bg-black/25 px-3 text-white shadow-none hover:bg-black/40 hover:text-white"
+                />
+              }
+            >
+              <Menu className="size-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-white text-black">
+              {visibleLinks.map(({ to, label }) => (
+                <DropdownMenuItem key={to} render={<Link to={to} />}>
+                  {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         {/* user dropdown */}
         <div className="font-poppins">
