@@ -1,0 +1,18 @@
+{
+  "name": "DigiWonder KOL Campaign Dashboard",
+  "short_name": "DigiWonder",
+  "description": "Private KOL campaign dashboard for profile management, campaign planning, and social-content performance.",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/images/logo-placeholder.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

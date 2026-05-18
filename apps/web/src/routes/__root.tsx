@@ -65,13 +65,63 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "DigiWonder",
+        title: "DigiWonder | KOL Campaign Dashboard",
+      },
+      {
+        name: "description",
+        content:
+          "DigiWonder is a private campaign dashboard for managing KOL profiles, campaign planning, and social-content performance.",
+      },
+      {
+        name: "robots",
+        content: "noindex, nofollow",
+      },
+      {
+        name: "theme-color",
+        content: "#020617",
+      },
+      {
+        property: "og:site_name",
+        content: "DigiWonder",
+      },
+      {
+        property: "og:title",
+        content: "DigiWonder | KOL Campaign Dashboard",
+      },
+      {
+        property: "og:description",
+        content:
+          "Private campaign dashboard for KOL profiles, campaign planning, and social-content performance.",
+      },
+      {
+        property: "og:type",
+        content: "website",
+      },
+      {
+        property: "og:image",
+        content: "/images/logo-placeholder.svg",
+      },
+      {
+        name: "twitter:card",
+        content: "summary",
       },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "manifest",
+        href: "/site.webmanifest",
+      },
+      {
+        rel: "icon",
+        href: "/favicon.ico",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/images/logo-placeholder.svg",
       },
     ],
   }),
