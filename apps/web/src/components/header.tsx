@@ -28,7 +28,11 @@ export default function Header() {
   return (
     <div className="sticky top-0 z-40 flex w-full items-center justify-between gap-3 bg-gradient-to-r from-[#B43C39] to-[#7B204C] px-4 py-3 shadow-md sm:px-6 lg:px-12">
       {/* Logo & Tulisan */}
-      <div className="flex min-w-0 items-center gap-3">
+      <Link
+        to="/dashboard"
+        aria-label="Ke dashboard DigiWonder"
+        className="flex min-w-0 items-center gap-3 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#B43C39]"
+      >
         {/* LOGO PLACEHOLDER`public/images/logo.png` */}
         <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-white md:size-14">
           <img 
@@ -41,7 +45,7 @@ export default function Header() {
         <span className="hidden font-goldman text-2xl font-bold uppercase tracking-widest text-white lg:inline">
           Digi Wonder
         </span>
-      </div>
+      </Link>
 
       {/* Navigasi Menu & User Menu */}
       <div className="flex shrink-0 items-center gap-2 sm:gap-4 lg:gap-8">
