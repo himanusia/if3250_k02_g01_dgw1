@@ -1,5 +1,5 @@
 type AuthState = {
-  whitelist: unknown | null;
+  whitelist: { role?: string } | null;
   session: unknown | null;
 };
 

@@ -16,6 +16,7 @@ function RouteComponent() {
   const kolsQuery = useQuery(orpc.kol.list.queryOptions());
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
+  const isAdmin = privateData.data?.whitelist?.role === "admin";
 
   const tierBreakdown = useMemo(() => {
     const counts = { nano: 0, micro: 0, macro: 0, mega: 0 };
@@ -44,11 +45,13 @@ function RouteComponent() {
           <p className="text-3xl font-semibold">{kols.length}</p>
           <p className="text-muted-foreground">Total KOL.</p>
         </div>
-        <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
-          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Whitelist</p>
-          <p className="text-3xl font-semibold">{privateData.data?.whitelist?.role ?? "user"}</p>
-          <p className="text-muted-foreground">Role aktif.</p>
-        </div>
+        {isAdmin && (
+          <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
+            <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Whitelist</p>
+            <p className="text-3xl font-semibold">Admin</p>
+            <p className="text-muted-foreground">Role aktif.</p>
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">

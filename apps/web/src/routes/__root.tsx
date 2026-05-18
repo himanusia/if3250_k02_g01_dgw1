@@ -79,6 +79,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootDocument() {
+  const routeContext = Route.useRouteContext();
+  const isAdmin = routeContext.whitelist?.role === "admin";
+
   return (
     <html lang="en" className="dark">
       <head>
@@ -86,7 +89,7 @@ function RootDocument() {
       </head>
       <body>
         <div className="grid h-svh grid-rows-[auto_1fr]">
-          <Header />
+          <Header isAdmin={isAdmin} />
           <Outlet />
         </div>
         <Toaster richColors />
