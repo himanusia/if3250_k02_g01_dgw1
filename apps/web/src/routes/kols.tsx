@@ -3,7 +3,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, useRef  } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 
 import type { KolRecord, SocialPlatform } from "@/lib/app-types";
 import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
