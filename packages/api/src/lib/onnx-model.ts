@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import * as ort from "onnxruntime-node";
+import type * as ort from "onnxruntime-node";
 
 const MODEL_PATH = fileURLToPath(
   new URL("../../../../packages/ml/artifacts/rate-card-model.onnx", import.meta.url),
@@ -13,14 +13,24 @@ const FOLLOWER_TIER_FEATURES = ["nano", "micro", "macro", "mega"] as const;
 type Platform = (typeof PLATFORM_FEATURES)[number];
 type CreatorType = (typeof CREATOR_TYPE_FEATURES)[number];
 
+let ortRuntimePromise: Promise<typeof import("onnxruntime-node")> | null = null;
 let sessionPromise: Promise<ort.InferenceSession> | null = null;
+
+function loadOrtRuntime(): Promise<typeof import("onnxruntime-node")> {
+  if (!ortRuntimePromise) {
+    ortRuntimePromise = import("onnxruntime-node");
+  }
+  return ortRuntimePromise;
+}
 
 function getSession(): Promise<ort.InferenceSession> {
   if (!sessionPromise) {
-    sessionPromise = ort.InferenceSession.create(MODEL_PATH).catch((err) => {
-      sessionPromise = null;
-      throw err;
-    });
+    sessionPromise = loadOrtRuntime()
+      .then((ortRuntime) => ortRuntime.InferenceSession.create(MODEL_PATH))
+      .catch((err) => {
+        sessionPromise = null;
+        throw err;
+      });
   }
   return sessionPromise;
 }
@@ -56,8 +66,9 @@ const MEGA_TIER_FLOOR = 1_000_000;
 const MEGA_SCALE_EXPONENT = 0.6;
 
 async function runInference(session: ort.InferenceSession, followers: number, platform: Platform): Promise<number> {
+  const ortRuntime = await loadOrtRuntime();
   const features = buildFeatureVector(followers, platform, "other", false);
-  const tensor = new ort.Tensor("float32", features, [1, features.length]);
+  const tensor = new ortRuntime.Tensor("float32", features, [1, features.length]);
   const result = await session.run({ features: tensor });
   const raw = (result["variable"]?.data as Float32Array)[0] ?? 0;
   return Math.max(0, Math.expm1(raw));

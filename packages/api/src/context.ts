@@ -1,17 +1,7 @@
-import { auth } from "@if3250_k02_g01_dgw1/auth";
-import { getAccessForEmail } from "@if3250_k02_g01_dgw1/auth/access";
+import { getAuthContext } from "@if3250_k02_g01_dgw1/auth/context";
 
 export async function createContext({ req }: { req: Request }) {
-  const session = await auth.api.getSession({
-    headers: req.headers,
-  });
-
-  const access = await getAccessForEmail(session?.user.email);
-
-  return {
-    access,
-    session,
-  };
+  return getAuthContext(req.headers);
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;
