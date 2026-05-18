@@ -278,10 +278,6 @@ function RouteComponent() {
       return;
     }
 
-    console.log(
-      "CREATE KOL PAYLOAD",
-      JSON.stringify(form, null, 2),
-    );
     createKol.mutate(form);
   }
 
@@ -306,11 +302,6 @@ function RouteComponent() {
       client.kol.bulkImport(input),
 
     onSuccess: (result) => {
-      console.log(
-        "IMPORT RESULT",
-        result,
-      );
-
       toast.success(
         `Import selesai • ${result.summary.success} sukses • ${result.summary.skipped} skip • ${result.summary.failed} gagal`,
       );
@@ -1179,10 +1170,6 @@ function mergeKeywords(
                 }
                 className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
                 onClick={() => {
-                  console.log(
-                    "IMPORT PAYLOAD",
-                    JSON.stringify(importPreview, null, 2),
-                  );
                   importKol.mutate(importPreview);
                 }}
               >

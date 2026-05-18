@@ -39,18 +39,20 @@ const campaignContentInputSchema = z.object({
     .min(1, "Minimal 1 konten harus diisi."),
 });
 
+type CampaignDb = Pick<typeof db, "delete" | "insert">;
+
 function toDate(value: string) {
   return new Date(`${value}T00:00:00`);
 }
 
-async function replaceCampaignKols(campaignId: number, kolIds: number[]) {
-  await db.delete(campaignKol).where(eq(campaignKol.campaignId, campaignId));
+async function replaceCampaignKols(database: CampaignDb, campaignId: number, kolIds: number[]) {
+  await database.delete(campaignKol).where(eq(campaignKol.campaignId, campaignId));
 
   if (!kolIds.length) {
     return;
   }
 
-  await db.insert(campaignKol).values(kolIds.map((kolId) => ({ campaignId, kolId })));
+  await database.insert(campaignKol).values(kolIds.map((kolId) => ({ campaignId, kolId })));
 }
 
 async function getCampaignKolLinks() {
@@ -121,27 +123,31 @@ export const campaignRouter = {
     return await addCampaignContents(input, context.session.user.id);
   }),
   create: protectedProcedure.input(campaignInputSchema).handler(async ({ context, input }) => {
-    const result = await db
-      .insert(campaign)
-      .values({
-        brand: input.brand,
-        createdByUserId: context.session.user.id,
-        description: input.description,
-        keywords: input.keywords,
-        name: input.name,
-        objective: input.objective,
-        periodEnd: toDate(input.periodEnd),
-        periodStart: toDate(input.periodStart),
-        postBriefs: input.postBriefs,
-        status: input.status,
-        targetFollowerTier: input.targetFollowerTier,
-        targetKolCount: input.targetKolCount,
-      })
-      .returning({ id: campaign.id });
+    const created = await db.transaction(async (tx) => {
+      const result = await tx
+        .insert(campaign)
+        .values({
+          brand: input.brand,
+          createdByUserId: context.session.user.id,
+          description: input.description,
+          keywords: input.keywords,
+          name: input.name,
+          objective: input.objective,
+          periodEnd: toDate(input.periodEnd),
+          periodStart: toDate(input.periodStart),
+          postBriefs: input.postBriefs,
+          status: input.status,
+          targetFollowerTier: input.targetFollowerTier,
+          targetKolCount: input.targetKolCount,
+        })
+        .returning({ id: campaign.id });
 
-    const created = result[0]!;
+      const createdCampaign = result[0]!;
 
-    await replaceCampaignKols(created.id, input.selectedKolIds);
+      await replaceCampaignKols(tx, createdCampaign.id, input.selectedKolIds);
+
+      return createdCampaign;
+    });
 
     return { id: created.id };
   }),
@@ -177,25 +183,27 @@ export const campaignRouter = {
       }),
     )
     .handler(async ({ input }) => {
-      await db
-        .update(campaign)
-        .set({
-          brand: input.brand,
-          description: input.description,
-          keywords: input.keywords,
-          name: input.name,
-          objective: input.objective,
-          periodEnd: toDate(input.periodEnd),
-          periodStart: toDate(input.periodStart),
-          postBriefs: input.postBriefs,
-          status: input.status,
-          targetFollowerTier: input.targetFollowerTier,
-          targetKolCount: input.targetKolCount,
-          updatedAt: new Date(),
-        })
-        .where(eq(campaign.id, input.id));
+      await db.transaction(async (tx) => {
+        await tx
+          .update(campaign)
+          .set({
+            brand: input.brand,
+            description: input.description,
+            keywords: input.keywords,
+            name: input.name,
+            objective: input.objective,
+            periodEnd: toDate(input.periodEnd),
+            periodStart: toDate(input.periodStart),
+            postBriefs: input.postBriefs,
+            status: input.status,
+            targetFollowerTier: input.targetFollowerTier,
+            targetKolCount: input.targetKolCount,
+            updatedAt: new Date(),
+          })
+          .where(eq(campaign.id, input.id));
 
-      await replaceCampaignKols(input.id, input.selectedKolIds);
+        await replaceCampaignKols(tx, input.id, input.selectedKolIds);
+      });
 
       return { id: input.id };
     }),
