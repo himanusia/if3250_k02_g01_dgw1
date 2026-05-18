@@ -7,6 +7,7 @@ import {
   Scripts,
   createRootRouteWithContext,
   redirect,
+  useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
@@ -79,8 +80,8 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootDocument() {
-  const routeContext = Route.useRouteContext();
-  const isAdmin = routeContext.whitelist?.role === "admin";
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const showHeader = pathname !== "/login";
 
   return (
     <html lang="en" className="dark">
@@ -89,7 +90,7 @@ function RootDocument() {
       </head>
       <body>
         <div className="grid h-svh grid-rows-[auto_1fr]">
-          <Header isAdmin={isAdmin} />
+          {showHeader && <Header />}
           <Outlet />
         </div>
         <Toaster richColors />

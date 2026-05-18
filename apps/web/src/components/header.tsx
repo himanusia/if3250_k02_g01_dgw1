@@ -1,12 +1,13 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+
+import { orpc } from "@/utils/orpc";
 
 import UserMenu from "./user-menu";
 
-type HeaderProps = {
-  isAdmin?: boolean;
-};
-
-export default function Header({ isAdmin = false }: HeaderProps) {
+export default function Header() {
+  const privateData = useQuery(orpc.privateData.queryOptions());
+  const isAdmin = privateData.data?.whitelist?.role === "admin";
   const links = [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/campaigns", label: "Campaigns" },
