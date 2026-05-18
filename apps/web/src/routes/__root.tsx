@@ -14,6 +14,7 @@ import type { orpc } from "@/utils/orpc";
 
 import { Toaster } from "@/components/ui/sonner";
 import { getAuthState } from "../functions/get-auth-state";
+import { loadAuthStateSafely } from "../lib/auth-state";
 
 import Header from "../components/header";
 import appCss from "../index.css?url";
@@ -31,7 +32,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
     }
 
     const isPublicRoute = ["/login", "/unauthorized"].includes(location.pathname);
-    const authState = await getAuthState();
+    const authState = await loadAuthStateSafely(getAuthState);
 
     if (!authState.session && !isPublicRoute) {
       throw redirect({
