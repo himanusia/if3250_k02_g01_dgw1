@@ -606,7 +606,6 @@ export async function runGlobalSyncBatch(limit = 5) {
   const enabled = (await getSetting("kol_sync_enabled")) !== "false";
 
   if (!enabled) {
-    console.log("[SYNC] disabled");
     return 0;
   }
 
@@ -631,13 +630,8 @@ export async function runGlobalSyncBatch(limit = 5) {
     )
     .limit(limit);
 
-  console.log(
-    `[SYNC] interval=${intervalMinutes}m | selected=${kols.length}`
-  );
-
   for (const kol of kols) {
     try {
-      console.log(`[SYNC] syncing KOL ${kol.id}`);
       await syncKolProfile(kol.id);
     } catch (err) {
       console.error(`[SYNC] failed KOL ${kol.id}`, err);

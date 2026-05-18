@@ -530,20 +530,6 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
   }
 
   const items = (await response.json()) as Array<Record<string, unknown>>;
-  console.log(
-    "[apify] response",
-    JSON.stringify(
-      {
-        actorId,
-        handle: account.handle,
-        itemCount: items.length,
-        item: items[0] ?? null,
-        platform: account.platform,
-      },
-      null,
-      2,
-    ),
-  );
 
   const metrics = extractMetrics(account.platform, items);
 
@@ -897,20 +883,6 @@ export async function syncContentWithApify(content: ContentInput): Promise<Synce
     : typeof payload === "object" && payload !== null
       ? [payload as Record<string, unknown>]
       : [];
-
-  console.log(
-    "[apify] content response",
-    JSON.stringify(
-      {
-        actorId,
-        itemCount: items.length,
-        platform: content.platform,
-        url,
-      },
-      null,
-      2,
-    ),
-  );
 
   if (content.platform === "tiktok") {
     return extractTikTokContentMetrics(items, url);

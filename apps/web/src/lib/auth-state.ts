@@ -8,8 +8,8 @@ export async function loadAuthStateSafely(
 ): Promise<AuthState> {
   try {
     return await loadAuthState();
-  } catch {
-    console.warn("Failed to load auth state; treating request as anonymous.");
+  } catch (error) {
+    console.error("[auth-state] failed to load auth state; treating as anonymous", error);
 
     return {
       whitelist: null,

@@ -502,9 +502,7 @@ function mergeKeywords(
 
       setImportPreview(parsed);
       setIsImportDialogOpen(true);
-    } catch (error) {
-      console.error(error);
-
+    } catch {
       toast.error(
         "Gagal membaca spreadsheet",
       );
