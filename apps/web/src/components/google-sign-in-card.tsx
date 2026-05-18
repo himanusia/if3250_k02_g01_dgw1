@@ -52,27 +52,27 @@ export default function GoogleSignInCard() {
   const isLoading = isSessionPending || isSubmitting;
 
   return (
-    <div className="flex h-full overflow-y-auto px-4 py-10">
-      <div className="mx-auto flex min-h-full w-full max-w-md items-center">
+    <div className="flex h-svh min-h-0 items-center justify-center overflow-y-auto bg-background px-4 py-10 text-foreground">
+      <div className="w-full max-w-md">
         <Card className="w-full">
-        <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-3xl font-semibold">Masuk ke DigiWonder</CardTitle>
-          <CardDescription>
-            Login sekarang pakai akun Google untuk lanjut ke dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button className="w-full" size="lg" onClick={handleGoogleSignIn} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Mengarahkan ke Google...
-              </>
-            ) : (
-              "Lanjut dengan Google"
-            )}
-          </Button>
-        </CardContent>
+          <CardHeader className="space-y-2 text-center">
+            <CardTitle className="text-3xl font-semibold">Masuk ke DigiWonder</CardTitle>
+            <CardDescription>
+              Login sekarang pakai akun Google untuk lanjut ke dashboard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" size="lg" onClick={handleGoogleSignIn} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Mengarahkan ke Google...
+                </>
+              ) : (
+                "Lanjut dengan Google"
+              )}
+            </Button>
+          </CardContent>
         </Card>
       </div>
     </div>

@@ -132,16 +132,17 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 function RootDocument() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const showHeader = pathname !== "/login";
+  const documentThemeClass = showHeader ? "dark" : "digiTheme";
 
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={documentThemeClass}>
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className={documentThemeClass}>
         <div className="grid h-svh grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
           {showHeader && <Header />}
-          <main className="min-h-0 overflow-hidden">
+          <main className="h-full min-h-0 overflow-hidden">
             <Outlet />
           </main>
         </div>
