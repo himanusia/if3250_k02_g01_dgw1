@@ -27,7 +27,8 @@ function RouteComponent() {
   }, [kols]);
 
   return (
-    <div className="container mx-auto grid gap-6 px-4 py-6">
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto grid gap-6 px-4 py-6">
       <section className="grid gap-2">
         <p className="text-muted-foreground text-sm uppercase tracking-[0.2em]">Dashboard</p>
         <h1 className="text-3xl font-semibold">Selamat datang, {privateData.data?.user?.name}</h1>
@@ -119,6 +120,7 @@ function RouteComponent() {
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }

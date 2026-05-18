@@ -166,7 +166,8 @@ function RouteComponent() {
   });
 
   return (
-    <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
       <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
         <div>
           <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
@@ -327,6 +328,7 @@ function RouteComponent() {
           {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
         </Button>
       </section>
+      </div>
     </div>
   );
 }

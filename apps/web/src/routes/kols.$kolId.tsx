@@ -202,19 +202,23 @@ function RouteComponent() {
 
   if (kolQuery.isLoading) {
     return (
-      <div className="container mx-auto px-4 py-6">
-        <p className="text-muted-foreground">Memuat data KOL...</p>
+      <div className="h-full overflow-y-auto">
+        <div className="container mx-auto px-4 py-6">
+          <p className="text-muted-foreground">Memuat data KOL...</p>
+        </div>
       </div>
     );
   }
 
   if (!kol) {
     return (
-      <div className="container mx-auto space-y-4 px-4 py-6">
-        <p className="text-muted-foreground">KOL tidak ditemukan.</p>
-        <Link to="/kols" className="text-sm underline underline-offset-2">
-          Kembali ke daftar KOL
-        </Link>
+      <div className="h-full overflow-y-auto">
+        <div className="container mx-auto space-y-4 px-4 py-6">
+          <p className="text-muted-foreground">KOL tidak ditemukan.</p>
+          <Link to="/kols" className="text-sm underline underline-offset-2">
+            Kembali ke daftar KOL
+          </Link>
+        </div>
       </div>
     );
   }
@@ -230,8 +234,9 @@ function RouteComponent() {
 
   return (
     <>
-      <div className="container mx-auto space-y-6 px-4 py-6">
-        <Link to="/kols" className="text-muted-foreground inline-flex items-center gap-1 text-sm hover:underline">
+      <div className="h-full overflow-y-auto">
+        <div className="container mx-auto space-y-6 px-4 py-6">
+          <Link to="/kols" className="text-muted-foreground inline-flex items-center gap-1 text-sm hover:underline">
           <ArrowLeft className="size-4" />
           Kembali ke daftar KOL
         </Link>
@@ -525,6 +530,7 @@ function RouteComponent() {
             )}
           </div>
         </section>
+        </div>
       </div>
 
       <Dialog

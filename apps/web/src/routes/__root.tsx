@@ -89,9 +89,11 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        <div className="grid h-svh grid-rows-[auto_1fr]">
+        <div className="grid h-svh grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
           {showHeader && <Header />}
-          <Outlet />
+          <main className="min-h-0 overflow-hidden">
+            <Outlet />
+          </main>
         </div>
         <Toaster richColors />
         <TanStackRouterDevtools position="bottom-left" />

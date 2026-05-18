@@ -26,7 +26,7 @@ export default function Header() {
   const visibleLinks = [...links, ...adminLinks];
 
   return (
-    <div className="flex w-full items-center justify-between gap-3 bg-gradient-to-r from-[#B43C39] to-[#7B204C] px-4 py-3 shadow-md sm:px-6 lg:px-12">
+    <div className="sticky top-0 z-40 flex w-full items-center justify-between gap-3 bg-gradient-to-r from-[#B43C39] to-[#7B204C] px-4 py-3 shadow-md sm:px-6 lg:px-12">
       {/* Logo & Tulisan */}
       <div className="flex min-w-0 items-center gap-3">
         {/* LOGO PLACEHOLDER`public/images/logo.png` */}
