@@ -59,6 +59,40 @@ function formatDate(value: Date | null) {
   return value ? value.toISOString().slice(0, 10) : null;
 }
 
+function normalizeAccountKey(account: z.infer<typeof kolAccountInputSchema>) {
+  return `${account.platform}:${account.handle.trim().toLowerCase()}`;
+}
+
+async function assertAccountsAreUnique(accounts: Array<z.infer<typeof kolAccountInputSchema>>) {
+  const seen = new Set<string>();
+
+  for (const account of accounts) {
+    const accountKey = normalizeAccountKey(account);
+
+    if (seen.has(accountKey)) {
+      throw new ORPCError("BAD_REQUEST", {
+        data: { reason: "DUPLICATE_ACCOUNT_IN_FORM" },
+        message: `Akun ${account.platform} @${account.handle} terduplikat di form.`,
+      });
+    }
+
+    seen.add(accountKey);
+
+    const existing = await db
+      .select({ id: kolAccount.id })
+      .from(kolAccount)
+      .where(sql`LOWER(${kolAccount.handle}) = LOWER(${account.handle}) AND ${kolAccount.platform} = ${account.platform}`)
+      .limit(1);
+
+    if (existing.length > 0) {
+      throw new ORPCError("BAD_REQUEST", {
+        data: { reason: "DUPLICATE_ACCOUNT" },
+        message: `Akun ${account.platform} @${account.handle} sudah ada. Pakai edit/sync KOL yang sudah ada, bukan create baru.`,
+      });
+    }
+  }
+}
+
 function getFollowerTier(totalFollowers: number) {
   if (totalFollowers >= 1_000_000) {
     return "mega" as const;
@@ -318,27 +352,32 @@ export const kolRouter = {
     };
   }),
   create: protectedProcedure.input(kolInputSchema).handler(async ({ input }) => {
+    await assertAccountsAreUnique(input.accounts);
     await validateAccounts(input.accounts);
 
-    const [created] = await db
-      .insert(kolProfile)
-      .values({
-        displayName: input.displayName,
-        keywords: input.keywords,
-      })
-      .returning({ id: kolProfile.id });
+    const created = await db.transaction(async (tx) => {
+      const [createdProfile] = await tx
+        .insert(kolProfile)
+        .values({
+          displayName: input.displayName,
+          keywords: input.keywords,
+        })
+        .returning({ id: kolProfile.id });
 
-    await db.insert(kolAccount).values(
-      input.accounts.map((account) => ({
-        handle: account.handle,
-        kolId: created!.id,
-        platform: account.platform,
-        profileUrl: account.profileUrl || null,
-      })),
-    );
+      await tx.insert(kolAccount).values(
+        input.accounts.map((account) => ({
+          handle: account.handle,
+          kolId: createdProfile!.id,
+          platform: account.platform,
+          profileUrl: account.profileUrl || null,
+        })),
+      );
 
-    await syncKolProfile(created!.id);
-    return await mapKolRecord(created!.id);
+      return createdProfile!;
+    });
+
+    await syncKolProfile(created.id);
+    return await mapKolRecord(created.id);
   }),
   bulkImport: protectedProcedure
   .input(z.array(kolInputSchema))
