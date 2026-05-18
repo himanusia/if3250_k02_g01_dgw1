@@ -7,6 +7,7 @@ import {
   Scripts,
   createRootRouteWithContext,
   redirect,
+  useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
@@ -40,13 +41,13 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       });
     }
 
-    if (authState.session && !authState.access && location.pathname !== "/unauthorized") {
+    if (authState.session && !authState.whitelist && location.pathname !== "/unauthorized") {
       throw redirect({
         to: "/unauthorized",
       });
     }
 
-    if (authState.session && authState.access && isPublicRoute) {
+    if (authState.session && authState.whitelist && isPublicRoute) {
       throw redirect({
         to: "/dashboard",
       });
@@ -79,15 +80,20 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootDocument() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const showHeader = pathname !== "/login";
+
   return (
     <html lang="en" className="dark">
       <head>
         <HeadContent />
       </head>
       <body>
-        <div className="grid h-svh grid-rows-[auto_1fr]">
-          <Header />
-          <Outlet />
+        <div className="grid h-svh grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+          {showHeader && <Header />}
+          <main className="min-h-0 overflow-hidden">
+            <Outlet />
+          </main>
         </div>
         <Toaster richColors />
         <TanStackRouterDevtools position="bottom-left" />

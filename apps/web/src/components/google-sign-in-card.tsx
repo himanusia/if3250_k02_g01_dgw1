@@ -52,8 +52,9 @@ export default function GoogleSignInCard() {
   const isLoading = isSessionPending || isSubmitting;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-md items-center px-4 py-10">
-      <Card className="w-full">
+    <div className="flex h-full overflow-y-auto px-4 py-10">
+      <div className="mx-auto flex min-h-full w-full max-w-md items-center">
+        <Card className="w-full">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-3xl font-semibold">Masuk ke DigiWonder</CardTitle>
           <CardDescription>
@@ -72,7 +73,8 @@ export default function GoogleSignInCard() {
             )}
           </Button>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,6 @@ describe("loadAuthStateSafely", () => {
       throw new Error("HTTPError");
     });
 
-    expect(authState).toEqual({ access: null, session: null });
+    expect(authState).toEqual({ whitelist: null, session: null });
   });
 });

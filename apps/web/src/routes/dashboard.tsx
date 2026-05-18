@@ -16,6 +16,7 @@ function RouteComponent() {
   const kolsQuery = useQuery(orpc.kol.list.queryOptions());
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
+  const isAdmin = privateData.data?.whitelist?.role === "admin";
 
   const tierBreakdown = useMemo(() => {
     const counts = { nano: 0, micro: 0, macro: 0, mega: 0 };
@@ -26,7 +27,8 @@ function RouteComponent() {
   }, [kols]);
 
   return (
-    <div className="container mx-auto grid gap-6 px-4 py-6">
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto grid gap-6 px-4 py-6">
       <section className="grid gap-2">
         <p className="text-muted-foreground text-sm uppercase tracking-[0.2em]">Dashboard</p>
         <h1 className="text-3xl font-semibold">Selamat datang, {privateData.data?.user?.name}</h1>
@@ -44,11 +46,13 @@ function RouteComponent() {
           <p className="text-3xl font-semibold">{kols.length}</p>
           <p className="text-muted-foreground">Total KOL.</p>
         </div>
-        <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
-          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Access</p>
-          <p className="text-3xl font-semibold">{privateData.data?.access?.role ?? "user"}</p>
-          <p className="text-muted-foreground">Role aktif.</p>
-        </div>
+        {isAdmin && (
+          <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
+            <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Whitelist</p>
+            <p className="text-3xl font-semibold">Admin</p>
+            <p className="text-muted-foreground">Role aktif.</p>
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
@@ -116,6 +120,7 @@ function RouteComponent() {
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }

@@ -389,8 +389,9 @@ function RouteComponent() {
 
   return (
     <>
-      <div className="container mx-auto space-y-6 px-4 py-6">
-        <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+      <div className="h-full overflow-y-auto">
+        <div className="container mx-auto space-y-6 px-4 py-6">
+          <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">Campaigns</p>
@@ -480,7 +481,8 @@ function RouteComponent() {
               <p className="text-muted-foreground text-sm">Belum ada campaign yang dibuat.</p>
             )}
           </div>
-        </section>
+          </section>
+        </div>
       </div>
 
       <Dialog

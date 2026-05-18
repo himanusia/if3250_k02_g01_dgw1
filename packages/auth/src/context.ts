@@ -1,4 +1,4 @@
-import { getAccessForEmail } from "./access.js";
+import { getWhitelistForEmail } from "./whitelist.js";
 import { auth } from "./index.js";
 
 export async function getAuthContext(headers: Headers) {
@@ -6,10 +6,10 @@ export async function getAuthContext(headers: Headers) {
     headers,
   });
 
-  const access = await getAccessForEmail(session?.user.email);
+  const whitelist = await getWhitelistForEmail(session?.user.email);
 
   return {
-    access,
+    whitelist,
     session,
   };
 }

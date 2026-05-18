@@ -1,12 +1,12 @@
 import type { RouterClient } from "@orpc/server";
 
 import { protectedProcedure, publicProcedure } from "../index";
-import { accessRouter } from "./access.js";
+import { whitelistRouter } from "./whitelist.js";
 import { campaignRouter } from "./campaign.js";
 import { kolRouter } from "./kol.js";
 
 export const appRouter = {
-  access: accessRouter,
+  whitelist: whitelistRouter,
   campaign: campaignRouter,
   healthCheck: publicProcedure.handler(() => {
     return "OK";
@@ -14,7 +14,7 @@ export const appRouter = {
   kol: kolRouter,
   privateData: protectedProcedure.handler(({ context }) => {
     return {
-      access: context.access,
+      whitelist: context.whitelist,
       message: "This is private",
       user: context.session?.user,
     };

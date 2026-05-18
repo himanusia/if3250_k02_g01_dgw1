@@ -50,7 +50,7 @@ async function handleCampaignReportDownloadRequest(request: Request) {
 const rpcHandler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
-      console.error(error);
+      console.error("[rpc] request failed", error);
     }),
   ],
 });
@@ -63,7 +63,7 @@ const apiHandler = new OpenAPIHandler(appRouter, {
   ],
   interceptors: [
     onError((error) => {
-      console.error(error);
+      console.error("[openapi] request failed", error);
     }),
   ],
 });
