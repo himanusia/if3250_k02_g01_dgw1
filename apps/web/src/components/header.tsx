@@ -8,7 +8,7 @@ export default function Header() {
     { to: "/campaigns", label: "Campaigns" },
     { to: "/kols", label: "KOL" },
     { to: "/compare-kols", label: "CompareKOL" },
-    { to: "/access", label: "Access" },
+    { to: "/whitelist", label: "Whitelist" },
   ] as const;
 
   return (

@@ -6,15 +6,15 @@ import z from "zod";
 
 import { protectedProcedure } from "../index";
 
-const accessInputSchema = z.object({
+const whitelistInputSchema = z.object({
   email: z.email(),
   note: z.string().trim().max(500).optional().default(""),
   role: z.enum(["admin", "user"]),
 });
 
-export const accessRouter = {
-  create: protectedProcedure.input(accessInputSchema).handler(async ({ context, input }) => {
-    if (context.access.role !== "admin") {
+export const whitelistRouter = {
+  create: protectedProcedure.input(whitelistInputSchema).handler(async ({ context, input }) => {
+    if (context.whitelist.role !== "admin") {
       throw new ORPCError("FORBIDDEN");
     }
 
@@ -48,7 +48,7 @@ export const accessRouter = {
   delete: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .handler(async ({ context, input }) => {
-      if (context.access.role !== "admin") {
+      if (context.whitelist.role !== "admin") {
         throw new ORPCError("FORBIDDEN");
       }
 
@@ -59,7 +59,7 @@ export const accessRouter = {
       };
     }),
   list: protectedProcedure.handler(async ({ context }) => {
-    if (context.access.role !== "admin") {
+    if (context.whitelist.role !== "admin") {
       throw new ORPCError("FORBIDDEN");
     }
 

@@ -1,4 +1,4 @@
-export type AccessRole = "admin" | "user";
+export type WhitelistRole = "admin" | "user";
 export type SocialPlatform = "instagram" | "tiktok";
 export type SyncStatus = "pending" | "success" | "failed";
 export type FollowerTier = "nano" | "micro" | "macro" | "mega";
@@ -23,14 +23,14 @@ export type RateCardMetadata = {
   source: "formula";
 };
 
-export type AccessEntry = {
+export type WhitelistEntry = {
   createdAt: string;
   createdByUserId: string | null;
   email: string;
   id: number;
   isActive: boolean;
   note: string | null;
-  role: AccessRole;
+  role: WhitelistRole;
   updatedAt: string;
 };
 

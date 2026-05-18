@@ -7,7 +7,7 @@ import z from "zod";
 import { estimateRateCard } from "../lib/rate-card-estimator";
 import { syncAccountWithApify } from "../lib/apify";
 import { protectedProcedure } from "../index";
-import { getSettingNumber, getSetting } from "./access";
+import { getSettingNumber, getSetting } from "./whitelist";
 
 const kolAccountInputSchema = z.object({
   handle: z.string().trim().min(1, "Handle tidak boleh kosong"),

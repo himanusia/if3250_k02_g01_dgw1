@@ -40,13 +40,13 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       });
     }
 
-    if (authState.session && !authState.access && location.pathname !== "/unauthorized") {
+    if (authState.session && !authState.whitelist && location.pathname !== "/unauthorized") {
       throw redirect({
         to: "/unauthorized",
       });
     }
 
-    if (authState.session && authState.access && isPublicRoute) {
+    if (authState.session && authState.whitelist && isPublicRoute) {
       throw redirect({
         to: "/dashboard",
       });

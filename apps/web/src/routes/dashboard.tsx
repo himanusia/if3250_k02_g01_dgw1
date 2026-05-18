@@ -45,8 +45,8 @@ function RouteComponent() {
           <p className="text-muted-foreground">Total KOL.</p>
         </div>
         <div className="bg-card ring-foreground/10 space-y-2 p-4 ring-1">
-          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Access</p>
-          <p className="text-3xl font-semibold">{privateData.data?.access?.role ?? "user"}</p>
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">Whitelist</p>
+          <p className="text-3xl font-semibold">{privateData.data?.whitelist?.role ?? "user"}</p>
           <p className="text-muted-foreground">Role aktif.</p>
         </div>
       </section>

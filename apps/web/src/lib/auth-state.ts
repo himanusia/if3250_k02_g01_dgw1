@@ -1,5 +1,5 @@
 type AuthState = {
-  access: unknown | null;
+  whitelist: unknown | null;
   session: unknown | null;
 };
 
@@ -12,7 +12,7 @@ export async function loadAuthStateSafely(
     console.warn("Failed to load auth state; treating request as anonymous.");
 
     return {
-      access: null,
+      whitelist: null,
       session: null,
     };
   }
