@@ -313,11 +313,11 @@ function RouteComponent() {
             />
             <MetricBox
               label="Estimated story (suggested)"
-              value={formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}
+              value={formatCurrencyIdr(kol.estimatedRateCard?.story?.suggested)}
             />
             <MetricBox
               label="Estimated reel (suggested)"
-              value={formatCurrencyIdr(kol.estimatedRateCard?.reel.suggested)}
+              value={formatCurrencyIdr(kol.estimatedRateCard?.reel?.suggested)}
             />
           </div>
 
@@ -327,6 +327,27 @@ function RouteComponent() {
             <p>Confidence: {kol.rateCardMetadata ? `${Math.round(kol.rateCardMetadata.confidence * 100)}%` : "-"}</p>
             <p>Computed at: {formatDateTime(kol.rateCardMetadata?.lastComputedAt ?? null)}</p>
           </div>
+
+          {kol.actualRateCard && (
+            <div className="grid gap-2 border p-3">
+              <h3 className="text-sm font-medium">Rate card aktual saat ini</h3>
+              <div className="grid gap-2 md:grid-cols-3">
+                <div className="grid gap-1">
+                  <p className="text-muted-foreground text-[11px] uppercase tracking-[0.18em]">Post</p>
+                  <p className="text-sm">{formatCurrencyIdr(kol.actualRateCard.post.min)} – {formatCurrencyIdr(kol.actualRateCard.post.suggested)} – {formatCurrencyIdr(kol.actualRateCard.post.max)}</p>
+                </div>
+                <div className="grid gap-1">
+                  <p className="text-muted-foreground text-[11px] uppercase tracking-[0.18em]">Story</p>
+                  <p className="text-sm">{kol.actualRateCard.story ? `${formatCurrencyIdr(kol.actualRateCard.story.min)} – ${formatCurrencyIdr(kol.actualRateCard.story.suggested)} – ${formatCurrencyIdr(kol.actualRateCard.story.max)}` : "-"}</p>
+                </div>
+                <div className="grid gap-1">
+                  <p className="text-muted-foreground text-[11px] uppercase tracking-[0.18em]">Reel</p>
+                  <p className="text-sm">{kol.actualRateCard.reel ? `${formatCurrencyIdr(kol.actualRateCard.reel.min)} – ${formatCurrencyIdr(kol.actualRateCard.reel.suggested)} – ${formatCurrencyIdr(kol.actualRateCard.reel.max)}` : "-"}</p>
+                </div>
+              </div>
+              <p className="text-muted-foreground text-xs">Format: min – suggested – max</p>
+            </div>
+          )}
 
           <form
             className="grid gap-4 border p-3"
@@ -404,9 +425,9 @@ function RouteComponent() {
               <div key={item.id} className="border-border text-muted-foreground grid gap-1 border p-2 text-sm">
                 <p>Waktu: {formatDateTime(item.createdAt)}</p>
                 <p>Alasan: {item.reason || "-"}</p>
-                <p>
-                  Suggested post: {formatCurrencyIdr(item.oldActualRateCard?.post.suggested)} -&gt; {formatCurrencyIdr(item.newActualRateCard?.post.suggested)}
-                </p>
+                <p>Post: {formatCurrencyIdr(item.oldActualRateCard?.post.suggested)} &rarr; {formatCurrencyIdr(item.newActualRateCard?.post.suggested)}</p>
+                <p>Story: {formatCurrencyIdr(item.oldActualRateCard?.story?.suggested)} &rarr; {formatCurrencyIdr(item.newActualRateCard?.story?.suggested)}</p>
+                <p>Reel: {formatCurrencyIdr(item.oldActualRateCard?.reel?.suggested)} &rarr; {formatCurrencyIdr(item.newActualRateCard?.reel?.suggested)}</p>
               </div>
             ))}
             {!kol.rateCardHistory.length && (
