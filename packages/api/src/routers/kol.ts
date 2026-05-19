@@ -43,8 +43,8 @@ const rateCardRangeInputSchema = z.object({
 const rateCardValueInputSchema = z.object({
   currency: z.literal("IDR"),
   post: rateCardRangeInputSchema,
-  reel: rateCardRangeInputSchema,
-  story: rateCardRangeInputSchema,
+  reel: rateCardRangeInputSchema.nullable().optional(),
+  story: rateCardRangeInputSchema.nullable().optional(),
 });
 
 function toNullableDate(value?: string) {

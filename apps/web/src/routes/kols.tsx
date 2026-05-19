@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { CreditCard, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, useRef  } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
-import type { KolRecord, SocialPlatform } from "@/lib/app-types";
+import type { KolRecord, RateCardValue, SocialPlatform } from "@/lib/app-types";
 import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,13 @@ type RawExcelRow = {
   "Persona kreator"?: string;
 };
 
+type RateCardFormState = {
+  postSuggested: string;
+  storySuggested: string;
+  reelSuggested: string;
+  reason: string;
+};
+
 type RpcLikeError = {
   code?: string;
   data?: {
@@ -61,6 +68,54 @@ function getDefaultForm(): KolFormState {
     accounts: [getDefaultAccount("instagram")],
     displayName: "",
     keywords: "",
+  };
+}
+
+function toRateInput(value: number | null | undefined) {
+  return value && Number.isFinite(value) ? String(Math.round(value)) : "";
+}
+
+function getDefaultRateCardForm(kol: KolRecord | null | undefined): RateCardFormState {
+  const actual = kol?.actualRateCard;
+  const estimated = kol?.estimatedRateCard;
+  return {
+    postSuggested: toRateInput(actual?.post.suggested ?? estimated?.post.suggested),
+    storySuggested: toRateInput(actual?.story.suggested),
+    reelSuggested: toRateInput(actual?.reel.suggested),
+    reason: "",
+  };
+}
+
+function parsePositiveInt(value: string) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function roundToThousand(value: number) {
+  return Math.round(value / 1000) * 1000;
+}
+
+function buildRange(suggested: number) {
+  return {
+    max: roundToThousand(suggested * 1.2),
+    min: roundToThousand(suggested * 0.8),
+    suggested,
+  };
+}
+
+function buildRateCardValue(form: RateCardFormState): RateCardValue | null {
+  const postSuggested = parsePositiveInt(form.postSuggested);
+  if (!postSuggested) return null;
+
+  const storySuggested = parsePositiveInt(form.storySuggested);
+  const reelSuggested = parsePositiveInt(form.reelSuggested);
+
+  return {
+    currency: "IDR",
+    post: buildRange(postSuggested),
+    story: storySuggested ? buildRange(storySuggested) : null,
+    reel: reelSuggested ? buildRange(reelSuggested) : null,
   };
 }
 
@@ -119,6 +174,8 @@ function RouteComponent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [rateCardTargetKol, setRateCardTargetKol] = useState<KolRecord | null>(null);
+  const [rateCardForm, setRateCardForm] = useState<RateCardFormState>(getDefaultRateCardForm(null));
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
@@ -189,6 +246,19 @@ function RouteComponent() {
     onError: (error) => {
       toast.error(getKolErrorMessage(error, "Gagal menghapus KOL"));
       setDeleteTargetId(null);
+    },
+  });
+
+  const updateActualRateCard = useMutation({
+    mutationFn: (input: { actualRateCard: RateCardValue; kolId: number; reason: string }) =>
+      client.kol.updateActualRateCard(input),
+    onSuccess: () => {
+      toast.success("Rate card aktual berhasil diperbarui");
+      kolQuery.refetch();
+      setRateCardTargetKol(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal memperbarui rate card aktual");
     },
   });
 
@@ -658,6 +728,18 @@ function mergeKeywords(
                       <Button
                         variant="outline"
                         size="sm"
+                        className={KOL_ACTION_BUTTON_CLASS}
+                        onClick={() => {
+                          setRateCardTargetKol(kol);
+                          setRateCardForm(getDefaultRateCardForm(kol));
+                        }}
+                      >
+                        <CreditCard className="mr-1 size-3.5" />
+                        Rate Card
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => editKol(kol)}
                         className={KOL_ACTION_BUTTON_CLASS}
                       >
@@ -696,8 +778,10 @@ function mergeKeywords(
                   <p><span className="font-bold">Last Sync:</span> {formatDateTime(kol.lastSyncedAt)}</p>
                   <p><span className="font-medium">Est. post:</span> {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
                   <p><span className="font-medium">Actual post:</span> {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
-                  <p><span className="font-medium">Est. story:</span> {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}</p>
-                  <p><span className="font-medium">Actual story:</span> {formatCurrencyIdr(kol.actualRateCard?.story.suggested)}</p>
+                  <p><span className="font-medium">Est. story:</span> {formatCurrencyIdr(kol.estimatedRateCard?.story?.suggested)}</p>
+                  <p><span className="font-medium">Actual story:</span> {formatCurrencyIdr(kol.actualRateCard?.story?.suggested)}</p>
+                  <p><span className="font-medium">Est. reel:</span> {formatCurrencyIdr(kol.estimatedRateCard?.reel?.suggested)}</p>
+                  <p><span className="font-medium">Actual reel:</span> {formatCurrencyIdr(kol.actualRateCard?.reel?.suggested)}</p>
                 </div>
 
                 {kol.syncMessage && (
@@ -1041,6 +1125,121 @@ function mergeKeywords(
               {deleteKol.isPending ? "Menghapus..." : "Hapus"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* rate card dialog */}
+      <Dialog
+        open={rateCardTargetKol !== null}
+        onOpenChange={(open) => {
+          if (!open) setRateCardTargetKol(null);
+        }}
+      >
+        <DialogContent
+          className="max-h-[92vh] max-w-2xl overflow-y-auto border p-0"
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderColor: KOLS_COLORS.stroke,
+            color: KOLS_COLORS.text,
+          }}
+        >
+          <DialogHeader>
+            <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
+              <DialogTitle>Rate Card — {rateCardTargetKol?.displayName}</DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <div className="grid gap-5 px-4 pb-4 sm:px-6 sm:pb-6">
+            {rateCardTargetKol?.estimatedRateCard && (
+              <div className="grid gap-2 border p-3" style={{ borderColor: `${KOLS_COLORS.stroke}66`, backgroundColor: "#FFF8F9" }}>
+                <p className="text-[12px] font-medium uppercase tracking-[0.18em]" style={{ color: KOLS_COLORS.stroke }}>Estimasi Model</p>
+                <div className="grid gap-2 md:grid-cols-3 text-[13px]">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: KOLS_COLORS.mutedText }}>Post</p>
+                    <p>{formatCurrencyIdr(rateCardTargetKol.estimatedRateCard.post.suggested)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: KOLS_COLORS.mutedText }}>Story</p>
+                    <p>{formatCurrencyIdr(rateCardTargetKol.estimatedRateCard.story?.suggested)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: KOLS_COLORS.mutedText }}>Reel</p>
+                    <p>{formatCurrencyIdr(rateCardTargetKol.estimatedRateCard.reel?.suggested)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <form
+              className="grid gap-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!rateCardTargetKol) return;
+                const nextRateCard = buildRateCardValue(rateCardForm);
+                if (!nextRateCard) {
+                  toast.error("Input tidak valid. Pastikan nilai Post diisi dengan angka positif.");
+                  return;
+                }
+                updateActualRateCard.mutate({
+                  actualRateCard: nextRateCard,
+                  kolId: rateCardTargetKol.id,
+                  reason: rateCardForm.reason,
+                });
+              }}
+            >
+              <p className="text-[13px] font-medium">Update rate card aktual</p>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <RateCardInput
+                  label="Post"
+                  value={rateCardForm.postSuggested}
+                  field="postSuggested"
+                  onChange={(field, value) => setRateCardForm((c) => ({ ...c, [field]: value }))}
+                  required
+                />
+                <RateCardInput
+                  label="Story"
+                  value={rateCardForm.storySuggested}
+                  field="storySuggested"
+                  onChange={(field, value) => setRateCardForm((c) => ({ ...c, [field]: value }))}
+                />
+                <RateCardInput
+                  label="Reel"
+                  value={rateCardForm.reelSuggested}
+                  field="reelSuggested"
+                  onChange={(field, value) => setRateCardForm((c) => ({ ...c, [field]: value }))}
+                />
+              </div>
+
+              <Label className="grid gap-2 text-[13px]">
+                <span>Alasan perubahan (opsional)</span>
+                <Input
+                  value={rateCardForm.reason}
+                  onChange={(event) => setRateCardForm((c) => ({ ...c, reason: event.target.value }))}
+                  placeholder="Contoh: konfirmasi rate resmi dari KOL"
+                  className="border-[#982E41]/70 focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+                />
+              </Label>
+
+              <DialogFooter className="border-t pt-4" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
+                  onClick={() => setRateCardTargetKol(null)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateActualRateCard.isPending}
+                  className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
+                >
+                  {updateActualRateCard.isPending ? "Menyimpan..." : "Simpan rate card"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1576,4 +1775,44 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 function MetaBadge({ children }: { children: string }) {
   //badge metadata (Verified/Business/dll).
   return <span className="border border-[#982E41] bg-[#B33C39] px-2 py-1 text-[12px] leading-none text-white">{children}</span>;
+}
+
+function RateCardInput({
+  label,
+  value,
+  field,
+  onChange,
+  hint,
+  required,
+}: {
+  label: string;
+  value: string;
+  field: keyof RateCardFormState;
+  onChange: (field: keyof RateCardFormState, value: string) => void;
+  hint?: string;
+  required?: boolean;
+}) {
+  return (
+    <div className="grid gap-2 border p-2" style={{ borderColor: "#982E41", opacity: 0.85 }}>
+      <p className="text-[13px] font-medium">{label}</p>
+      <Label className="grid gap-1 text-[12px]">
+        <span>
+          Suggested (IDR)
+          {!required && <span className="ml-1" style={{ color: "#B16A77" }}>(opsional)</span>}
+        </span>
+        <Input
+          type="number"
+          min={1}
+          step={1}
+          value={value}
+          required={required}
+          onChange={(event) => onChange(field, event.target.value)}
+          className="border-[#982E41]/70 focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+        />
+      </Label>
+      {hint && (
+        <p className="text-[11px]" style={{ color: "#B16A77" }}>{hint}</p>
+      )}
+    </div>
+  );
 }

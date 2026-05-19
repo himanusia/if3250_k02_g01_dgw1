@@ -12,15 +12,15 @@ export type RateCardRange = {
 export type RateCardValue = {
   currency: "IDR";
   post: RateCardRange;
-  reel: RateCardRange;
-  story: RateCardRange;
+  reel: RateCardRange | null;
+  story: RateCardRange | null;
 };
 
 export type RateCardMetadata = {
   confidence: number;
   lastComputedAt: string;
   modelVersion: string;
-  source: "formula";
+  source: "formula" | "ml";
 };
 
 export type WhitelistEntry = {
