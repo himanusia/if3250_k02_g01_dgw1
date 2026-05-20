@@ -73,16 +73,6 @@ function fromMinutes(minutes: number) {
 }
 
 function RouteComponent() {
-  useEffect(() => {
-    document.documentElement.classList.add("digiTheme");
-    document.body.classList.add("digiTheme");
-
-    return () => {
-      document.documentElement.classList.remove("digiTheme");
-      document.body.classList.remove("digiTheme");
-    };
-  }, []);
-
   const syncSettingsQuery = useQuery(
     orpc.whitelist.getSyncSettings.queryOptions()
   );
@@ -246,7 +236,7 @@ function RouteComponent() {
               </div>
               <Button
                 // variant="destructive"
-                className="bg-destructive/10 hover:bg-destructive focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive hover:text-white focus-visible:border-destructive/40 dark:hover:bg-destructive"
+                className="bg-destructive/10 hover:bg-destructive focus-visible:ring-destructive/20 text-destructive hover:text-white focus-visible:border-destructive/40"
                 size="icon"
                 onClick={() => deleteEntry.mutate({ id: entry.id })}
                 disabled={deleteEntry.isPending}

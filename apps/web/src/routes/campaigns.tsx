@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
@@ -121,16 +121,6 @@ function RouteComponent() {
     return campaigns.find((campaign) => campaign.id === detailCampaignId) ?? null;
   }, [campaigns, detailCampaignId]);
 
-  useEffect(() => {
-      document.documentElement.classList.add("digiTheme");
-      document.body.classList.add("digiTheme");
-  
-      return () => {
-        document.documentElement.classList.remove("digiTheme");
-        document.body.classList.remove("digiTheme");
-      };
-    }, []);
-    
   const filteredKols = useMemo(() => {
   return kols.filter((kol) => {
     const normalizedSearch = kolSearch.trim().toLowerCase();
