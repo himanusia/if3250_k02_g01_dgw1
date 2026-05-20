@@ -16,6 +16,7 @@ import type { orpc } from "@/utils/orpc";
 import { Toaster } from "@/components/ui/sonner";
 import { getAuthState } from "../functions/get-auth-state";
 import { loadAuthStateSafely } from "../lib/auth-state";
+import { getDocumentThemeClass } from "../lib/document-theme";
 
 import Header from "../components/header";
 import appCss from "../index.css?url";
@@ -132,7 +133,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 function RootDocument() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const showHeader = pathname !== "/login";
-  const documentThemeClass = showHeader ? "dark" : "digiTheme";
+  const documentThemeClass = getDocumentThemeClass(pathname);
 
   return (
     <html lang="en" className={documentThemeClass}>
