@@ -79,7 +79,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       },
       {
         name: "theme-color",
-        content: "#020617",
+        content: "#f7e7eb",
       },
       {
         property: "og:site_name",

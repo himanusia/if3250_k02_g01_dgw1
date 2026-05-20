@@ -1,8 +1,9 @@
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { getLoginErrorMessage } from "@/lib/login-error-message";
 
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -50,6 +51,9 @@ export default function GoogleSignInCard() {
   };
 
   const isLoading = isSessionPending || isSubmitting;
+  const loginErrorMessage = getLoginErrorMessage(
+    typeof window === "undefined" ? "" : window.location.search
+  );
 
   return (
     <div className="flex h-svh min-h-0 items-center justify-center overflow-y-auto bg-background px-4 py-10 text-foreground">
@@ -61,7 +65,16 @@ export default function GoogleSignInCard() {
               Login sekarang pakai akun Google untuk lanjut ke dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {loginErrorMessage && (
+              <div
+                className="flex items-start gap-3 border border-destructive/35 bg-destructive/10 p-3 text-left text-destructive"
+                role="alert"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <p className="text-sm leading-relaxed">{loginErrorMessage}</p>
+              </div>
+            )}
             <Button className="w-full" size="lg" onClick={handleGoogleSignIn} disabled={isLoading}>
               {isLoading ? (
                 <>

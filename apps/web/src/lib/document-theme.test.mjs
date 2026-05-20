@@ -13,8 +13,10 @@ describe("getDocumentThemeClass", () => {
     expect(getDocumentThemeClass("/login")).toBe("digiTheme");
   });
 
-  test("keeps the legacy dark theme for other authenticated pages", () => {
-    expect(getDocumentThemeClass("/kols")).toBe("dark");
-    expect(getDocumentThemeClass("/compare-kols")).toBe("dark");
+  test("uses the DigiWonder light theme on every app page", () => {
+    expect(getDocumentThemeClass("/kols")).toBe("digiTheme");
+    expect(getDocumentThemeClass("/compare-kols")).toBe("digiTheme");
+    expect(getDocumentThemeClass("/unauthorized")).toBe("digiTheme");
+    expect(getDocumentThemeClass("/anything-new")).toBe("digiTheme");
   });
 });
