@@ -8,6 +8,7 @@ import { formatObjectiveSummary, getProgressPercent } from "@/lib/campaign-objec
 import { sortCampaignsByManagementPriority } from "@/lib/campaign-progress";
 import { formatDateTime, formatNumber } from "@/lib/kol-utils";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/")({
@@ -47,35 +48,97 @@ function RouteComponent() {
           </div>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-4">
-          <MetricCard icon={<Target className="size-4" />} label="Campaign aktif" value={activeCampaigns.length.toLocaleString("id-ID")} detail={`${campaigns.length.toLocaleString("id-ID")} total campaign`} />
-          <MetricCard icon={<CheckCircle2 className="size-4" />} label="Sync coverage" value={`${syncCoverage}%`} detail={`${campaignsWithContent.length.toLocaleString("id-ID")} campaign punya konten`} />
-          <MetricCard icon={<Clock3 className="size-4" />} label="Total views" value={formatNumber(totalViews)} detail={`${formatNumber(totalInteractions)} interaksi`} />
-          <MetricCard icon={<AlertTriangle className="size-4" />} label="Butuh perhatian" value={staleCampaigns.length.toLocaleString("id-ID")} detail="Active campaign belum fresh sync" />
-        </section>
-
         {dashboardQuery.isLoading ? (
-          <section className="bg-card ring-foreground/10 p-6 text-sm text-muted-foreground ring-1">Memuat dashboard...</section>
-        ) : campaigns.length === 0 ? (
-          <section className="bg-card ring-foreground/10 p-6 ring-1">
-            <h2 className="font-semibold">Belum ada campaign</h2>
-            <p className="text-muted-foreground mt-1 text-sm">Buat campaign pertama untuk mulai tracking target dan sync konten.</p>
-          </section>
+          <DashboardSkeleton />
         ) : (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Progress campaign</h2>
-              <p className="text-muted-foreground text-xs">Urut: aktif, draft, completed, lalu update terakhir.</p>
-            </div>
-            <div className="grid gap-3">
-              {campaigns.map((campaign) => (
-                <CampaignProgressCard key={campaign.id} campaign={campaign} />
-              ))}
-            </div>
-          </section>
+          <>
+            <section className="grid gap-3 md:grid-cols-4">
+              <MetricCard icon={<Target className="size-4" />} label="Campaign aktif" value={activeCampaigns.length.toLocaleString("id-ID")} detail={`${campaigns.length.toLocaleString("id-ID")} total campaign`} />
+              <MetricCard icon={<CheckCircle2 className="size-4" />} label="Sync coverage" value={`${syncCoverage}%`} detail={`${campaignsWithContent.length.toLocaleString("id-ID")} campaign punya konten`} />
+              <MetricCard icon={<Clock3 className="size-4" />} label="Total views" value={formatNumber(totalViews)} detail={`${formatNumber(totalInteractions)} interaksi`} />
+              <MetricCard icon={<AlertTriangle className="size-4" />} label="Butuh perhatian" value={staleCampaigns.length.toLocaleString("id-ID")} detail="Active campaign belum fresh sync" />
+            </section>
+
+            {campaigns.length === 0 ? (
+              <section className="bg-card ring-foreground/10 p-6 ring-1">
+                <h2 className="font-semibold">Belum ada campaign</h2>
+                <p className="text-muted-foreground mt-1 text-sm">Buat campaign pertama untuk mulai tracking target dan sync konten.</p>
+              </section>
+            ) : (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Progress campaign</h2>
+                  <p className="text-muted-foreground text-xs">Urut: aktif, draft, completed, lalu update terakhir.</p>
+                </div>
+                <div className="grid gap-3">
+                  {campaigns.map((campaign) => (
+                    <CampaignProgressCard key={campaign.id} campaign={campaign} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </main>
     </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <>
+      <section className="grid gap-3 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <article key={index} className="bg-card ring-foreground/10 p-4 ring-1">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="mt-3 h-8 w-20" />
+            <Skeleton className="mt-2 h-3 w-40 max-w-full" />
+          </article>
+        ))}
+      </section>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-6 w-44" />
+          <Skeleton className="h-3 w-48" />
+        </div>
+        <div className="grid gap-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <article key={index} className="bg-card ring-foreground/10 p-4 ring-1">
+              <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-6 w-64 max-w-full" />
+                    <Skeleton className="h-4 w-80 max-w-full" />
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {Array.from({ length: 4 }).map((__, progressIndex) => (
+                      <div key={progressIndex} className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-4 w-10" />
+                        </div>
+                        <Skeleton className="h-2 w-full" />
+                        <Skeleton className="h-3 w-28" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  {Array.from({ length: 5 }).map((__, rowIndex) => (
+                    <div key={rowIndex} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-b-0">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  ))}
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 

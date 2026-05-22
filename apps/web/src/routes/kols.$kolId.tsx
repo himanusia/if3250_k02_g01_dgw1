@@ -10,6 +10,7 @@ import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, ge
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -201,13 +202,7 @@ function RouteComponent() {
   }, [kol]);
 
   if (kolQuery.isLoading) {
-    return (
-      <div className="h-full overflow-y-auto">
-        <div className="container mx-auto px-4 py-6">
-          <p className="text-muted-foreground">Memuat data KOL...</p>
-        </div>
-      </div>
-    );
+    return <KolDetailSkeleton />;
   }
 
   if (!kol) {
@@ -637,6 +632,64 @@ function RouteComponent() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function KolDetailSkeleton() {
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="container mx-auto space-y-6 px-4 py-6">
+        <Skeleton className="h-5 w-36" />
+        <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <Skeleton className="size-16 shrink-0" />
+              <div className="min-w-0 space-y-2">
+                <Skeleton className="h-7 w-56 max-w-full" />
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-9 w-28" />
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="border-border bg-muted/30 grid gap-2 border px-3 py-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="bg-card ring-foreground/10 p-4 ring-1">
+            <Skeleton className="h-6 w-36" />
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="border-border border p-3">
+                  <Skeleton className="h-5 w-44" />
+                  <Skeleton className="mt-2 h-4 w-64 max-w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-card ring-foreground/10 p-4 ring-1">
+            <Skeleton className="h-6 w-32" />
+            <div className="mt-4 grid gap-3">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="flex items-center justify-between gap-3 border-b border-border pb-2 last:border-b-0">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 

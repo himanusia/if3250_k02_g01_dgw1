@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -769,13 +770,13 @@ function RouteComponent() {
           </DialogHeader>
 
           {!detailCampaignSummary ? (
-            <div className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">
-              {detailCampaignQuery.isLoading ? "Memuat detail campaign..." : "Campaign tidak ditemukan."}
-            </div>
+            detailCampaignQuery.isLoading ? (
+              <CampaignDetailSkeleton compact />
+            ) : (
+              <div className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">Campaign tidak ditemukan.</div>
+            )
           ) : !detailCampaignData ? (
-            <div className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">
-              Memuat detail konten campaign...
-            </div>
+            <CampaignDetailSkeleton />
           ) : (
             <div className="grid gap-6 px-4 pb-4 sm:px-6 sm:pb-6">
               <section className="space-y-4 border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
@@ -884,7 +885,7 @@ function RouteComponent() {
                                       }
                                     }}
                                   >
-                                    <RefreshCcw className={`mr-1 size-4 ${syncingContentId === content.id ? "animate-spin" : ""}`} />
+                                    <RefreshCcw className="mr-1 size-4" />
                                     {syncingContentId === content.id ? "Sync in progress..." : "Sync now"}
                                   </Button>
                                   <Button
@@ -1288,6 +1289,44 @@ function FormTextarea({
         placeholder={placeholder}
       />
     </Label>
+  );
+}
+
+function CampaignDetailSkeleton({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="grid gap-6 px-4 pb-4 sm:px-6 sm:pb-6">
+      <section className="space-y-4 border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: compact ? 3 : 6 }).map((_, index) => (
+            <div key={index} className="border-border bg-muted/30 border p-3">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="mt-2 h-5 w-36 max-w-full" />
+            </div>
+          ))}
+        </div>
+      </section>
+      {!compact && (
+        <section className="space-y-3 border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+          <div className="grid gap-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="border-border border p-3">
+                <Skeleton className="h-5 w-64 max-w-full" />
+                <div className="mt-3 grid gap-2 md:grid-cols-4">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 

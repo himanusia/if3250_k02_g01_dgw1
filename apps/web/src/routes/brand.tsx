@@ -6,6 +6,7 @@ import type { CampaignRecord } from "@/lib/app-types";
 import type { BrandSummary } from "@/lib/brand-summary";
 import { getBrandSummaries } from "@/lib/brand-summary";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/brand")({
@@ -76,12 +77,12 @@ function RouteComponent() {
                 className="mt-2 h-11 w-full rounded-none border border-[#b43c39]/20 bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-[#B43C39] focus:ring-2 focus:ring-[#B43C39]/15"
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                {campaignsQuery.isLoading ? "Memuat brand..." : `${filteredBrands.length} dari ${brandSummaries.length} brand`}
+                {campaignsQuery.isLoading ? <Skeleton className="h-3 w-32" /> : `${filteredBrands.length} dari ${brandSummaries.length} brand`}
               </p>
             </div>
 
             {campaignsQuery.isLoading ? (
-              <div className="p-6 text-sm text-muted-foreground">Memuat brand...</div>
+              <BrandListSkeleton />
             ) : filteredBrands.length ? (
               <div className="divide-y divide-[#b43c39]/10">
                 {filteredBrands.map((brand) => (
@@ -114,9 +115,25 @@ function RouteComponent() {
             )}
           </div>
 
-          <BrandDetail brand={selectedBrand} />
+          {campaignsQuery.isLoading ? <BrandDetailSkeleton /> : <BrandDetail brand={selectedBrand} />}
         </section>
       </div>
+    </div>
+  );
+}
+
+function BrandListSkeleton() {
+  return (
+    <div className="divide-y divide-[#b43c39]/10">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="flex items-center justify-between gap-4 px-5 py-4">
+          <span className="space-y-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-3 w-28" />
+          </span>
+          <Skeleton className="h-3 w-14" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -139,6 +156,48 @@ function BrandRow({ brand, isSelected, onSelect }: { brand: BrandSummary; isSele
       </span>
       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B43C39]">Detail</span>
     </button>
+  );
+}
+
+function BrandDetailSkeleton() {
+  return (
+    <aside className="rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)] lg:sticky lg:top-6 lg:self-start">
+      <div className="border-b border-[#b43c39]/10 pb-4">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="mt-2 h-7 w-48" />
+        <Skeleton className="mt-2 h-4 w-36" />
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="rounded-none bg-[#fff6f8] p-3 ring-1 ring-[#b43c39]/10">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="mt-2 h-6 w-10" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 space-y-2">
+        <Skeleton className="h-3 w-20" />
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-6 w-20" />
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-6 w-16" />
+        </div>
+      </div>
+      <div className="mt-5 space-y-2">
+        <Skeleton className="h-3 w-32" />
+        <div className="border border-border/70">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="border-b border-border px-3 py-3 last:border-b-0">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-6 w-16" />
+              </div>
+              <Skeleton className="mt-2 h-3 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </aside>
   );
 }
 

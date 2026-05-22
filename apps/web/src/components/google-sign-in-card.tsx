@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -105,7 +105,7 @@ export default function GoogleSignInCard() {
             disabled={isLoading}
             aria-label="Masuk dengan Google"
           >
-            {isLoading ? <Loader2 className="size-5 animate-spin" /> : <GoogleIcon className="size-5" />}
+            {isLoading ? <span className="h-5 w-32 bg-white/25" aria-hidden="true" /> : <GoogleIcon className="size-5" />}
           </Button>
         </section>
       </div>
