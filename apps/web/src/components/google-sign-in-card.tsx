@@ -55,94 +55,55 @@ export default function GoogleSignInCard() {
   );
 
   return (
-    <div className="h-svh overflow-y-auto bg-[#fff8f9] text-[#2b1418]">
-      <div className="grid min-h-full lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative flex min-h-[42vh] flex-col justify-between overflow-hidden bg-gradient-to-br from-[#B43C39] via-[#8d2948] to-[#3f1231] p-6 text-white md:p-10 lg:min-h-full">
-          <div className="pointer-events-none absolute -left-24 top-16 size-72 rounded-full bg-white/10 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 right-0 size-96 translate-x-1/4 translate-y-1/4 rounded-full bg-[#ffd66b]/25 blur-3xl" />
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="flex size-12 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-lg shadow-black/20">
-              <img src="/images/logo-placeholder.svg" alt="Digi Wonder" className="h-full w-full object-cover" />
-            </div>
-            <div>
-              <p className="font-goldman text-xl font-bold uppercase tracking-[0.18em]">Digi Wonder</p>
-              <p className="text-xs uppercase tracking-[0.28em] text-white/70">Campaign OS</p>
-            </div>
+    <div className="grid min-h-svh place-items-center bg-[#fbfaf9] px-6 py-10 text-[#181111]">
+      <div className="w-full max-w-sm">
+        <div className="mx-auto flex size-24 items-center justify-center rounded-[2rem] bg-white p-4 shadow-[0_24px_80px_rgba(24,17,17,0.12)] ring-1 ring-black/5">
+          <img src="/images/logo-placeholder.svg" alt="Digi Wonder" className="h-full w-full object-contain" />
+        </div>
+
+        {loginErrorMessage && (
+          <div
+            className="mt-8 flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-left text-destructive"
+            role="alert"
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <p className="text-sm leading-relaxed">{loginErrorMessage}</p>
           </div>
+        )}
 
-          <div className="relative z-10 mx-auto flex w-full max-w-xl flex-col items-center py-8 text-center lg:py-16">
-            <div className="mb-8 hidden size-52 items-center justify-center rounded-[3rem] bg-white p-8 shadow-[0_28px_100px_rgba(0,0,0,0.28)] ring-1 ring-white/40 lg:flex xl:size-64">
-              <img src="/images/logo-placeholder.svg" alt="Digi Wonder logo besar" className="h-full w-full object-contain" />
-            </div>
-            <p className="text-sm font-semibold uppercase tracking-[0.32em] text-[#ffd66b]">Private brand command center</p>
-            <h1 className="mt-4 font-goldman text-4xl font-bold uppercase leading-tight tracking-wide md:text-5xl xl:text-6xl">
-              Kelola KOL campaign tanpa spreadsheet chaos.
-            </h1>
-            <p className="mt-5 max-w-lg text-base leading-7 text-white/78 md:text-lg">
-              Login untuk masuk ke dashboard brand, campaign, KOL, whitelist, dan arsip konten dalam satu tempat.
-            </p>
-          </div>
-
-          <div className="relative z-10 grid gap-3 text-sm text-white/80 sm:grid-cols-3">
-            <LoginPill label="Brand" value="Workspace" />
-            <LoginPill label="KOL" value="Selection" />
-            <LoginPill label="Content" value="Archive" />
-          </div>
-        </section>
-
-        <section className="flex items-center justify-center px-5 py-8 md:px-10 lg:py-12">
-          <div className="w-full max-w-md space-y-8">
-            <div className="space-y-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#B43C39]">Secure login</p>
-              <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Masuk ke workspace</h2>
-              <p className="text-muted-foreground">
-                Gunakan akun Google yang sudah masuk whitelist Digi Wonder. Kalau belum terdaftar,
-                minta admin menambahkan email kamu dulu.
-              </p>
-            </div>
-
-            {loginErrorMessage && (
-              <div
-                className="flex items-start gap-3 rounded-2xl border border-destructive/35 bg-destructive/10 p-4 text-left text-destructive"
-                role="alert"
-              >
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <p className="text-sm leading-relaxed">{loginErrorMessage}</p>
-              </div>
-            )}
-
-            <div className="rounded-[2rem] border border-[#b43c39]/15 bg-white p-5 shadow-[0_20px_70px_rgba(123,32,76,0.12)] md:p-6">
-              <Button
-                className="h-13 w-full rounded-2xl bg-[#2b1418] text-base font-semibold text-white shadow-sm transition hover:bg-[#7B204C]"
-                size="lg"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                    Mengarahkan ke Google...
-                  </>
-                ) : (
-                  "Lanjut dengan Google"
-                )}
-              </Button>
-              <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
-                Akses dibatasi untuk email yang ada di whitelist. Login gagal akan diarahkan kembali ke halaman ini.
-              </p>
-            </div>
-          </div>
-        </section>
+        <Button
+          className="mx-auto mt-8 flex size-14 rounded-full border border-black/10 bg-white p-0 text-[#181111] shadow-[0_18px_50px_rgba(24,17,17,0.10)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_24px_70px_rgba(24,17,17,0.14)]"
+          size="icon"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading}
+          aria-label="Masuk dengan Google"
+        >
+          {isLoading ? <Loader2 className="size-5 animate-spin" /> : <GoogleIcon className="size-6" />}
+        </Button>
       </div>
     </div>
   );
 }
 
-function LoginPill({ label, value }: { label: string; value: string }) {
+function GoogleIcon({ className }: { className?: string }) {
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur">
-      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/55">{label}</p>
-      <p className="mt-1 font-semibold text-white">{value}</p>
-    </div>
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z"
+      />
+    </svg>
   );
 }
