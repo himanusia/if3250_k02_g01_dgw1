@@ -157,3 +157,26 @@ export type CampaignContentGroupRecord = {
 export type CampaignDetailRecord = CampaignRecord & {
   contentsByKol: CampaignContentGroupRecord[];
 };
+
+export type CampaignDashboardRecord = {
+  brand: string;
+  commentCount: number;
+  contentCount: number;
+  createdAt: string;
+  failedSyncCount: number;
+  id: number;
+  kolCount: number;
+  lastScrapedAt: string | null;
+  lastSyncedAt: string | null;
+  likeCount: number;
+  name: string;
+  objective: string;
+  pendingSyncCount: number;
+  periodEnd: string;
+  periodStart: string;
+  shareCount: number;
+  status: CampaignRecord["status"];
+  syncedContentCount: number;
+  updatedAt: string;
+  viewCount: number;
+};

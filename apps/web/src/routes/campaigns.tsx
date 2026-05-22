@@ -1,14 +1,17 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, Download, ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
+import { encodeCampaignObjective, formatObjectiveSummary, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
 import { formatDateTime, formatNumber } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -35,6 +38,28 @@ type CampaignFormState = {
   targetFollowerTier: string;
   targetKolCount: number;
 };
+
+function toDateInputValue(date: Date | undefined) {
+  return date ? date.toISOString().slice(0, 10) : "";
+}
+
+function fromDateInputValue(value: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function formatShortDate(value: string) {
+  if (!value) {
+    return "Pilih tanggal";
+  }
+
+  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00`));
+}
+
 
 type ContentFormRow = {
   contentUrl: string;
@@ -460,16 +485,23 @@ function RouteComponent() {
                 <p className="text-muted-foreground text-sm">{campaign.description}</p>
                 <div className="text-muted-foreground grid gap-1 text-sm md:grid-cols-2">
                   <p>Periode: {campaign.periodStart} → {campaign.periodEnd}</p>
+                  <p>Objektif: {formatObjectiveSummary(campaign.objective)}</p>
                   <p>Status: {campaign.status}</p>
                   <p>Target KOL: {campaign.targetKolCount}</p>
                   <p>Follower tier: {campaign.targetFollowerTier || "-"}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {campaign.kols.map((kol) => (
-                    <span key={kol.id} className="border-border text-muted-foreground border px-2 py-1 text-xs">
-                      {kol.displayName}
-                      {kol.handles.length ? ` • ${kol.handles.join(" / ")}` : ""}
-                    </span>
+                    <details key={kol.id} className="border-border text-muted-foreground border px-2 py-1 text-xs">
+                      <summary className="cursor-pointer list-none font-medium text-foreground">
+                        {kol.displayName}{kol.handles.length ? ` • ${kol.handles.length} sosmed` : ""}
+                      </summary>
+                      {kol.handles.length ? (
+                        <p className="mt-1 wrap-break-word">{kol.handles.join(" / ")}</p>
+                      ) : (
+                        <p className="mt-1">Belum ada sosmed.</p>
+                      )}
+                    </details>
                   ))}
                   {!campaign.kols.length && (
                     <span className="text-muted-foreground text-xs">Belum ada KOL yang dipilih.</span>
@@ -525,15 +557,16 @@ function RouteComponent() {
                 value={form.brand}
                 onChange={(value) => setForm((current) => ({ ...current, brand: value }))}
               />
-              <DateInput
-                label="Periode mulai"
-                value={form.periodStart}
-                onChange={(value) => setForm((current) => ({ ...current, periodStart: value }))}
-              />
-              <DateInput
-                label="Periode selesai"
-                value={form.periodEnd}
-                onChange={(value) => setForm((current) => ({ ...current, periodEnd: value }))}
+              <DateRangePicker
+                label="Periode campaign"
+                value={{ from: fromDateInputValue(form.periodStart), to: fromDateInputValue(form.periodEnd) }}
+                onChange={(range) =>
+                  setForm((current) => ({
+                    ...current,
+                    periodEnd: toDateInputValue(range?.to),
+                    periodStart: toDateInputValue(range?.from),
+                  }))
+                }
               />
               <FormInput
                 label="Target follower tier"
@@ -571,11 +604,9 @@ function RouteComponent() {
               value={form.description}
               onChange={(value) => setForm((current) => ({ ...current, description: value }))}
             />
-            <FormTextarea
-              label="Objektif"
+            <CampaignObjectiveFields
               value={form.objective}
               onChange={(value) => setForm((current) => ({ ...current, objective: value }))}
-              placeholder="Contoh: jumlah likes, reach, atau sales"
             />
             <FormTextarea
               label="Tags / keyword"
@@ -653,11 +684,16 @@ function RouteComponent() {
                       />
                       <span className="min-w-0">
                         <strong>{kol.displayName}</strong>
-                        <span className="text-muted-foreground block wrap-break-word">
-                          {kol.accounts
-                            .map((account) => `${account.platform}: @${account.handle}`)
-                            .join(" • ")}
-                        </span>
+                        <details className="text-muted-foreground mt-1">
+                          <summary className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-foreground">
+                            Sosmed ({kol.accounts.length}) <ChevronDown className="size-3" />
+                          </summary>
+                          <span className="mt-1 block wrap-break-word">
+                            {kol.accounts.length
+                              ? kol.accounts.map((account) => `${account.platform}: @${account.handle}`).join(" • ")
+                              : "Belum ada sosmed"}
+                          </span>
+                        </details>
                         {kol.keywords && <span className="text-muted-foreground block">{kol.keywords}</span>}
                       </span>
                     </label>
@@ -1124,6 +1160,67 @@ function RouteComponent() {
   );
 }
 
+function DateRangePicker({ label, onChange, value }: { label: string; onChange: (range: DateRange | undefined) => void; value: DateRange }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="space-y-2 md:col-span-2">
+      <Label>{label}</Label>
+      <Button type="button" variant="outline" className="w-full justify-start gap-2 font-normal" onClick={() => setOpen((current) => !current)}>
+        <CalendarIcon className="size-4" />
+        {value.from ? `${formatShortDate(toDateInputValue(value.from))} - ${value.to ? formatShortDate(toDateInputValue(value.to)) : "Pilih selesai"}` : "Pilih rentang tanggal"}
+      </Button>
+      {open && (
+        <div className="border-border bg-card w-fit max-w-full overflow-x-auto border p-3 shadow-sm">
+          <Calendar mode="range" numberOfMonths={2} selected={value} onSelect={onChange} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CampaignObjectiveFields({ onChange, value }: { onChange: (value: string) => void; value: string }) {
+  const objective = parseCampaignObjective(value);
+  const updateObjective = (patch: Partial<typeof objective>) => onChange(encodeCampaignObjective({ ...objective, ...patch }));
+  const interactions = getTargetInteractions(objective);
+
+  return (
+    <div className="space-y-3 md:col-span-2">
+      <div>
+        <Label>Objektif campaign</Label>
+        <p className="text-muted-foreground text-xs">Target eksplisit untuk progress: views dan interaksi.</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-4">
+        <ObjectiveNumberInput label="Target view" value={objective.targetViews} onChange={(targetViews) => updateObjective({ targetViews })} />
+        <ObjectiveNumberInput label="Target like" value={objective.targetLikes} onChange={(targetLikes) => updateObjective({ targetLikes })} />
+        <ObjectiveNumberInput label="Target komentar" value={objective.targetComments} onChange={(targetComments) => updateObjective({ targetComments })} />
+        <ObjectiveNumberInput label="Target share" value={objective.targetShares} onChange={(targetShares) => updateObjective({ targetShares })} />
+      </div>
+      <FormTextarea
+        label={`Catatan objektif tambahan${interactions ? ` • total interaksi ${interactions.toLocaleString("id-ID")}` : ""}`}
+        value={objective.legacyText}
+        onChange={(legacyText) => updateObjective({ legacyText })}
+        placeholder="Opsional: konteks target, segmentasi, atau KPI tambahan"
+      />
+    </div>
+  );
+}
+
+function ObjectiveNumberInput({ label, onChange, value }: { label: string; onChange: (value: number) => void; value: number }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input
+        min={0}
+        type="number"
+        value={value || ""}
+        onChange={(event) => onChange(Number(event.target.value || 0))}
+        placeholder="0"
+      />
+    </div>
+  );
+}
+
 function FormInput({
   label,
   onChange,
@@ -1143,28 +1240,6 @@ function FormInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={!placeholder}
-      />
-    </Label>
-  );
-}
-
-function DateInput({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  value: string;
-}) {
-  return (
-    <Label className="grid gap-2">
-      <span>{label}</span>
-      <Input
-        type="date"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        required
       />
     </Label>
   );

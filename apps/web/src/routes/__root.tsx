@@ -50,7 +50,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
     if (authState.session && authState.whitelist && isPublicRoute) {
       throw redirect({
-        to: "/dashboard",
+        to: "/",
       });
     }
 

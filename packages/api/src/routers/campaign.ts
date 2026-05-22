@@ -1,7 +1,7 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
-import { campaign, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
+import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile } from "@if3250_k02_g01_dgw1/db/schema/kol";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import z from "zod";
 
 import { protectedProcedure } from "../index";
@@ -101,6 +101,62 @@ export const campaignRouter = {
       await db.delete(campaign).where(eq(campaign.id, input.id));
       return { success: true };
     }),
+  dashboard: protectedProcedure.handler(async () => {
+    const campaigns = await db.select().from(campaign).orderBy(desc(campaign.updatedAt));
+    const links = await getCampaignKolLinks();
+    const contentRows = await db
+      .select({
+        campaignId: campaignContent.campaignId,
+        commentCount: campaignContent.commentCount,
+        likeCount: campaignContent.likeCount,
+        shareCount: campaignContent.shareCount,
+        syncStatus: campaignContent.syncStatus,
+        syncedAt: campaignContent.syncedAt,
+        updatedAt: campaignContent.updatedAt,
+        viewCount: campaignContent.viewCount,
+      })
+      .from(campaignContent)
+      .where(isNull(campaignContent.archivedAt));
+
+    return campaigns.map((item) => {
+      const campaignContents = contentRows.filter((row) => row.campaignId === item.id);
+      const successfulSyncs = campaignContents.filter((row) => row.syncStatus === "success");
+      const lastSyncedAt = successfulSyncs.reduce<Date | null>((latest, row) => {
+        if (!row.syncedAt) {
+          return latest;
+        }
+
+        return !latest || row.syncedAt > latest ? row.syncedAt : latest;
+      }, null);
+      const lastScrapedAt = campaignContents.reduce<Date | null>((latest, row) => {
+        const candidate = row.syncedAt ?? row.updatedAt;
+        return !latest || candidate > latest ? candidate : latest;
+      }, null);
+
+      return {
+        brand: item.brand,
+        commentCount: campaignContents.reduce((sum, row) => sum + row.commentCount, 0),
+        contentCount: campaignContents.length,
+        createdAt: item.createdAt.toISOString(),
+        failedSyncCount: campaignContents.filter((row) => row.syncStatus === "failed").length,
+        id: item.id,
+        kolCount: new Set(links.filter((link) => link.campaignId === item.id).map((link) => link.id)).size,
+        lastScrapedAt: lastScrapedAt?.toISOString() ?? null,
+        lastSyncedAt: lastSyncedAt?.toISOString() ?? null,
+        likeCount: campaignContents.reduce((sum, row) => sum + row.likeCount, 0),
+        name: item.name,
+        objective: item.objective,
+        pendingSyncCount: campaignContents.filter((row) => row.syncStatus === "pending").length,
+        periodEnd: item.periodEnd.toISOString().slice(0, 10),
+        periodStart: item.periodStart.toISOString().slice(0, 10),
+        shareCount: campaignContents.reduce((sum, row) => sum + row.shareCount, 0),
+        status: item.status,
+        syncedContentCount: successfulSyncs.length,
+        updatedAt: item.updatedAt.toISOString(),
+        viewCount: campaignContents.reduce((sum, row) => sum + row.viewCount, 0),
+      };
+    });
+  }),
   addKolToCampaign: protectedProcedure
     .input(
       z.object({

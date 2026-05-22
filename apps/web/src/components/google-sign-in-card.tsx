@@ -27,7 +27,7 @@ export default function GoogleSignInCard() {
     try {
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/dashboard",
+        callbackURL: "/",
         errorCallbackURL: "/login",
         disableRedirect: true,
       });

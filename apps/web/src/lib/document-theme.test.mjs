@@ -3,8 +3,8 @@ import { describe, expect, test } from "bun:test";
 import { getDocumentThemeClass } from "./document-theme.ts";
 
 describe("getDocumentThemeClass", () => {
-  test("uses the DigiWonder light theme on dashboard, campaigns, and whitelist", () => {
-    expect(getDocumentThemeClass("/dashboard")).toBe("digiTheme");
+  test("uses the DigiWonder light theme on home dashboard, campaigns, and whitelist", () => {
+    expect(getDocumentThemeClass("/")).toBe("digiTheme");
     expect(getDocumentThemeClass("/campaigns")).toBe("digiTheme");
     expect(getDocumentThemeClass("/whitelist")).toBe("digiTheme");
   });
