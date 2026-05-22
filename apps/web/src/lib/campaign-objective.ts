@@ -42,7 +42,7 @@ export function getTargetInteractions(objective: Pick<CampaignObjective, "target
 export function encodeCampaignObjective(objective: CampaignObjective) {
   const stored: StoredCampaignObjective = {
     kind: "campaign_objective",
-    note: objective.legacyText.trim() || undefined,
+    note: objective.legacyText || undefined,
     targetComments: toNonNegativeInteger(objective.targetComments),
     targetLikes: toNonNegativeInteger(objective.targetLikes),
     targetShares: toNonNegativeInteger(objective.targetShares),
@@ -98,6 +98,38 @@ export function formatObjectiveSummary(rawObjective: string | null | undefined) 
   }
 
   return objective.legacyText || "Target belum diisi";
+}
+
+export function formatObjectiveDetails(rawObjective: string | null | undefined) {
+  const objective = parseCampaignObjective(rawObjective);
+  const lines: string[] = [];
+
+  if (objective.legacyText.trim()) {
+    lines.push(objective.legacyText.trim());
+  }
+
+  if (objective.targetViews > 0) {
+    lines.push(`Target views: ${objective.targetViews.toLocaleString("id-ID")}`);
+  }
+
+  if (objective.targetLikes > 0) {
+    lines.push(`Target likes: ${objective.targetLikes.toLocaleString("id-ID")}`);
+  }
+
+  if (objective.targetComments > 0) {
+    lines.push(`Target comments: ${objective.targetComments.toLocaleString("id-ID")}`);
+  }
+
+  if (objective.targetShares > 0) {
+    lines.push(`Target shares: ${objective.targetShares.toLocaleString("id-ID")}`);
+  }
+
+  const targetInteractions = getTargetInteractions(objective);
+  if (targetInteractions > 0) {
+    lines.push(`Total interaksi: ${targetInteractions.toLocaleString("id-ID")}`);
+  }
+
+  return lines.length ? lines.join("\n") : "Target belum diisi";
 }
 
 export function getProgressPercent(actual: number, target: number) {

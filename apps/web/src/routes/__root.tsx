@@ -33,6 +33,29 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       return;
     }
 
+    // Local-only visual QA bypass. It only works on the dev server and localhost.
+    const isLocalUiCheck = import.meta.env.DEV
+      && new URLSearchParams(location.search).get("uiCheckBypass") === "1"
+      && (typeof window === "undefined" || ["localhost", "127.0.0.1"].includes(window.location.hostname));
+
+    if (isLocalUiCheck) {
+      return {
+        session: {
+          user: {
+            email: "ui-check@local.test",
+            id: "local-ui-check",
+            name: "Local UI Check",
+          },
+        },
+        whitelist: {
+          email: "ui-check@local.test",
+          id: 0,
+          isActive: true,
+          role: "admin",
+        },
+      };
+    }
+
     const isPublicRoute = ["/login", "/unauthorized"].includes(location.pathname);
     const authState = await loadAuthStateSafely(getAuthState);
 

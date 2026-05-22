@@ -9,8 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WhitelistRouteImport } from './routes/whitelist'
 import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KolsRouteImport } from './routes/kols'
 import { Route as CompareKolsRouteImport } from './routes/compare-kols'
@@ -23,14 +23,14 @@ import { Route as ApiRpcSplatRouteImport } from './routes/api/rpc/$'
 import { Route as ApiCronSyncKolsRouteImport } from './routes/api/cron/sync-kols'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
-const WhitelistRoute = WhitelistRouteImport.update({
-  id: '/whitelist',
-  path: '/whitelist',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const UnauthorizedRoute = UnauthorizedRouteImport.update({
   id: '/unauthorized',
   path: '/unauthorized',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -96,8 +96,8 @@ export interface FileRoutesByFullPath {
   '/compare-kols': typeof CompareKolsRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/unauthorized': typeof UnauthorizedRoute
-  '/whitelist': typeof WhitelistRoute
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -111,8 +111,8 @@ export interface FileRoutesByTo {
   '/compare-kols': typeof CompareKolsRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/unauthorized': typeof UnauthorizedRoute
-  '/whitelist': typeof WhitelistRoute
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -127,8 +127,8 @@ export interface FileRoutesById {
   '/compare-kols': typeof CompareKolsRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/unauthorized': typeof UnauthorizedRoute
-  '/whitelist': typeof WhitelistRoute
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -144,8 +144,8 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/kols'
     | '/login'
+    | '/settings'
     | '/unauthorized'
-    | '/whitelist'
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
@@ -159,8 +159,8 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/kols'
     | '/login'
+    | '/settings'
     | '/unauthorized'
-    | '/whitelist'
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
@@ -174,8 +174,8 @@ export interface FileRouteTypes {
     | '/compare-kols'
     | '/kols'
     | '/login'
+    | '/settings'
     | '/unauthorized'
-    | '/whitelist'
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
@@ -190,8 +190,8 @@ export interface RootRouteChildren {
   CompareKolsRoute: typeof CompareKolsRoute
   KolsRoute: typeof KolsRouteWithChildren
   LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   UnauthorizedRoute: typeof UnauthorizedRoute
-  WhitelistRoute: typeof WhitelistRoute
   ApiAvatarRoute: typeof ApiAvatarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronSyncKolsRoute: typeof ApiCronSyncKolsRoute
@@ -200,18 +200,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/whitelist': {
-      id: '/whitelist'
-      path: '/whitelist'
-      fullPath: '/whitelist'
-      preLoaderRoute: typeof WhitelistRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/unauthorized': {
       id: '/unauthorized'
       path: '/unauthorized'
       fullPath: '/unauthorized'
       preLoaderRoute: typeof UnauthorizedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -311,8 +311,8 @@ const rootRouteChildren: RootRouteChildren = {
   CompareKolsRoute: CompareKolsRoute,
   KolsRoute: KolsRouteWithChildren,
   LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   UnauthorizedRoute: UnauthorizedRoute,
-  WhitelistRoute: WhitelistRoute,
   ApiAvatarRoute: ApiAvatarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronSyncKolsRoute: ApiCronSyncKolsRoute,

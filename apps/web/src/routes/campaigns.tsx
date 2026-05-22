@@ -2,12 +2,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
-import { encodeCampaignObjective, formatObjectiveSummary, getProgressPercent, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
+import { encodeCampaignObjective, formatObjectiveDetails, formatObjectiveSummary, getProgressPercent, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
 import { formatDateTime, formatNumber } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
@@ -657,9 +658,6 @@ function RouteComponent() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#B43C39]">Campaigns</p>
                 <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Daftar campaign</h1>
-                <p className="text-sm text-muted-foreground">
-                  Klik campaign untuk buka detail lengkap. Card utama sengaja diringkas ke progress dan status inti.
-                </p>
               </div>
               <Button type="button" onClick={openCreateDialog} className="rounded-none bg-[#B43C39] font-semibold text-white hover:bg-[#8f2e2c]">
                 <Plus className="mr-2 size-4" />
@@ -777,8 +775,9 @@ function RouteComponent() {
                           Edit
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="destructive"
                           size="sm"
+                          className="rounded-none border-red-700 bg-red-600 px-2 text-white hover:bg-red-700"
                           disabled={deleteCampaign.isPending}
                           onClick={(event) => {
                             event.stopPropagation();
@@ -786,9 +785,10 @@ function RouteComponent() {
                               deleteCampaign.mutate({ id: campaign.id });
                             }
                           }}
+                          aria-label={`Hapus ${campaign.name}`}
+                          title="Hapus"
                         >
-                          <Trash2 className="mr-1 size-4" />
-                          Hapus
+                          <Trash2 className="size-4" />
                         </Button>
                       </div>
                     </div>
@@ -815,9 +815,9 @@ function RouteComponent() {
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-5xl text-[#2b1418]">
+        <DialogContent className="max-h-[92vh] max-w-5xl overflow-hidden text-[#2b1418]">
           <DialogHeader>
-            <div className="border-b border-[#982E41]/30 bg-gradient-to-r from-[#FFF8F9] via-white to-[#fff3d8] px-4 py-4 sm:px-6">
+            <div className="border-b border-[#982E41]/30 bg-white px-4 py-4 sm:px-6">
               <DialogTitle className="!text-[22px] !font-bold tracking-tight text-[#2b1418]">
                 {editingId ? "Edit campaign" : "Tambah campaign"}
               </DialogTitle>
@@ -825,13 +825,13 @@ function RouteComponent() {
           </DialogHeader>
 
           <form
-            className="grid max-h-[calc(92vh-88px)] gap-5 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background px-4 py-4 sm:px-6 sm:py-6"
+            className="flex max-h-[calc(92vh-88px)] flex-col bg-white"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
             }}
           >
-            <div className="grid gap-5">
+            <div className="grid gap-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
             <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Identitas campaign</p>
@@ -888,11 +888,10 @@ function RouteComponent() {
               value={form.objective}
               onChange={(value) => setForm((current) => ({ ...current, objective: value }))}
             />
-            <FormTextarea
+            <KeywordTokenInput
               label="Tags / keyword"
               value={form.keywords}
               onChange={(value) => setForm((current) => ({ ...current, keywords: value }))}
-              placeholder="Pisahkan dengan koma"
             />
             <FormTextarea
               label="Post brief campaign"
@@ -994,7 +993,7 @@ function RouteComponent() {
             </section>
             </div>
 
-            <DialogFooter className="sticky bottom-0 border-t border-[#982E41]/40 bg-white px-4 py-3 shadow-[0_-8px_20px_rgba(152,46,65,0.08)]">
+            <DialogFooter className="shrink-0 border-t border-[#982E41]/40 bg-white px-4 py-3 sm:px-6">
               {editingId && (
                 <Button type="button" variant="outline" className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]" onClick={resetForm}>
                   Batal edit
@@ -1033,9 +1032,6 @@ function RouteComponent() {
                   <DialogTitle className="!text-[22px] !font-bold tracking-tight text-foreground">
                     Detail campaign
                   </DialogTitle>
-                  <DialogDescription className="!text-xs !leading-6 text-muted-foreground">
-                    Ringkasan campaign dan daftar konten yang sudah di-scrap.
-                  </DialogDescription>
                 </div>
 
                 {detailCampaignId !== null && (
@@ -1109,24 +1105,21 @@ function RouteComponent() {
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <DetailStat boxed label="Objective" value={detailCampaignSummary?.objective ?? detailCampaignData?.objective ?? "-"} />
-                  <DetailStat boxed label="Keywords" value={detailCampaignSummary?.keywords ?? detailCampaignData?.keywords ?? "-"} />
+                  <DetailStat boxed label="Objective" value={formatObjectiveDetails(detailCampaignData?.objective ?? detailCampaignSummary?.objective)} />
+                  <DetailStat boxed label="Keywords" value={<KeywordChips value={detailCampaignData?.keywords ?? detailCampaignSummary?.keywords} />} />
                   <DetailStat boxed label="Created at" value={formatHumanDateTime(detailCampaignSummary?.createdAt ?? detailCampaignData?.createdAt)} />
                   <DetailStat boxed label="Updated at" value={formatHumanDateTime(detailCampaignSummary?.updatedAt ?? detailCampaignData?.updatedAt)} />
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <DetailStat boxed label="Deskripsi" value={detailCampaignSummary?.description ?? detailCampaignData?.description ?? "-"} />
-                  <DetailStat boxed label="Post brief" value={detailCampaignSummary?.postBriefs ?? detailCampaignData?.postBriefs ?? "-"} />
+                <div className="grid gap-3">
+                  <DetailStat boxed label="Deskripsi" value={detailCampaignData?.description ?? detailCampaignSummary?.description ?? "-"} />
+                  <DetailStat boxed label="Post brief" value={detailCampaignData?.postBriefs ?? detailCampaignSummary?.postBriefs ?? "-"} />
                 </div>
               </section>
 
               <section className="space-y-3">
                 <div>
                   <h3 className="text-[15px] font-semibold text-foreground">Konten campaign</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Konten aktif dikelompokkan per KOL. Archive menyembunyikan post dari daftar aktif tanpa menghapus data.
-                  </p>
                 </div>
 
                 {activeContentGroups.length ? (
@@ -1479,7 +1472,7 @@ function RouteComponent() {
 
 function ProgressBlock({ label, meta, percent }: { label: string; meta: string; percent: number }) {
   return (
-    <div className="border border-[#982E41]/20 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3">
+    <div className="border border-[#982E41]/20 bg-white p-3">
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">{label}</p>
@@ -1504,6 +1497,92 @@ function MetricTargetBadge({ actual, label, percent, target }: MetricTarget) {
       <p className="mt-1 text-muted-foreground">
         {formatNumber(actual)} / {target === null ? "belum ada target" : formatNumber(target)}
       </p>
+    </div>
+  );
+}
+
+function parseKeywordTokens(value: string) {
+  return value
+    .split(/[\s,]+/)
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+}
+
+function encodeKeywordTokens(tokens: string[]) {
+  return Array.from(new Set(tokens.map((token) => token.trim()).filter(Boolean))).join(", ");
+}
+
+function KeywordChips({ value }: { value: string | null | undefined }) {
+  const tokens = parseKeywordTokens(value ?? "");
+
+  if (!tokens.length) {
+    return <span>-</span>;
+  }
+
+  return (
+    <span className="flex flex-wrap gap-2">
+      {tokens.map((token) => (
+        <span key={token} className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#982E41]">
+          #{token}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function KeywordTokenInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+  const tokens = parseKeywordTokens(value);
+  const [draft, setDraft] = useState("");
+
+  function commitDraft(rawDraft = draft) {
+    const nextTokens = parseKeywordTokens(rawDraft);
+    if (!nextTokens.length) {
+      setDraft("");
+      return;
+    }
+
+    onChange(encodeKeywordTokens([...tokens, ...nextTokens]));
+    setDraft("");
+  }
+
+  function removeToken(tokenToRemove: string) {
+    onChange(encodeKeywordTokens(tokens.filter((token) => token !== tokenToRemove)));
+  }
+
+  return (
+    <div className="space-y-2 md:col-span-2">
+      <Label>{label}</Label>
+      <div className="flex min-h-11 flex-wrap items-center gap-2 border border-[#b43c39]/20 bg-white px-3 py-2 focus-within:border-[#B43C39] focus-within:ring-[3px] focus-within:ring-[#B43C39]/15">
+        {tokens.map((token) => (
+          <button
+            key={token}
+            type="button"
+            className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#982E41] hover:bg-[#982E41]/10"
+            onClick={() => removeToken(token)}
+            aria-label={`Hapus keyword ${token}`}
+          >
+            #{token} ×
+          </button>
+        ))}
+        <input
+          className="min-w-32 flex-1 bg-transparent text-sm text-[#2b1418] outline-none placeholder:text-[#A16A75]"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => commitDraft()}
+          onKeyDown={(event) => {
+            if ([" ", "Enter", ","].includes(event.key)) {
+              event.preventDefault();
+              commitDraft();
+            }
+
+            if (event.key === "Backspace" && !draft && tokens.length) {
+              event.preventDefault();
+              onChange(encodeKeywordTokens(tokens.slice(0, -1)));
+            }
+          }}
+          placeholder={tokens.length ? "Tambah lalu tekan spasi" : "Ketik keyword lalu tekan spasi"}
+        />
+      </div>
     </div>
   );
 }
@@ -1784,7 +1863,7 @@ function DetailStat({
   compact?: boolean;
   boxed?: boolean;
   label: string;
-  value: string;
+  value: ReactNode;
 }) {
   const labelClassName = boxed
     ? "text-[13px] uppercase tracking-[0.22em] text-[#982E41]"
@@ -1803,9 +1882,9 @@ function DetailStat({
       className={`${compact ? "space-y-0.5" : "space-y-1"} ${boxed ? "border-[1.6px] border-border/80 bg-white/70 px-3 py-2" : ""}`}
     >
       <p className={labelClassName}>{label}</p>
-      <p className={`${valueClassName} break-words whitespace-pre-line`}>
+      <div className={`${valueClassName} break-words whitespace-pre-line`}>
         {value}
-      </p>
+      </div>
     </div>
   );
 }

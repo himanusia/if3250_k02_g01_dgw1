@@ -144,7 +144,7 @@ function MetricCard({ detail, icon, label, value }: { detail: string; icon: Reac
 }
 
 function CampaignProgressCard({ campaign }: { campaign: ReturnType<typeof sortCampaignsByManagementPriority>[number] }) {
-  const syncLabel = campaign.syncHealth === "fresh" ? "Fresh" : campaign.syncHealth === "stale" ? "Stale" : "Belum sync";
+  const syncLabel = campaign.syncHealth === "fresh" ? "Fresh" : campaign.syncHealth === "stale" ? "Stale" : "Belum";
   const achievedPercent = Math.max(campaign.viewProgressPercent, campaign.interactionProgressPercent);
 
   return (

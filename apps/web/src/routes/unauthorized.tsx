@@ -21,8 +21,7 @@ function RouteComponent() {
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold">Akses belum diberikan</h1>
           <p className="text-muted-foreground">
-            Email Google ini belum ada di whitelist aplikasi. Minta administrator untuk menambahkan
-            email kamu dulu.
+            Email Google ini belum diberi akses aplikasi. Minta administrator untuk menambahkan email kamu dulu.
           </p>
         </div>
         <div className="flex justify-center gap-3">

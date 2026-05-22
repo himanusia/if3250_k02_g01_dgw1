@@ -90,15 +90,12 @@ function RouteComponent() {
     return map;
   }, [selectedKols]);
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-b from-background via-[#fff6f8] to-background">
-      <div className="container mx-auto grid max-w-6xl gap-5 px-4 py-6 lg:grid-cols-[0.95fr_1.05fr] lg:py-8">
-      <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
+    <div className="h-full overflow-y-auto bg-background">
+      <div className="container mx-auto grid w-full max-w-6xl gap-5 overflow-x-hidden px-4 py-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:py-8">
+      <section className="min-w-0 max-w-full overflow-hidden space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
           <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Bandingkan kandidat KOL</h1>
-          <p className="text-muted-foreground">
-            Cari berdasarkan nama, handle, bidang, atau keyword, lalu pilih beberapa KOL untuk dibandingkan.
-          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -106,7 +103,7 @@ function RouteComponent() {
           <FilterInput label="Keyword" value={keywordFilter} onChange={setKeywordFilter} />
         </div>
 
-        <div className="max-h-128 space-y-2 overflow-auto border border-[#b43c39]/15 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3">
+        <div className="max-h-128 space-y-2 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3">
           {kolQuery.isLoading ? (
             <CompareKolPickerSkeleton />
           ) : filteredKols.map((kol) => {
@@ -151,20 +148,17 @@ function RouteComponent() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
+      <section className="min-w-0 max-w-full overflow-hidden space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="font-goldman text-2xl font-bold uppercase tracking-wide text-[#2b1418]">Hasil perbandingan</h2>
-            <p className="text-muted-foreground">
-              Pilih beberapa akun untuk melihat metriknya side by side.
-            </p>
           </div>
 
           <div className="grid gap-2">
             <span className="text-sm text-[#2b1418]">Tambahkan akun terpilih ke campaign</span>
-            <div className="flex gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               <Select
-                className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                className="min-w-0 flex-1 border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={selectedCampaignId}
                 onChange={(event) => setSelectedCampaignId(event.target.value)}
               >
@@ -205,7 +199,7 @@ function RouteComponent() {
           <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             Overall
           </h2>
-          {kolQuery.isLoading ? <CompareTableSkeleton /> : <table className="w-full border border-[#b43c39]/15 text-sm">
+          {kolQuery.isLoading ? <CompareTableSkeleton /> : <table className="w-full min-w-[760px] table-fixed border border-[#b43c39]/15 text-sm">
             <thead className="bg-[#fff3d8] text-[#2b1418]">
               <tr>
                 <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
@@ -234,7 +228,7 @@ function RouteComponent() {
 
             <tbody className="text-[#2b1418]">
               {selectedKols.map((kol) => (
-                <tr key={kol.id} className="hover:bg-gradient-to-b from-background via-[#fff6f8] to-background">
+                <tr key={kol.id} className="hover:bg-[#fff6f8]">
                   <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
                     {kol.displayName}
                   </td>
@@ -275,7 +269,7 @@ function RouteComponent() {
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="w-full border border-[#b43c39]/15 text-sm">
+            <table className="w-full min-w-[860px] table-fixed border border-[#b43c39]/15 text-sm">
               <thead className="bg-[#fff3d8] text-[#2b1418]">
                 <tr>
                   <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
@@ -307,7 +301,7 @@ function RouteComponent() {
 
               <tbody className="text-[#2b1418]">
                 {accounts.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-gradient-to-b from-background via-[#fff6f8] to-background">
+                  <tr key={acc.id} className="hover:bg-[#fff6f8]">
                     <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
                       {acc.displayName}
                     </td>

@@ -23,7 +23,7 @@ export default function Header() {
     { to: "/kols", label: "KOL" },
     { to: "/compare-kols", label: "CompareKOL" },
   ] as const;
-  const adminLinks = isAdmin ? ([{ to: "/whitelist", label: "Whitelist" }] as const) : [];
+  const adminLinks = isAdmin ? ([{ to: "/settings", label: "Settings" }] as const) : [];
   const visibleLinks = [...links, ...adminLinks];
 
   return (
