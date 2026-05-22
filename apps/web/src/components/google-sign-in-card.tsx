@@ -55,31 +55,49 @@ export default function GoogleSignInCard() {
   );
 
   return (
-    <div className="grid min-h-svh place-items-center bg-[#fbfaf9] px-6 py-10 text-[#181111]">
-      <div className="w-full max-w-sm">
-        <div className="mx-auto flex size-24 items-center justify-center rounded-[2rem] bg-white p-4 shadow-[0_24px_80px_rgba(24,17,17,0.12)] ring-1 ring-black/5">
-          <img src="/images/logo-placeholder.svg" alt="Digi Wonder" className="h-full w-full object-contain" />
-        </div>
-
-        {loginErrorMessage && (
-          <div
-            className="mt-8 flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-left text-destructive"
-            role="alert"
-          >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <p className="text-sm leading-relaxed">{loginErrorMessage}</p>
+    <div className="min-h-svh bg-[#f7f5f2] px-6 py-8 text-[#171312]">
+      <div className="mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[1fr_0.88fr]">
+        <section className="flex flex-col items-center justify-center text-center lg:items-start lg:text-left">
+          <div className="relative flex size-40 items-center justify-center rounded-[2.5rem] bg-white p-7 shadow-[0_28px_90px_rgba(23,19,18,0.12)] ring-1 ring-black/5 sm:size-52 sm:rounded-[3rem] sm:p-9 lg:size-72 lg:rounded-[4rem] lg:p-12">
+            <div className="pointer-events-none absolute inset-4 rounded-[inherit] bg-gradient-to-br from-[#B43C39]/8 via-transparent to-[#7B204C]/10" />
+            <img src="/images/logo-placeholder.svg" alt="Digi Wonder" className="relative h-full w-full object-contain" />
           </div>
-        )}
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.32em] text-[#7B204C]/65">
+            Digi Wonder
+          </p>
+        </section>
 
-        <Button
-          className="mx-auto mt-8 flex size-14 rounded-full border border-black/10 bg-white p-0 text-[#181111] shadow-[0_18px_50px_rgba(24,17,17,0.10)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_24px_70px_rgba(24,17,17,0.14)]"
-          size="icon"
-          onClick={handleGoogleSignIn}
-          disabled={isLoading}
-          aria-label="Masuk dengan Google"
-        >
-          {isLoading ? <Loader2 className="size-5 animate-spin" /> : <GoogleIcon className="size-6" />}
-        </Button>
+        <section className="mx-auto w-full max-w-md rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-[0_28px_90px_rgba(23,19,18,0.10)] backdrop-blur md:p-8">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-[#B43C39]">Welcome back</p>
+            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#171312] md:text-4xl">
+              Sign in
+            </h1>
+            <p className="text-sm leading-6 text-[#706866]">
+              Masuk pakai akun Google yang sudah terdaftar.
+            </p>
+          </div>
+
+          {loginErrorMessage && (
+            <div
+              className="mt-6 flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-left text-destructive"
+              role="alert"
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <p className="text-sm leading-relaxed">{loginErrorMessage}</p>
+            </div>
+          )}
+
+          <Button
+            className="mt-8 h-13 w-full rounded-2xl border border-black/10 bg-[#171312] text-sm font-semibold text-white shadow-[0_18px_45px_rgba(23,19,18,0.18)] transition hover:-translate-y-0.5 hover:bg-[#2b2421] hover:shadow-[0_24px_60px_rgba(23,19,18,0.22)]"
+            size="lg"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            aria-label="Masuk dengan Google"
+          >
+            {isLoading ? <Loader2 className="size-5 animate-spin" /> : <GoogleIcon className="size-5" />}
+          </Button>
+        </section>
       </div>
     </div>
   );
