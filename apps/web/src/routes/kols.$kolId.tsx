@@ -10,6 +10,7 @@ import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, ge
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -588,8 +589,8 @@ function RouteComponent() {
             />
             <Label className="grid gap-2">
               <span>Platform</span>
-              <select
-                className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-full min-w-0 rounded-none border px-3 text-xs outline-none focus-visible:ring-1"
+              <Select
+                className="text-xs"
                 value={historyForm.platform}
                 onChange={(event) =>
                   setHistoryForm((c) => ({ ...c, platform: event.target.value as SocialPlatform }))
@@ -597,7 +598,7 @@ function RouteComponent() {
               >
                 <option value="instagram">Instagram</option>
                 <option value="tiktok">TikTok</option>
-              </select>
+              </Select>
             </Label>
             <div className="grid gap-4 md:grid-cols-2">
               <Label className="grid gap-2">

@@ -6,6 +6,8 @@ import type { CampaignRecord } from "@/lib/app-types";
 import type { BrandSummary } from "@/lib/brand-summary";
 import { getBrandSummaries } from "@/lib/brand-summary";
 
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/utils/orpc";
 
@@ -65,16 +67,16 @@ function RouteComponent() {
         <section className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
           <div className="rounded-none border border-[#b43c39]/15 bg-white shadow-[8px_8px_0_rgba(152,46,65,0.12)]">
             <div className="border-b border-[#b43c39]/10 p-4">
-              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7B204C]" htmlFor="brand-search">
+              <Label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7B204C]" htmlFor="brand-search">
                 Cari brand
-              </label>
-              <input
+              </Label>
+              <Input
                 id="brand-search"
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Ketik nama brand..."
-                className="mt-2 h-11 w-full rounded-none border border-[#b43c39]/20 bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-[#B43C39] focus:ring-2 focus:ring-[#B43C39]/15"
+                className="mt-2 h-11 border-[#b43c39]/20 bg-white focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 {campaignsQuery.isLoading ? <Skeleton className="h-3 w-32" /> : `${filteredBrands.length} dari ${brandSummaries.length} brand`}

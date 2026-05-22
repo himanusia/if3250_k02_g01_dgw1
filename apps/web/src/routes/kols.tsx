@@ -11,6 +11,7 @@ import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, ge
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -836,14 +837,7 @@ function mergeKeywords(
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent
-          className="max-h-[92vh] max-w-6xl overflow-y-auto border p-0"
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderColor: KOLS_COLORS.stroke,
-            color: KOLS_COLORS.text,
-          }}
-        >
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
           <DialogHeader>
             <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
               <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
@@ -851,7 +845,7 @@ function mergeKeywords(
           </DialogHeader>
 
           <form
-            className="grid gap-5 overflow-x-hidden px-4 pb-4 sm:px-6 sm:pb-6"
+            className="grid max-h-[calc(92vh-76px)] gap-5 overflow-y-auto overflow-x-hidden bg-[#FFF8F9] px-4 py-4 sm:px-6 sm:py-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
@@ -914,13 +908,12 @@ function mergeKeywords(
               {form.accounts.map((account, index) => (
                 <div
                   key={`${account.platform}-${index}`}
-                  className="grid min-w-0 gap-4 border bg-white/50 p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
-                  style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+                  className="grid min-w-0 gap-4 border border-[#982E41]/40 bg-white p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
                 >
                   <Label className="grid gap-2">
                     <span>Platform</span>
-                    <select
-                      className="min-h-10 w-full min-w-0 rounded-none border border-[#982E41]/60 bg-white/80 px-3 text-[12px] outline-none focus-visible:border-[#982E41] focus-visible:ring-1 focus-visible:ring-[#982E41]/30"
+                    <Select
+                      className="text-[12px]"
                       value={account.platform}
                       onChange={(event) => {
                         const platform = event.target.value as SocialPlatform;
@@ -934,7 +927,7 @@ function mergeKeywords(
                     >
                       <option value="instagram">Instagram</option>
                       <option value="tiktok">TikTok</option>
-                    </select>
+                    </Select>
                   </Label>
 
                   <FormInput
@@ -970,7 +963,7 @@ function mergeKeywords(
               ))}
             </div>
 
-            <DialogFooter className="border-t pt-4" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
+            <DialogFooter className="border-t border-[#982E41]/40 bg-white px-0 pt-4">
               {editingId && (
                 <Button
                   type="button"
@@ -1471,10 +1464,10 @@ function DisplayNameInput({
 
   return (
     <div className="relative">
-      <label className="grid gap-2">
+      <Label className="grid gap-2">
         <span>{label}</span>
 
-        <input
+        <Input
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
@@ -1484,9 +1477,9 @@ function DisplayNameInput({
           onBlur={() => {
             setTimeout(() => setOpen(false), 100);
           }}
-          className="w-full rounded-[6px] border border-[#982E41]/70 bg-white px-3 py-2 text-[#2B1418] outline-none focus:border-[#982E41]"
+          className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
         />
-      </label>
+      </Label>
 
       {open && filtered.length > 0 && (
         <div className="absolute z-10 mt-1 max-h-28 w-full overflow-y-auto border border-[#982E41]/80 bg-[#FFF8F9] shadow-lg">

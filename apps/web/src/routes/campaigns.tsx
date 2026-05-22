@@ -12,9 +12,12 @@ import { formatDateTime, formatNumber } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -613,8 +616,7 @@ function RouteComponent() {
               />
               <Label className="grid gap-2 md:col-span-2">
                 <span>Status</span>
-                <select
-                  className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-full min-w-0 rounded-none border px-3 text-xs outline-none focus-visible:ring-1"
+                <Select
                   value={form.status}
                   onChange={(event) =>
                     setForm((current) => ({
@@ -627,7 +629,7 @@ function RouteComponent() {
                   <option value="active">Active</option>
                   <option value="completed">Completed</option>
                   <option value="archived">Archived</option>
-                </select>
+                </Select>
               </Label>
             </div>
 
@@ -700,15 +702,14 @@ function RouteComponent() {
                   const checked = form.selectedKolIds.includes(kol.id);
 
                   return (
-                    <label key={kol.id} className="hover:bg-muted/40 flex min-w-0 items-start gap-3 p-2 text-sm">
-                      <input
-                        type="checkbox"
+                    <Label key={kol.id} className="hover:bg-muted/40 flex min-w-0 items-start gap-3 p-2 text-sm">
+                      <Checkbox
                         className="mt-0.5 shrink-0"
                         checked={checked}
-                        onChange={(event) => {
+                        onCheckedChange={(nextChecked) => {
                           setForm((current) => ({
                             ...current,
-                            selectedKolIds: event.target.checked
+                            selectedKolIds: nextChecked === true
                               ? [...current.selectedKolIds, kol.id]
                               : current.selectedKolIds.filter((id) => id !== kol.id),
                           }));
@@ -728,7 +729,7 @@ function RouteComponent() {
                         </details>
                         {kol.keywords && <span className="text-muted-foreground block">{kol.keywords}</span>}
                       </span>
-                    </label>
+                    </Label>
                   );
                 })}
 
@@ -1127,8 +1128,8 @@ function RouteComponent() {
                   <div key={row.id} className="grid gap-3 rounded-none border border-border p-3 md:grid-cols-[240px_minmax(0,1fr)_auto] md:items-end">
                     <Label className="grid gap-2">
                       <span>KOL</span>
-                      <select
-                        className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-full min-w-0 rounded-none border px-3 text-xs outline-none focus-visible:ring-1"
+                      <Select
+                        className="text-xs"
                         value={row.kolId}
                         onChange={(event) =>
                           updateContentRow(row.id, { kolId: event.target.value ? Number(event.target.value) : "" })
@@ -1140,7 +1141,7 @@ function RouteComponent() {
                             {kol.displayName}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </Label>
 
                     <Label className="grid gap-2">
@@ -1313,8 +1314,8 @@ function FormTextarea({
   return (
     <Label className="grid gap-2">
       <span>{label}</span>
-      <textarea
-        className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-24 w-full min-w-0 rounded-none border px-3 py-2 text-xs outline-none focus-visible:ring-1"
+      <Textarea
+        className="text-xs"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

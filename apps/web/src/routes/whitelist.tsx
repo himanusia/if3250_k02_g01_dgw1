@@ -8,6 +8,11 @@ import { toast } from "sonner";
 import type { WhitelistEntry, WhitelistRole } from "@/lib/app-types";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { requireAdminWhitelist } from "@/lib/auth-guard";
 import { client, orpc } from "@/utils/orpc";
 
@@ -156,15 +161,15 @@ function RouteComponent() {
   });
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto bg-[#FFF8F9]">
       <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
-      <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
         <div>
-          <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">
             Administrator only
           </p>
-          <h1 className="text-2xl font-semibold">Kelola whitelist email</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-semibold text-[#2B1418]">Kelola whitelist email</h1>
+          <p className="text-[#6D3A44]">
             Administrator bisa menentukan email mana yang boleh login, sekaligus role user-nya.
           </p>
         </div>
@@ -176,22 +181,20 @@ function RouteComponent() {
             createEntry.mutate(form);
           }}
         >
-          <label className="grid gap-2 text-sm">
+          <Label className="grid gap-2 text-sm">
             <span>Email</span>
-            <input
-              className="border-border bg-background min-h-10 border px-3"
+            <Input
               type="email"
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
               placeholder="nama@domain.com"
               required
             />
-          </label>
+          </Label>
 
-          <label className="grid gap-2 text-sm">
+          <Label className="grid gap-2 text-sm">
             <span>Role</span>
-            <select
-              className="border-border bg-background min-h-10 border px-3"
+            <Select
               value={form.role}
               onChange={(event) =>
                 setForm((current) => ({
@@ -202,41 +205,39 @@ function RouteComponent() {
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
-            </select>
-          </label>
+            </Select>
+          </Label>
 
-          <label className="grid gap-2 text-sm">
+          <Label className="grid gap-2 text-sm">
             <span>Catatan</span>
-            <textarea
-              className="border-border bg-background min-h-28 border px-3 py-2"
+            <Textarea
               value={form.note}
               onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
               placeholder="Contoh: tim brand, boleh mengelola campaign"
             />
-          </label>
+          </Label>
 
-          <Button type="submit" disabled={createEntry.isPending} className="bg-primary text-primary-foreground hover:bg-destructive">
+          <Button type="submit" disabled={createEntry.isPending} className="bg-[#982E41] text-white hover:bg-[#7B204C]">
             {createEntry.isPending ? "Menyimpan..." : "Simpan whitelist"}
           </Button>
         </form>
       </section>
 
-      <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
         <div>
-          <h2 className="text-xl font-semibold">Daftar email yang diizinkan</h2>
+          <h2 className="text-xl font-semibold text-[#2B1418]">Daftar email yang diizinkan</h2>
         </div>
 
         <div className="space-y-3">
           {whitelistEntries.map((entry) => (
-            <div key={entry.id} className="border-border flex items-start justify-between gap-4 border p-3">
+            <div key={entry.id} className="flex items-start justify-between gap-4 border border-[#982E41]/35 bg-[#FFF8F9] p-3">
               <div className="space-y-1">
-                <p className="font-medium">{entry.email}</p>
-                <p className="text-muted-foreground text-sm">Role: {entry.role}</p>
-                {entry.note && <p className="text-muted-foreground text-sm">{entry.note}</p>}
+                <p className="font-medium text-[#2B1418]">{entry.email}</p>
+                <p className="text-sm text-[#6D3A44]">Role: {entry.role}</p>
+                {entry.note && <p className="text-sm text-[#6D3A44]">{entry.note}</p>}
               </div>
               <Button
-                // variant="destructive"
-                className="bg-destructive/10 hover:bg-destructive focus-visible:ring-destructive/20 text-destructive hover:text-white focus-visible:border-destructive/40"
+                variant="destructive"
                 size="icon"
                 onClick={() => deleteEntry.mutate({ id: entry.id })}
                 disabled={deleteEntry.isPending}
@@ -248,38 +249,36 @@ function RouteComponent() {
           ))}
 
           {!whitelistEntries.length && (
-            <p className="text-muted-foreground text-sm">Belum ada email di whitelist database.</p>
+            <p className="text-sm text-[#6D3A44]">Belum ada email di whitelist database.</p>
           )}
         </div>
       </section>
-      <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
         <div>
-          <h2 className="text-xl font-semibold">Global Sync Settings</h2>
-          <p className="text-muted-foreground text-sm">
+          <h2 className="text-xl font-semibold text-[#2B1418]">Global Sync Settings</h2>
+          <p className="text-sm text-[#6D3A44]">
             Atur seberapa sering semua KOL akan disinkronkan.
           </p>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-[#6D3A44]">
             {nextSyncLabel}
           </p>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="checkbox"
+        <Label className="flex items-center gap-2 text-sm text-[#2B1418]">
+          <Checkbox
             checked={syncForm.enabled}
-            onChange={(e) =>
+            onCheckedChange={(checked) =>
               setSyncForm((prev) => ({
                 ...prev,
-                enabled: e.target.checked,
+                enabled: checked === true,
               }))
             }
-            className="accent-foreground"
           />
           Enable global sync
-        </label>
+        </Label>
 
         <div className="flex items-center gap-2">
-          <input
+          <Input
             type="number"
             min={1}
             value={syncForm.intervalValue}
@@ -290,10 +289,10 @@ function RouteComponent() {
                 intervalValue: Number(e.target.value),
               }))
             }
-            className="border-border bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 w-28 rounded-none border px-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-28"
           />
 
-          <select
+          <Select
             value={syncForm.intervalUnit}
             disabled={!enabled}
             onChange={(e) =>
@@ -302,18 +301,17 @@ function RouteComponent() {
                 intervalUnit: e.target.value as "minute" | "hour" | "day",
               }))
             }
-            className="border-border bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-10 rounded-none border px-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="minute">Minute(s)</option>
             <option value="hour">Hour(s)</option>
             <option value="day">Day(s)</option>
-          </select>
+          </Select>
         </div>
 
         <Button
           onClick={submitSyncSettings}
           disabled={updateSyncSettings.isPending}
-          className="bg-primary text-primary-foreground hover:bg-destructive"
+          className="bg-[#982E41] text-white hover:bg-[#7B204C]"
         >
           {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
         </Button>
