@@ -18,6 +18,7 @@ export default function Header() {
   const isAdmin = privateData.data?.whitelist?.role === "admin";
   const links = [
     { to: "/dashboard", label: "Dashboard" },
+    { to: "/brand", label: "Brand" },
     { to: "/campaigns", label: "Campaigns" },
     { to: "/kols", label: "KOL" },
     { to: "/compare-kols", label: "CompareKOL" },

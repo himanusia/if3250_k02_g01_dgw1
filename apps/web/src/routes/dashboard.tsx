@@ -84,7 +84,8 @@ function RouteComponent() {
             <h2 className="text-lg font-medium">Menu utama</h2>
             <p className="text-muted-foreground">Akses halaman utama.</p>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
+            <LinkCard href="/brand" title="Lihat Brand" description="Ringkas brand, campaign, KOL, dan platform." />
             <LinkCard href="/kols" title="Lihat KOL" description="Kelola daftar KOL dan akun platformnya." />
             <LinkCard
               href="/compare-kols"
@@ -131,7 +132,7 @@ function LinkCard({
   title,
 }: {
   description: string;
-  href: "/campaigns" | "/compare-kols" | "/kols";
+  href: "/brand" | "/campaigns" | "/compare-kols" | "/kols";
   title: string;
 }) {
   return (
