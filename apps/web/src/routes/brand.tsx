@@ -151,7 +151,7 @@ function BrandRow({ brand, isSelected, onSelect }: { brand: BrandSummary; isSele
       <span>
         <span className="block text-lg font-semibold text-[#2b1418]">{brand.name}</span>
         <span className="mt-1 block text-xs font-medium text-muted-foreground">
-          {brand.campaigns.length} campaign · {brand.totalKols} KOL
+          {brand.campaigns.length} campaign · {brand.activeCampaigns} aktif
         </span>
       </span>
       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B43C39]">Detail</span>
@@ -220,25 +220,9 @@ function BrandDetail({ brand }: { brand: BrandSummary | null }) {
         <p className="mt-1 text-sm text-muted-foreground">Update terakhir {formatDate(brand.latestUpdatedAt)}</p>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-3">
         <DetailStat label="Campaign" value={brand.campaigns.length.toString()} />
         <DetailStat label="Aktif" value={brand.activeCampaigns.toString()} />
-        <DetailStat label="KOL" value={brand.totalKols.toString()} />
-      </div>
-
-      <div className="mt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7B204C]">Platform</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {brand.platforms.length ? (
-            brand.platforms.map((platform) => (
-              <span key={platform} className="rounded-none bg-[#fff3d8] px-3 py-1 text-xs font-semibold text-[#7B204C]">
-                {platform}
-              </span>
-            ))
-          ) : (
-            <span className="text-sm text-muted-foreground">Belum ada platform.</span>
-          )}
-        </div>
       </div>
 
       <div className="mt-5">
@@ -250,7 +234,7 @@ function BrandDetail({ brand }: { brand: BrandSummary | null }) {
                 <p className="font-medium text-[#2b1418]">{campaign.name}</p>
                 <span className="bg-muted px-2 py-1 text-xs capitalize text-muted-foreground">{campaign.status}</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{(campaign.kols ?? []).length} KOL</p>
+              <p className="mt-1 text-xs text-muted-foreground">Update {formatDate(campaign.updatedAt)}</p>
             </div>
           ))}
         </div>

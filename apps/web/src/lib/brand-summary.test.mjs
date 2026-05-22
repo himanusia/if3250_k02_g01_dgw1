@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { countUniquePlatforms, getBrandSummaries } from "./brand-summary.ts";
+import { getBrandSummaries } from "./brand-summary.ts";
 
 const baseCampaign = {
   brand: "Digi Wonder",
@@ -22,7 +22,7 @@ const baseCampaign = {
 };
 
 describe("brand summary", () => {
-  test("summarizes campaign list records without requiring content detail rows", () => {
+  test("summarizes campaign list records without treating KOL as brand-owned data", () => {
     const summaries = getBrandSummaries([
       {
         ...baseCampaign,
@@ -36,12 +36,12 @@ describe("brand summary", () => {
     expect(summaries).toEqual([
       expect.objectContaining({
         activeCampaigns: 1,
+        campaigns: [expect.objectContaining({ name: "Launch" })],
         name: "Digi Wonder",
-        platforms: ["instagram", "tiktok"],
-        totalKols: 2,
       }),
     ]);
-    expect(countUniquePlatforms(summaries)).toBe(2);
+    expect("totalKols" in summaries[0]).toBe(false);
+    expect("platforms" in summaries[0]).toBe(false);
   });
 
   test("does not throw when campaign kols is missing in stale API payloads", () => {
@@ -49,6 +49,6 @@ describe("brand summary", () => {
     delete campaignWithoutRelations.kols;
 
     expect(() => getBrandSummaries([campaignWithoutRelations])).not.toThrow();
-    expect(getBrandSummaries([campaignWithoutRelations])[0].totalKols).toBe(0);
+    expect(getBrandSummaries([campaignWithoutRelations])[0].campaigns).toHaveLength(1);
   });
 });

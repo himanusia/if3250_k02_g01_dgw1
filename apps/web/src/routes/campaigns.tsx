@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
-import type { CampaignContentRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
+import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
 import { encodeCampaignObjective, formatObjectiveSummary, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
 import { formatDateTime, formatNumber } from "@/lib/kol-utils";
@@ -106,6 +106,16 @@ export const Route = createFileRoute("/campaigns")({
 });
 
 function RouteComponent() {
+  useEffect(() => {
+    document.documentElement.classList.add("digiTheme");
+    document.body.classList.add("digiTheme");
+
+    return () => {
+      document.documentElement.classList.remove("digiTheme");
+      document.body.classList.remove("digiTheme");
+    };
+  }, []);
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [detailCampaignId, setDetailCampaignId] = useState<number | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -120,12 +130,18 @@ function RouteComponent() {
   const [kolSearch, setKolSearch] = useState("");
   const [selectedKeywordFilter, setSelectedKeywordFilter] = useState<string[]>([]);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
+  const campaignProgressQuery = useQuery(orpc.campaign.dashboard.queryOptions());
   const kolsQuery = useQuery(orpc.kol.list.queryOptions());
   const detailCampaignQuery = useQuery({
     ...orpc.campaign.getById.queryOptions({ input: { id: detailCampaignId ?? 0 } }),
     enabled: isDetailDialogOpen && detailCampaignId !== null,
   });
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
+  const campaignProgressRows = (campaignProgressQuery.data as CampaignDashboardRecord[] | undefined) ?? [];
+  const campaignProgressById = useMemo(
+    () => new Map(campaignProgressRows.map((campaign) => [campaign.id, campaign])),
+    [campaignProgressRows],
+  );
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
   const detailCampaignData = (detailCampaignQuery.data as CampaignDetailRecord | null | undefined) ?? null;
   const campaignReportUrl = detailCampaignId !== null ? `/api/rpc/campaign-report?campaignId=${detailCampaignId}` : "";
@@ -425,96 +441,111 @@ function RouteComponent() {
 
   return (
     <>
-      <div className="h-full overflow-y-auto">
-        <div className="container mx-auto space-y-6 px-4 py-6">
-          <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">Campaigns</p>
-              <h1 className="text-2xl font-semibold">Daftar campaign</h1>
-              <p className="text-muted-foreground">
-                Halaman ini berisi list campaign. Tambah dan edit dilakukan lewat dialog.
-              </p>
+      <div className="h-full overflow-y-auto bg-gradient-to-b from-background via-[#fff6f8] to-background">
+        <div className="container mx-auto max-w-6xl space-y-5 px-4 py-6 lg:py-8">
+          <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#B43C39]">Campaigns</p>
+                <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Daftar campaign</h1>
+                <p className="text-sm text-muted-foreground">
+                  Klik campaign untuk buka detail lengkap. Card utama sengaja diringkas ke progress dan status inti.
+                </p>
+              </div>
+              <Button type="button" onClick={openCreateDialog} className="rounded-none bg-[#B43C39] font-semibold text-white hover:bg-[#8f2e2c]">
+                <Plus className="mr-2 size-4" />
+                Tambah campaign
+              </Button>
             </div>
-            <Button type="button" onClick={openCreateDialog} className="hover:bg-primary-hover">
-              <Plus className="mr-2 size-4" />
-              Tambah campaign
-            </Button>
-          </div>
 
-          <div className="space-y-3">
-            {campaigns.map((campaign) => (
-              <article key={campaign.id} className="border-border space-y-3 border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{campaign.name}</p>
-                    <p className="text-muted-foreground text-sm">{campaign.brand}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openDetailDialog(campaign.id)}>
-                      <ExternalLink className="mr-1 size-4" />
-                      Detail
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!campaign.kols.length}
-                      onClick={() => openAddContentDialog(campaign.id)}
-                    >
-                      <Plus className="mr-1 size-4" />
-                      Add content
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => editCampaign(campaign)}>
-                      <PencilLine className="mr-1 size-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={deleteCampaign.isPending}
-                      onClick={() => {
-                        if (window.confirm("Apakah Anda yakin ingin menghapus campaign ini?")) {
-                          deleteCampaign.mutate({ id: campaign.id });
-                        }
-                      }}
-                    >
-                      <Trash2 className="mr-1 size-4" />
-                      Hapus
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-muted-foreground text-sm">{campaign.description}</p>
-                <div className="text-muted-foreground grid gap-1 text-sm md:grid-cols-2">
-                  <p>Periode: {campaign.periodStart} → {campaign.periodEnd}</p>
-                  <p>Objektif: {formatObjectiveSummary(campaign.objective)}</p>
-                  <p>Status: {campaign.status}</p>
-                  <p>Target KOL: {campaign.targetKolCount}</p>
-                  <p>Follower tier: {campaign.targetFollowerTier || "-"}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {campaign.kols.map((kol) => (
-                    <details key={kol.id} className="border-border text-muted-foreground border px-2 py-1 text-xs">
-                      <summary className="cursor-pointer list-none font-medium text-foreground">
-                        {kol.displayName}{kol.handles.length ? ` • ${kol.handles.length} sosmed` : ""}
-                      </summary>
-                      {kol.handles.length ? (
-                        <p className="mt-1 wrap-break-word">{kol.handles.join(" / ")}</p>
-                      ) : (
-                        <p className="mt-1">Belum ada sosmed.</p>
-                      )}
-                    </details>
-                  ))}
-                  {!campaign.kols.length && (
-                    <span className="text-muted-foreground text-xs">Belum ada KOL yang dipilih.</span>
-                  )}
-                </div>
-              </article>
-            ))}
+            <div className="space-y-3">
+              {campaigns.map((campaign) => {
+                const progress = campaignProgressById.get(campaign.id);
+                const achievedPercent = progress ? Math.max(progress.viewProgressPercent, progress.interactionProgressPercent) : null;
 
-            {!campaigns.length && (
-              <p className="text-muted-foreground text-sm">Belum ada campaign yang dibuat.</p>
-            )}
-          </div>
+                return (
+                  <article
+                    key={campaign.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openDetailDialog(campaign.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openDetailDialog(campaign.id);
+                      }
+                    }}
+                    className="cursor-pointer rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)] transition hover:-translate-y-0.5 hover:shadow-[8px_8px_0_rgba(152,46,65,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B43C39]"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B43C39]">{campaign.brand}</p>
+                        <h2 className="truncate text-lg font-semibold text-[#2b1418]">{campaign.name}</h2>
+                        <p className="line-clamp-2 text-sm text-muted-foreground">{formatObjectiveSummary(campaign.objective)}</p>
+                      </div>
+                      <span className="w-fit border border-[#b43c39]/20 bg-[#fff3d8] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#7B204C]">{campaign.status}</span>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="flex items-end justify-between gap-3">
+                        <span className="text-sm font-medium text-[#2b1418]">Target tercapai</span>
+                        <span className="text-2xl font-semibold text-[#2b1418]">{achievedPercent === null ? "-" : `${achievedPercent}%`}</span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden bg-[#f7e7eb]">
+                        <div className="h-full bg-[#B43C39]" style={{ width: `${achievedPercent ?? 0}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>{campaign.periodStart} → {campaign.periodEnd}</span>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!campaign.kols.length}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openAddContentDialog(campaign.id);
+                          }}
+                        >
+                          <Plus className="mr-1 size-4" />
+                          Add content
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            editCampaign(campaign);
+                          }}
+                        >
+                          <PencilLine className="mr-1 size-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={deleteCampaign.isPending}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (window.confirm("Apakah Anda yakin ingin menghapus campaign ini?")) {
+                              deleteCampaign.mutate({ id: campaign.id });
+                            }
+                          }}
+                        >
+                          <Trash2 className="mr-1 size-4" />
+                          Hapus
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+
+              {!campaigns.length && (
+                <p className="text-sm text-muted-foreground">Belum ada campaign yang dibuat.</p>
+              )}
+            </div>
           </section>
         </div>
       </div>
