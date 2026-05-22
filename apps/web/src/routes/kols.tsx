@@ -137,7 +137,56 @@ function getKolErrorMessage(error: unknown, fallback: string) {
 
 export const Route = createFileRoute("/kols")({
   component: RouteComponent,
+  pendingComponent: KolsPendingComponent,
 });
+
+function KolsPendingComponent() {
+  return (
+    <div className="h-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background py-6">
+      <div className="container mx-auto max-w-6xl space-y-5 px-4 lg:py-2" style={{ color: KOLS_COLORS.text }}>
+        <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-12 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-56 bg-[#b43c39]/10" />
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Skeleton className="h-8 w-28 bg-[#b43c39]/10" />
+              <Skeleton className="h-8 w-40 bg-[#b43c39]/10" />
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-16 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-full bg-[#b43c39]/10" />
+            </div>
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-20 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-full bg-[#b43c39]/10" />
+            </div>
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-12 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-full bg-[#b43c39]/10" />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} className="h-7 w-24 bg-[#b43c39]/10" />
+            ))}
+          </div>
+
+          <div className="border border-dashed border-[#b43c39]/15" />
+
+          <div className="space-y-5">
+            <KolListSkeleton />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
 
 function RouteComponent() {
   const [editingId, setEditingId] = useState<number | null>(null);
