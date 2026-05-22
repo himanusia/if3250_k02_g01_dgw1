@@ -3,21 +3,14 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import type { CampaignRecord } from "@/lib/app-types";
+import type { BrandSummary } from "@/lib/brand-summary";
+import { countUniquePlatforms, getBrandSummaries } from "@/lib/brand-summary";
 
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/brand")({
   component: RouteComponent,
 });
-
-type BrandSummary = {
-  name: string;
-  campaigns: CampaignRecord[];
-  activeCampaigns: number;
-  totalKols: number;
-  platforms: string[];
-  latestUpdatedAt: string;
-};
 
 function RouteComponent() {
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
@@ -105,44 +98,6 @@ function RouteComponent() {
   );
 }
 
-function getBrandSummaries(campaigns: CampaignRecord[]): BrandSummary[] {
-  const grouped = new Map<string, CampaignRecord[]>();
-
-  for (const campaign of campaigns) {
-    const name = campaign.brand.trim() || "Tanpa brand";
-    grouped.set(name, [...(grouped.get(name) ?? []), campaign]);
-  }
-
-  return [...grouped.entries()]
-    .map(([name, brandCampaigns]) => {
-      const platforms = new Set<string>();
-      let totalKols = 0;
-
-      for (const campaign of brandCampaigns) {
-        totalKols += campaign.kols.length;
-        for (const content of campaign.contents) {
-          platforms.add(content.platform);
-        }
-      }
-
-      return {
-        name,
-        campaigns: brandCampaigns,
-        activeCampaigns: brandCampaigns.filter((campaign) => campaign.status === "active").length,
-        totalKols,
-        platforms: [...platforms].sort(),
-        latestUpdatedAt: brandCampaigns
-          .map((campaign) => campaign.updatedAt)
-          .sort((a, b) => b.localeCompare(a))[0],
-      };
-    })
-    .sort((a, b) => b.latestUpdatedAt.localeCompare(a.latestUpdatedAt));
-}
-
-function countUniquePlatforms(brandSummaries: BrandSummary[]) {
-  return new Set(brandSummaries.flatMap((brand) => brand.platforms)).size;
-}
-
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-3xl bg-[#fff3d8] p-4 shadow-inner ring-1 ring-[#b43c39]/10">
@@ -213,7 +168,7 @@ function BrandCard({ brand }: { brand: BrandSummary }) {
               </span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {campaign.kols.length} KOL • {campaign.contents.length} konten
+              {(campaign.kols ?? []).length} KOL
             </p>
           </Link>
         ))}
