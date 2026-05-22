@@ -177,6 +177,8 @@ export type CampaignDashboardRecord = {
   shareCount: number;
   status: CampaignRecord["status"];
   syncedContentCount: number;
+  targetFollowerTier: string;
+  targetKolCount: number;
   updatedAt: string;
   viewCount: number;
 };

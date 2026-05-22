@@ -152,6 +152,8 @@ export const campaignRouter = {
         shareCount: campaignContents.reduce((sum, row) => sum + row.shareCount, 0),
         status: item.status,
         syncedContentCount: successfulSyncs.length,
+        targetFollowerTier: item.targetFollowerTier,
+        targetKolCount: item.targetKolCount,
         updatedAt: item.updatedAt.toISOString(),
         viewCount: campaignContents.reduce((sum, row) => sum + row.viewCount, 0),
       };

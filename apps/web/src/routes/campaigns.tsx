@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
-import { encodeCampaignObjective, formatObjectiveSummary, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
+import { encodeCampaignObjective, formatObjectiveSummary, getProgressPercent, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
 import { formatDateTime, formatNumber } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,146 @@ function getDefaultForm(): CampaignFormState {
   };
 }
 
+
+const TARGET_KOL_TIERS = [
+  { key: "nano", label: "Nano" },
+  { key: "micro", label: "Micro" },
+  { key: "macro", label: "Macro" },
+  { key: "mega", label: "Mega" },
+] as const;
+
+type TargetKolTier = { count: number; tier: string };
+type MetricTarget = { actual: number; isFallback: boolean; label: string; percent: number; target: number };
+
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function formatHumanDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value.includes("T") ? value : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "long", year: "numeric" }).format(date);
+}
+
+function formatHumanDateTime(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function getCampaignTemporalStatus(periodStart: string, periodEnd: string): CampaignRecord["status"] {
+  const start = fromDateInputValue(periodStart);
+  const end = fromDateInputValue(periodEnd);
+  const now = new Date();
+
+  if (!start || !end) return "draft";
+  if (now < start) return "draft";
+  if (now > end) return "completed";
+  return "active";
+}
+
+function formatCampaignStatus(status: CampaignRecord["status"]) {
+  const labels: Record<CampaignRecord["status"], string> = {
+    active: "Berjalan",
+    archived: "Archived",
+    completed: "Selesai",
+    draft: "Belum mulai",
+  };
+
+  return labels[status];
+}
+
+function parseTargetKolTiers(value: string | null | undefined): TargetKolTier[] {
+  const result = new Map<TargetKolTier["tier"], number>(TARGET_KOL_TIERS.map((tier) => [tier.key, 0]));
+  const validTiers = new Set<TargetKolTier["tier"]>(TARGET_KOL_TIERS.map((tier) => tier.key));
+  const text = value?.trim() ?? "";
+
+  if (!text) {
+    result.set("nano", 15);
+    result.set("micro", 5);
+    return Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
+  }
+
+  for (const part of text.split(/[\n,;]+/)) {
+    const match = part.trim().match(/^([a-zA-Z]+)\s*[:=]?\s*(\d+)/);
+    if (!match) continue;
+    const tier = match[1]!.toLowerCase() as TargetKolTier["tier"];
+    const count = Number(match[2]);
+    if (validTiers.has(tier) && Number.isFinite(count)) {
+      result.set(tier, Math.max(0, Math.round(count)));
+    }
+  }
+
+  const parsed = Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
+  return parsed.length ? parsed : [{ tier: "nano", count: 15 }, { tier: "micro", count: 5 }];
+}
+
+function encodeTargetKolTiers(tiers: TargetKolTier[]) {
+  return TARGET_KOL_TIERS
+    .map(({ key }) => ({ tier: key, count: tiers.find((item) => item.tier === key)?.count ?? 0 }))
+    .filter((item) => item.count > 0)
+    .map((item) => `${item.tier} ${item.count}`)
+    .join(", ");
+}
+
+function getTargetKolTotal(tiers: TargetKolTier[]) {
+  return tiers.reduce((sum, tier) => sum + tier.count, 0);
+}
+
+function getTimeProgress(periodStart: string, periodEnd: string, now = new Date()) {
+  const start = fromDateInputValue(periodStart);
+  const end = fromDateInputValue(periodEnd);
+
+  if (!start || !end) {
+    return { daysLeftLabel: "tanggal belum lengkap", percent: 0 };
+  }
+
+  const duration = end.getTime() - start.getTime();
+  const elapsed = now.getTime() - start.getTime();
+  const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  const percent = duration > 0 ? clampPercent((elapsed / duration) * 100) : 0;
+
+  if (daysLeft > 0) return { daysLeftLabel: `${daysLeft} hari tersisa`, percent };
+  if (daysLeft === 0) return { daysLeftLabel: "berakhir hari ini", percent };
+  return { daysLeftLabel: "periode selesai", percent };
+}
+
+function getFallbackTarget(actual: number, seed: number, multiplier: number) {
+  return Math.max(100, actual > 0 ? Math.ceil((actual * multiplier) / 100) * 100 : seed);
+}
+
+function getCampaignProgressDisplay(campaign: CampaignRecord, progress?: CampaignDashboardRecord) {
+  const objective = parseCampaignObjective(campaign.objective);
+  const actual = {
+    comments: progress?.commentCount ?? 0,
+    likes: progress?.likeCount ?? 0,
+    shares: progress?.shareCount ?? 0,
+    views: progress?.viewCount ?? 0,
+  };
+  const targets = {
+    comments: objective.targetComments || getFallbackTarget(actual.comments, 500 + campaign.id * 11, 1.7),
+    likes: objective.targetLikes || getFallbackTarget(actual.likes, 3_000 + campaign.id * 101, 1.6),
+    shares: objective.targetShares || getFallbackTarget(actual.shares, 250 + campaign.id * 7, 1.8),
+    views: objective.targetViews || getFallbackTarget(actual.views, 50_000 + campaign.id * 1_000, 1.5),
+  };
+  const metrics: MetricTarget[] = [
+    { actual: actual.views, isFallback: objective.targetViews <= 0, label: "Views", percent: getProgressPercent(actual.views, targets.views), target: targets.views },
+    { actual: actual.likes, isFallback: objective.targetLikes <= 0, label: "Likes", percent: getProgressPercent(actual.likes, targets.likes), target: targets.likes },
+    { actual: actual.comments, isFallback: objective.targetComments <= 0, label: "Comments", percent: getProgressPercent(actual.comments, targets.comments), target: targets.comments },
+    { actual: actual.shares, isFallback: objective.targetShares <= 0, label: "Shares", percent: getProgressPercent(actual.shares, targets.shares), target: targets.shares },
+  ];
+  const time = getTimeProgress(campaign.periodStart, campaign.periodEnd);
+  const explicitTargets = metrics.filter((metric) => !metric.isFallback).length;
+  const bestMetricPercent = metrics.reduce((max, metric) => Math.max(max, metric.percent), 0);
+  const metricSummary = explicitTargets
+    ? `${explicitTargets} target asli • terbaik ${bestMetricPercent}%`
+    : `Target dummy sementara • terbaik ${bestMetricPercent}%`;
+
+  return { bestMetricPercent, daysLeftLabel: time.daysLeftLabel, metricSummary, metrics, timePercent: time.percent };
+}
+
 export const Route = createFileRoute("/campaigns")({
   component: RouteComponent,
 });
@@ -129,6 +269,8 @@ function RouteComponent() {
   const [restoringContentId, setRestoringContentId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignRecord["status"]>("all");
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
   const [kolSearch, setKolSearch] = useState("");
   const [selectedKeywordFilter, setSelectedKeywordFilter] = useState<string[]>([]);
@@ -168,6 +310,23 @@ function RouteComponent() {
 
     return campaigns.find((campaign) => campaign.id === detailCampaignId) ?? null;
   }, [campaigns, detailCampaignId]);
+
+  const filteredCampaigns = useMemo(() => {
+    const normalizedSearch = campaignSearch.trim().toLowerCase();
+
+    return campaigns.filter((campaign) => {
+      const derivedStatus = getCampaignTemporalStatus(campaign.periodStart, campaign.periodEnd);
+      const matchesStatus = campaignStatusFilter === "all" || derivedStatus === campaignStatusFilter;
+      const matchesSearch =
+        !normalizedSearch ||
+        [campaign.name, campaign.brand, campaign.description, campaign.keywords, formatObjectiveSummary(campaign.objective)]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch);
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [campaignSearch, campaignStatusFilter, campaigns]);
 
   const { activeContentGroups, archivedContentGroups } = useMemo(() => {
     const activeGroups: CampaignDetailRecord["contentsByKol"] = [];
@@ -426,7 +585,7 @@ function RouteComponent() {
       periodStart: campaign.periodStart,
       postBriefs: campaign.postBriefs,
       selectedKolIds: campaign.kols.map((kol) => kol.id),
-      status: campaign.status,
+      status: getCampaignTemporalStatus(campaign.periodStart, campaign.periodEnd),
       targetFollowerTier: campaign.targetFollowerTier,
       targetKolCount: campaign.targetKolCount,
     });
@@ -434,12 +593,19 @@ function RouteComponent() {
   }
 
   function submit() {
+    const payload = {
+      ...form,
+      status: getCampaignTemporalStatus(form.periodStart, form.periodEnd),
+      targetFollowerTier: encodeTargetKolTiers(parseTargetKolTiers(form.targetFollowerTier)),
+      targetKolCount: getTargetKolTotal(parseTargetKolTiers(form.targetFollowerTier)),
+    };
+
     if (editingId) {
-      updateCampaign.mutate({ id: editingId, ...form });
+      updateCampaign.mutate({ id: editingId, ...payload });
       return;
     }
 
-    createCampaign.mutate(form);
+    createCampaign.mutate(payload);
   }
 
   return (
@@ -461,10 +627,36 @@ function RouteComponent() {
               </Button>
             </div>
 
+            <div className="grid gap-3 border border-[#982E41]/15 bg-[#FFF8F9] p-3 md:grid-cols-[minmax(0,1fr)_220px]">
+              <Label className="grid gap-2 text-sm text-[#2B1418]">
+                <span>Cari campaign</span>
+                <Input
+                  placeholder="Nama, brand, keyword, objective"
+                  value={campaignSearch}
+                  onChange={(event) => setCampaignSearch(event.target.value)}
+                />
+              </Label>
+              <Label className="grid gap-2 text-sm text-[#2B1418]">
+                <span>Filter status</span>
+                <Select
+                  value={campaignStatusFilter}
+                  onChange={(event) => setCampaignStatusFilter(event.target.value as typeof campaignStatusFilter)}
+                >
+                  <option value="all">Semua status</option>
+                  <option value="draft">Belum mulai</option>
+                  <option value="active">Berjalan</option>
+                  <option value="completed">Selesai</option>
+                  <option value="archived">Archived</option>
+                </Select>
+              </Label>
+            </div>
+
             <div className="space-y-3">
-              {campaigns.map((campaign) => {
+              {filteredCampaigns.map((campaign) => {
                 const progress = campaignProgressById.get(campaign.id);
-                const achievedPercent = progress ? Math.max(progress.viewProgressPercent, progress.interactionProgressPercent) : null;
+                const targetTiers = parseTargetKolTiers(campaign.targetFollowerTier);
+                const derivedStatus = getCampaignTemporalStatus(campaign.periodStart, campaign.periodEnd);
+                const progressSummary = getCampaignProgressDisplay(campaign, progress);
 
                 return (
                   <article
@@ -486,21 +678,38 @@ function RouteComponent() {
                         <h2 className="truncate text-lg font-semibold text-[#2b1418]">{campaign.name}</h2>
                         <p className="line-clamp-2 text-sm text-muted-foreground">{formatObjectiveSummary(campaign.objective)}</p>
                       </div>
-                      <span className="w-fit border border-[#b43c39]/20 bg-[#fff3d8] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#7B204C]">{campaign.status}</span>
+                      <span className="w-fit border border-[#b43c39]/20 bg-[#fff3d8] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#7B204C]">{formatCampaignStatus(derivedStatus)}</span>
                     </div>
 
-                    <div className="mt-4">
-                      <div className="flex items-end justify-between gap-3">
-                        <span className="text-sm font-medium text-[#2b1418]">Target tercapai</span>
-                        <span className="text-2xl font-semibold text-[#2b1418]">{achievedPercent === null ? "-" : `${achievedPercent}%`}</span>
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden bg-[#f7e7eb]">
-                        <div className="h-full bg-[#B43C39]" style={{ width: `${achievedPercent ?? 0}%` }} />
-                      </div>
+                    <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+                      <ProgressBlock
+                        label="Progress waktu"
+                        percent={progressSummary.timePercent}
+                        meta={`${formatHumanDate(campaign.periodStart)} → ${formatHumanDate(campaign.periodEnd)} • ${progressSummary.daysLeftLabel}`}
+                      />
+                      <ProgressBlock
+                        label="Target KPI"
+                        percent={progressSummary.bestMetricPercent}
+                        meta={progressSummary.metricSummary}
+                      />
+                    </div>
+
+                    <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                      {progressSummary.metrics.map((metric) => (
+                        <MetricTargetBadge key={metric.label} {...metric} />
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {targetTiers.map((tier) => (
+                        <span key={tier.tier} className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#2B1418]">
+                          {tier.tier} {tier.count}
+                        </span>
+                      ))}
                     </div>
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span>{campaign.periodStart} → {campaign.periodEnd}</span>
+                      <span>{formatHumanDate(campaign.periodStart)} → {formatHumanDate(campaign.periodEnd)}</span>
                       <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
@@ -545,8 +754,8 @@ function RouteComponent() {
                 );
               })}
 
-              {!campaigns.length && (
-                <p className="text-sm text-muted-foreground">Belum ada campaign yang dibuat.</p>
+              {!filteredCampaigns.length && (
+                <p className="text-sm text-muted-foreground">{campaigns.length ? "Tidak ada campaign yang cocok dengan filter." : "Belum ada campaign yang dibuat."}</p>
               )}
             </div>
           </section>
@@ -564,10 +773,10 @@ function RouteComponent() {
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto p-0">
+        <DialogContent className="max-h-[92vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
           <DialogHeader>
-            <div className="border-border border-b px-4 py-4 sm:px-6">
-              <DialogTitle>{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
+            <div className="border-b border-[#982E41]/30 px-4 py-4 sm:px-6">
+              <DialogTitle className="text-[#2B1418]">{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
               <DialogDescription>
                 Isi brief dan pilih KOL yang masuk shortlist.
               </DialogDescription>
@@ -575,7 +784,7 @@ function RouteComponent() {
           </DialogHeader>
 
           <form
-            className="grid gap-5 overflow-x-hidden px-4 pb-4 sm:px-6 sm:pb-6"
+            className="grid max-h-[calc(92vh-82px)] gap-5 overflow-y-auto overflow-x-hidden bg-[#FFF8F9] px-4 py-4 sm:px-6 sm:py-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
@@ -603,34 +812,21 @@ function RouteComponent() {
                   }))
                 }
               />
-              <FormInput
-                label="Target follower tier"
+              <TargetKolTierInputs
                 value={form.targetFollowerTier}
-                onChange={(value) => setForm((current) => ({ ...current, targetFollowerTier: value }))}
-                placeholder="micro, nano, macro"
+                onChange={(targetFollowerTier) =>
+                  setForm((current) => ({
+                    ...current,
+                    targetFollowerTier,
+                    targetKolCount: getTargetKolTotal(parseTargetKolTiers(targetFollowerTier)),
+                  }))
+                }
               />
-              <NumberInput
-                label="Jumlah KOL"
-                value={form.targetKolCount}
-                onChange={(value) => setForm((current) => ({ ...current, targetKolCount: value }))}
-              />
-              <Label className="grid gap-2 md:col-span-2">
-                <span>Status</span>
-                <Select
-                  value={form.status}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      status: event.target.value as CampaignFormState["status"],
-                    }))
-                  }
-                >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                  <option value="archived">Archived</option>
-                </Select>
-              </Label>
+              <div className="grid gap-2 border border-[#982E41]/20 bg-white px-3 py-2 text-sm text-[#2B1418] md:col-span-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Status otomatis</span>
+                <span>{formatCampaignStatus(getCampaignTemporalStatus(form.periodStart, form.periodEnd))}</span>
+                <span className="text-xs text-muted-foreground">Status dihitung dari periode campaign, bukan input manual.</span>
+              </div>
             </div>
 
             <FormTextarea
@@ -819,7 +1015,7 @@ function RouteComponent() {
                   <DetailStat
                     boxed
                     label="Periode"
-                    value={`${detailCampaignSummary?.periodStart ?? detailCampaignData?.periodStart ?? "-"} → ${detailCampaignSummary?.periodEnd ?? detailCampaignData?.periodEnd ?? "-"}`}
+                    value={`${formatHumanDate(detailCampaignSummary?.periodStart ?? detailCampaignData?.periodStart)} → ${formatHumanDate(detailCampaignSummary?.periodEnd ?? detailCampaignData?.periodEnd)}`}
                   />
                   <DetailStat boxed label="Target KOL" value={String(detailCampaignSummary?.targetKolCount ?? detailCampaignData?.targetKolCount ?? 0)} />
                   <DetailStat boxed label="Follower tier" value={detailCampaignSummary?.targetFollowerTier ?? detailCampaignData?.targetFollowerTier ?? "-"} />
@@ -828,8 +1024,8 @@ function RouteComponent() {
                 <div className="grid gap-3 md:grid-cols-2">
                   <DetailStat boxed label="Objective" value={detailCampaignSummary?.objective ?? detailCampaignData?.objective ?? "-"} />
                   <DetailStat boxed label="Keywords" value={detailCampaignSummary?.keywords ?? detailCampaignData?.keywords ?? "-"} />
-                  <DetailStat boxed label="Created at" value={detailCampaignSummary?.createdAt ?? detailCampaignData?.createdAt ?? "-"} />
-                  <DetailStat boxed label="Updated at" value={detailCampaignSummary?.updatedAt ?? detailCampaignData?.updatedAt ?? "-"} />
+                  <DetailStat boxed label="Created at" value={formatHumanDateTime(detailCampaignSummary?.createdAt ?? detailCampaignData?.createdAt)} />
+                  <DetailStat boxed label="Updated at" value={formatHumanDateTime(detailCampaignSummary?.updatedAt ?? detailCampaignData?.updatedAt)} />
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
@@ -1119,7 +1315,7 @@ function RouteComponent() {
               <div className="grid gap-3 md:grid-cols-2">
                 <DetailStat label="Campaign" value={addContentCampaign.name} />
                 <DetailStat label="Brand" value={addContentCampaign.brand} />
-                <DetailStat label="Periode" value={`${addContentCampaign.periodStart} → ${addContentCampaign.periodEnd}`} />
+                <DetailStat label="Periode" value={`${formatHumanDate(addContentCampaign.periodStart)} → ${formatHumanDate(addContentCampaign.periodEnd)}`} />
                 <DetailStat label="KOL terpilih" value={String(addContentCampaign.kols.length)} />
               </div>
 
@@ -1190,6 +1386,73 @@ function RouteComponent() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+
+function ProgressBlock({ label, meta, percent }: { label: string; meta: string; percent: number }) {
+  return (
+    <div className="border border-[#982E41]/20 bg-[#FFF8F9] p-3">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">{label}</p>
+          <p className="text-xs text-muted-foreground">{meta}</p>
+        </div>
+        <span className="text-2xl font-semibold text-[#2B1418]">{percent}%</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden bg-[#F2DDE2]">
+        <div className="h-full bg-[#982E41]" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MetricTargetBadge({ actual, isFallback, label, percent, target }: MetricTarget) {
+  return (
+    <div className="border border-[#982E41]/20 bg-white px-3 py-2 text-xs text-[#2B1418]">
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-semibold uppercase tracking-[0.14em] text-[#982E41]">{label}</span>
+        <span className="font-semibold">{percent}%</span>
+      </div>
+      <p className="mt-1 text-muted-foreground">
+        {formatNumber(actual)} / {formatNumber(target)}{isFallback ? " dummy" : ""}
+      </p>
+    </div>
+  );
+}
+
+function TargetKolTierInputs({ onChange, value }: { onChange: (value: string) => void; value: string }) {
+  const tiers = parseTargetKolTiers(value);
+
+  function updateTier(tier: string, count: number) {
+    const next = TARGET_KOL_TIERS.map(({ key }) => ({
+      tier: key,
+      count: key === tier ? count : tiers.find((item) => item.tier === key)?.count ?? 0,
+    }));
+
+    onChange(encodeTargetKolTiers(next));
+  }
+
+  return (
+    <div className="space-y-3 md:col-span-2">
+      <div>
+        <Label>Target KOL per tier</Label>
+        <p className="text-xs text-muted-foreground">Deterministik: simpan sebagai list seperti “micro 5, nano 15”.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {TARGET_KOL_TIERS.map(({ key, label }) => (
+          <Label key={key} className="grid gap-2 border border-[#982E41]/20 bg-white p-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#982E41]">{label}</span>
+            <Input
+              min={0}
+              type="number"
+              value={tiers.find((item) => item.tier === key)?.count ?? 0}
+              onChange={(event) => updateTier(key, Number(event.target.value || 0))}
+            />
+          </Label>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1273,28 +1536,6 @@ function FormInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={!placeholder}
-      />
-    </Label>
-  );
-}
-
-function NumberInput({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  value: number;
-}) {
-  return (
-    <Label className="grid gap-2">
-      <span>{label}</span>
-      <Input
-        type="number"
-        min={0}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
       />
     </Label>
   );

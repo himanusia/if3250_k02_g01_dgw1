@@ -90,7 +90,7 @@ function RouteComponent() {
   }, [selectedKols]);
   return (
     <div className="h-full overflow-y-auto bg-[#FFF8F9]">
-      <div className="container mx-auto grid gap-6 px-4 py-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="mx-auto grid w-full max-w-[1700px] gap-6 px-[10px] py-6 md:px-[14px] [font-family:var(--font-poppins)] xl:grid-cols-[0.9fr_1.1fr]">
       <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
@@ -170,6 +170,7 @@ function RouteComponent() {
                 ))}
               </Select>
               <Button
+                className="rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
                 disabled={!selectedCampaignId || !selectedKolIds.length || addKol.isPending}
                 onClick={async () => {
                   try {
@@ -194,7 +195,6 @@ function RouteComponent() {
           </div>
         </div>
 
-        {/* TODO: kalau fix, rapiin jadi komponen */}
         <div className="overflow-x-auto">
           <h2 className="mb-2 text-lg font-semibold capitalize text-[#2B1418]">
             Overall

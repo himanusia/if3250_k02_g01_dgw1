@@ -1,8 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import type { WhitelistEntry, WhitelistRole } from "@/lib/app-types";
@@ -78,6 +77,16 @@ function fromMinutes(minutes: number) {
 }
 
 function RouteComponent() {
+  useEffect(() => {
+    document.documentElement.classList.add("digiTheme");
+    document.body.classList.add("digiTheme");
+
+    return () => {
+      document.documentElement.classList.remove("digiTheme");
+      document.body.classList.remove("digiTheme");
+    };
+  }, []);
+
   const syncSettingsQuery = useQuery(
     orpc.whitelist.getSyncSettings.queryOptions()
   );
@@ -162,7 +171,7 @@ function RouteComponent() {
 
   return (
     <div className="h-full overflow-y-auto bg-[#FFF8F9]">
-      <div className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="mx-auto grid w-full max-w-[1700px] gap-6 px-[10px] py-6 md:px-[14px] [font-family:var(--font-poppins)] lg:grid-cols-[0.9fr_1.1fr]">
       <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">
@@ -217,7 +226,7 @@ function RouteComponent() {
             />
           </Label>
 
-          <Button type="submit" disabled={createEntry.isPending} className="bg-[#982E41] text-white hover:bg-[#7B204C]">
+          <Button type="submit" disabled={createEntry.isPending} className="rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]">
             {createEntry.isPending ? "Menyimpan..." : "Simpan whitelist"}
           </Button>
         </form>
@@ -311,7 +320,7 @@ function RouteComponent() {
         <Button
           onClick={submitSyncSettings}
           disabled={updateSyncSettings.isPending}
-          className="bg-[#982E41] text-white hover:bg-[#7B204C]"
+          className="rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
         >
           {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
         </Button>
