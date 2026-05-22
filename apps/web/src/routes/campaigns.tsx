@@ -99,7 +99,7 @@ function getDefaultForm(): CampaignFormState {
     postBriefs: "",
     selectedKolIds: [],
     status: "draft",
-    targetFollowerTier: "micro",
+    targetFollowerTier: "",
     targetKolCount: 0,
   };
 }
@@ -113,7 +113,7 @@ const TARGET_KOL_TIERS = [
 ] as const;
 
 type TargetKolTier = { count: number; tier: string };
-type MetricTarget = { actual: number; isFallback: boolean; label: string; percent: number; target: number };
+type MetricTarget = { actual: number; label: string; percent: number; target: number | null };
 
 function clampPercent(value: number) {
   return Math.min(100, Math.max(0, Math.round(value)));
@@ -161,9 +161,7 @@ function parseTargetKolTiers(value: string | null | undefined): TargetKolTier[] 
   const text = value?.trim() ?? "";
 
   if (!text) {
-    result.set("nano", 15);
-    result.set("micro", 5);
-    return Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
+    return [];
   }
 
   for (const part of text.split(/[\n,;]+/)) {
@@ -176,8 +174,7 @@ function parseTargetKolTiers(value: string | null | undefined): TargetKolTier[] 
     }
   }
 
-  const parsed = Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
-  return parsed.length ? parsed : [{ tier: "nano", count: 15 }, { tier: "micro", count: 5 }];
+  return Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
 }
 
 function encodeTargetKolTiers(tiers: TargetKolTier[]) {
@@ -210,10 +207,6 @@ function getTimeProgress(periodStart: string, periodEnd: string, now = new Date(
   return { daysLeftLabel: "periode selesai", percent };
 }
 
-function getFallbackTarget(actual: number, seed: number, multiplier: number) {
-  return Math.max(100, actual > 0 ? Math.ceil((actual * multiplier) / 100) * 100 : seed);
-}
-
 function getCampaignProgressDisplay(campaign: CampaignRecord, progress?: CampaignDashboardRecord) {
   const objective = parseCampaignObjective(campaign.objective);
   const actual = {
@@ -223,23 +216,23 @@ function getCampaignProgressDisplay(campaign: CampaignRecord, progress?: Campaig
     views: progress?.viewCount ?? 0,
   };
   const targets = {
-    comments: objective.targetComments || getFallbackTarget(actual.comments, 500 + campaign.id * 11, 1.7),
-    likes: objective.targetLikes || getFallbackTarget(actual.likes, 3_000 + campaign.id * 101, 1.6),
-    shares: objective.targetShares || getFallbackTarget(actual.shares, 250 + campaign.id * 7, 1.8),
-    views: objective.targetViews || getFallbackTarget(actual.views, 50_000 + campaign.id * 1_000, 1.5),
+    comments: objective.targetComments > 0 ? objective.targetComments : null,
+    likes: objective.targetLikes > 0 ? objective.targetLikes : null,
+    shares: objective.targetShares > 0 ? objective.targetShares : null,
+    views: objective.targetViews > 0 ? objective.targetViews : null,
   };
   const metrics: MetricTarget[] = [
-    { actual: actual.views, isFallback: objective.targetViews <= 0, label: "Views", percent: getProgressPercent(actual.views, targets.views), target: targets.views },
-    { actual: actual.likes, isFallback: objective.targetLikes <= 0, label: "Likes", percent: getProgressPercent(actual.likes, targets.likes), target: targets.likes },
-    { actual: actual.comments, isFallback: objective.targetComments <= 0, label: "Comments", percent: getProgressPercent(actual.comments, targets.comments), target: targets.comments },
-    { actual: actual.shares, isFallback: objective.targetShares <= 0, label: "Shares", percent: getProgressPercent(actual.shares, targets.shares), target: targets.shares },
+    { actual: actual.views, label: "Views", percent: targets.views ? getProgressPercent(actual.views, targets.views) : 0, target: targets.views },
+    { actual: actual.likes, label: "Likes", percent: targets.likes ? getProgressPercent(actual.likes, targets.likes) : 0, target: targets.likes },
+    { actual: actual.comments, label: "Comments", percent: targets.comments ? getProgressPercent(actual.comments, targets.comments) : 0, target: targets.comments },
+    { actual: actual.shares, label: "Shares", percent: targets.shares ? getProgressPercent(actual.shares, targets.shares) : 0, target: targets.shares },
   ];
   const time = getTimeProgress(campaign.periodStart, campaign.periodEnd);
-  const explicitTargets = metrics.filter((metric) => !metric.isFallback).length;
+  const explicitTargets = metrics.filter((metric) => metric.target !== null).length;
   const bestMetricPercent = metrics.reduce((max, metric) => Math.max(max, metric.percent), 0);
   const metricSummary = explicitTargets
     ? `${explicitTargets} target asli • terbaik ${bestMetricPercent}%`
-    : `Target dummy sementara • terbaik ${bestMetricPercent}%`;
+    : "Target KPI belum diisi";
 
   return { bestMetricPercent, daysLeftLabel: time.daysLeftLabel, metricSummary, metrics, timePercent: time.percent };
 }
@@ -939,13 +932,13 @@ function RouteComponent() {
               </div>
             </div>
 
-            <DialogFooter className="border-border border-t pt-4">
+            <DialogFooter className="border-t border-[#982E41]/40 bg-white pt-4">
               {editingId && (
-                <Button type="button" variant="outline" onClick={resetForm}>
+                <Button type="button" variant="outline" className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]" onClick={resetForm}>
                   Batal edit
                 </Button>
               )}
-              <Button type="submit" disabled={createCampaign.isPending || updateCampaign.isPending} className="hover:bg-primary-hover">
+              <Button type="submit" disabled={createCampaign.isPending || updateCampaign.isPending} className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]">
                 {editingId
                   ? updateCampaign.isPending
                     ? "Menyimpan perubahan..."
@@ -970,9 +963,9 @@ function RouteComponent() {
           setIsDetailDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto p-0">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2B1418]">
           <DialogHeader>
-            <div className="border-border border-b-[1.6px] px-4 py-4 sm:px-6">
+            <div className="border-b border-[#982E41]/30 px-4 py-4 sm:px-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <DialogTitle className="!text-[22px] !font-bold tracking-tight text-foreground">
@@ -1286,7 +1279,7 @@ function RouteComponent() {
           setIsAddContentDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-0">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2B1418]">
           <DialogHeader>
             <div className="border-border border-b px-4 py-4 sm:px-6">
               <DialogTitle>Tambah content</DialogTitle>
@@ -1373,11 +1366,11 @@ function RouteComponent() {
                 </Button>
               </div>
 
-              <DialogFooter className="border-border border-t pt-4">
-                <Button type="button" variant="outline" onClick={closeAddContentDialog}>
+              <DialogFooter className="border-t border-[#982E41]/40 bg-white pt-4">
+                <Button type="button" variant="outline" className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]" onClick={closeAddContentDialog}>
                   Batal
                 </Button>
-                <Button type="submit" disabled={addContent.isPending} className="hover:bg-primary-hover">
+                <Button type="submit" disabled={addContent.isPending} className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]">
                   {addContent.isPending ? "Scraping..." : "Scrap Post"}
                 </Button>
               </DialogFooter>
@@ -1407,15 +1400,15 @@ function ProgressBlock({ label, meta, percent }: { label: string; meta: string; 
   );
 }
 
-function MetricTargetBadge({ actual, isFallback, label, percent, target }: MetricTarget) {
+function MetricTargetBadge({ actual, label, percent, target }: MetricTarget) {
   return (
-    <div className="border border-[#982E41]/20 bg-white px-3 py-2 text-xs text-[#2B1418]">
+    <div className="border border-[#982E41]/25 bg-white px-3 py-2 text-xs text-[#2B1418]">
       <div className="flex items-start justify-between gap-2">
         <span className="font-semibold uppercase tracking-[0.14em] text-[#982E41]">{label}</span>
-        <span className="font-semibold">{percent}%</span>
+        <span className="font-semibold">{target === null ? "-" : `${percent}%`}</span>
       </div>
-      <p className="mt-1 text-muted-foreground">
-        {formatNumber(actual)} / {formatNumber(target)}{isFallback ? " dummy" : ""}
+      <p className="mt-1 text-[#6D3A44]">
+        {formatNumber(actual)} / {target === null ? "belum ada target" : formatNumber(target)}
       </p>
     </div>
   );
@@ -1462,12 +1455,12 @@ function DateRangePicker({ label, onChange, value }: { label: string; onChange: 
   return (
     <div className="space-y-2 md:col-span-2">
       <Label>{label}</Label>
-      <Button type="button" variant="outline" className="w-full justify-start gap-2 font-normal" onClick={() => setOpen((current) => !current)}>
+      <Button type="button" variant="outline" className="w-full justify-start gap-2 border-[#982E41]/70 bg-white font-normal text-[#2B1418] hover:bg-[#F8EAED] hover:text-[#2B1418]" onClick={() => setOpen((current) => !current)}>
         <CalendarIcon className="size-4" />
         {value.from ? `${formatShortDate(toDateInputValue(value.from))} - ${value.to ? formatShortDate(toDateInputValue(value.to)) : "Pilih selesai"}` : "Pilih rentang tanggal"}
       </Button>
       {open && (
-        <div className="border-border bg-card w-fit max-w-full overflow-x-auto border p-3 shadow-sm">
+        <div className="w-fit max-w-full overflow-x-auto border border-[#982E41]/35 bg-white p-3 shadow-sm">
           <Calendar mode="range" numberOfMonths={2} selected={value} onSelect={onChange} />
         </div>
       )}
@@ -1532,6 +1525,7 @@ function FormInput({
     <Label className="grid gap-2">
       <span>{label}</span>
       <Input
+        className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -1556,7 +1550,7 @@ function FormTextarea({
     <Label className="grid gap-2">
       <span>{label}</span>
       <Textarea
-        className="text-xs"
+        className="border-[#982E41]/70 bg-white text-xs text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

@@ -159,6 +159,7 @@ function RouteComponent() {
             <span className="text-sm text-[#2B1418]">Tambahkan akun terpilih ke campaign</span>
             <div className="flex gap-2">
               <Select
+                className="border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
                 value={selectedCampaignId}
                 onChange={(event) => setSelectedCampaignId(event.target.value)}
               >
@@ -170,7 +171,7 @@ function RouteComponent() {
                 ))}
               </Select>
               <Button
-                className="rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
+                className="rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
                 disabled={!selectedCampaignId || !selectedKolIds.length || addKol.isPending}
                 onClick={async () => {
                   try {
@@ -359,6 +360,7 @@ function FilterInput({
     <Label className="grid gap-2 text-sm text-[#2B1418]">
       <span>{label}</span>
       <Input
+        className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

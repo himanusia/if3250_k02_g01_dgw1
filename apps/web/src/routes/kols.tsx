@@ -535,7 +535,7 @@ function mergeKeywords(
             <Button
               type="button"
               onClick={openCreateDialog}
-              className="h-8 rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
+              className="h-8 rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
             >
               <Plus className="mr-2 size-4" />
               Tambah KOL
@@ -543,7 +543,7 @@ function mergeKeywords(
 
             <Button
               type="button"
-              className="h-8 rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
+              className="h-8 rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
               onClick={() =>
                 fileInputRef.current?.click()
               }
@@ -635,17 +635,6 @@ function mergeKeywords(
 
                   <div className="flex flex-col items-start gap-2 md:items-end">
                     <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={KOL_ACTION_BUTTON_CLASS}
-                        onClick={() => {
-                          toast.info("masih dummy");
-                        }}
-                      >
-                        Atur Sinkronisasi
-                      </Button>
-
                       <Button
                         variant="outline"
                         size="sm"
@@ -1048,14 +1037,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent
-          className="max-h-[90vh] max-w-5xl overflow-hidden border p-0"
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderColor: KOLS_COLORS.stroke,
-            color: KOLS_COLORS.text,
-          }}
-        >
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"
@@ -1071,7 +1053,7 @@ function mergeKeywords(
 
           <div className="px-4 pb-4 sm:px-6">
             <div
-              className="mb-4 rounded border px-3 py-2 text-[13px]"
+              className="mb-4 border px-3 py-2 text-[13px]"
               style={{
                 borderColor: `${KOLS_COLORS.stroke}66`,
                 backgroundColor: "#FFF8F9",
@@ -1143,9 +1125,10 @@ function mergeKeywords(
               </table>
             </div>
 
-            <DialogFooter className="mt-4">
+            <DialogFooter className="mt-4 border-t border-[#982E41]/40 bg-white pt-4">
               <Button
                 variant="outline"
+                className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
                 onClick={() => {
                   setIsImportDialogOpen(false);
                   setImportPreview([]);
@@ -1182,14 +1165,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent
-          className="max-h-[90vh] max-w-5xl overflow-hidden border p-0"
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderColor: KOLS_COLORS.stroke,
-            color: KOLS_COLORS.text,
-          }}
-        >
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"
@@ -1426,7 +1402,7 @@ function mergeKeywords(
                 </div>
               )}
 
-              <DialogFooter className="mt-5 border-t pt-4">
+              <DialogFooter className="mt-5 border-t border-[#982E41]/40 bg-white pt-4">
                 <Button
                   className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
                   onClick={() => {
@@ -1537,7 +1513,7 @@ function FormInput({
           placeholder={placeholder}
           required={!placeholder}
           className={`
-            relative w-full rounded-[6px]
+            relative w-full rounded-none
             border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75]
             focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30
             ${ghost ? "bg-transparent" : ""}

@@ -193,6 +193,7 @@ function RouteComponent() {
           <Label className="grid gap-2 text-sm">
             <span>Email</span>
             <Input
+              className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
               type="email"
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
@@ -204,6 +205,7 @@ function RouteComponent() {
           <Label className="grid gap-2 text-sm">
             <span>Role</span>
             <Select
+              className="border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
               value={form.role}
               onChange={(event) =>
                 setForm((current) => ({
@@ -220,13 +222,14 @@ function RouteComponent() {
           <Label className="grid gap-2 text-sm">
             <span>Catatan</span>
             <Textarea
+              className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
               value={form.note}
               onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
               placeholder="Contoh: tim brand, boleh mengelola campaign"
             />
           </Label>
 
-          <Button type="submit" disabled={createEntry.isPending} className="rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]">
+          <Button type="submit" disabled={createEntry.isPending} className="rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white">
             {createEntry.isPending ? "Menyimpan..." : "Simpan whitelist"}
           </Button>
         </form>
@@ -288,6 +291,7 @@ function RouteComponent() {
 
         <div className="flex items-center gap-2">
           <Input
+            className="w-28 border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
             type="number"
             min={1}
             value={syncForm.intervalValue}
@@ -298,10 +302,10 @@ function RouteComponent() {
                 intervalValue: Number(e.target.value),
               }))
             }
-            className="w-28"
           />
 
           <Select
+            className="border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
             value={syncForm.intervalUnit}
             disabled={!enabled}
             onChange={(e) =>
@@ -320,7 +324,7 @@ function RouteComponent() {
         <Button
           onClick={submitSyncSettings}
           disabled={updateSyncSettings.isPending}
-          className="rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
+          className="rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
         >
           {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
         </Button>
