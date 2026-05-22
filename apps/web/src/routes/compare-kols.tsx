@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/compare-kols")({
@@ -106,7 +107,9 @@ function RouteComponent() {
         </div>
 
         <div className="max-h-128 space-y-2 overflow-auto border border-[#b43c39]/15 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3">
-          {filteredKols.map((kol) => {
+          {kolQuery.isLoading ? (
+            <CompareKolPickerSkeleton />
+          ) : filteredKols.map((kol) => {
             const selected = selectedKolIds.includes(kol.id);
 
             return (
@@ -139,7 +142,7 @@ function RouteComponent() {
             );
           })}
 
-          {!filteredKols.length && (
+          {!kolQuery.isLoading && !filteredKols.length && (
             <p className="text-sm text-muted-foreground">Tidak ada akun yang cocok dengan filter.</p>
           )}
         </div>
@@ -199,7 +202,7 @@ function RouteComponent() {
           <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             Overall
           </h2>
-          <table className="w-full border border-[#b43c39]/15 text-sm">
+          {kolQuery.isLoading ? <CompareTableSkeleton /> : <table className="w-full border border-[#b43c39]/15 text-sm">
             <thead className="bg-[#fff3d8] text-[#2b1418]">
               <tr>
                 <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
@@ -259,7 +262,7 @@ function RouteComponent() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table>}
         </div>
 
         {(Object.entries(groupedByPlatform) as Array<[SocialPlatform, GroupedPlatformAccount[]]>).map(([platform, accounts]) => (
@@ -364,5 +367,46 @@ function FilterInput({
         onChange={(event) => onChange(event.target.value)}
       />
     </Label>
+  );
+}
+
+
+function CompareKolPickerSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="border border-[#b43c39]/15 bg-white p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-44" />
+              <Skeleton className="h-4 w-64 max-w-full" />
+            </div>
+            <Skeleton className="h-4 w-14" />
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function CompareTableSkeleton() {
+  return (
+    <div className="border border-[#b43c39]/15 bg-white p-3">
+      <div className="grid gap-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="grid grid-cols-5 gap-2">
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

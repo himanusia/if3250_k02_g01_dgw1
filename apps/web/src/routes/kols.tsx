@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -85,7 +86,7 @@ const KOLS_COLORS = {
 } as const;
 
 const KOL_ACTION_BUTTON_CLASS =
-  "h-7 rounded-none !border !border-[#982E41] !bg-[#F7E7EB] px-2.5 !text-[12px] !font-normal !text-[#982E41] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
+  "h-8 rounded-none !border !border-[#982E41] !bg-white px-3 !text-[12px] !font-semibold !text-[#982E41] shadow-[3px_3px_0_rgba(152,46,65,0.12)] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
 function getKolErrorMessage(error: unknown, fallback: string) {
   const rpcError = error as RpcLikeError;
   const reason = rpcError?.data?.reason;
@@ -569,7 +570,9 @@ function mergeKeywords(
           <div className="border border-dashed border-[#b43c39]/15" />
 
           <div className="space-y-5">
-            {filteredKols.map((kol) => (
+            {kolQuery.isLoading ? (
+              <KolListSkeleton />
+            ) : filteredKols.map((kol) => (
               <div
                 key={kol.id}
                 className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]"
@@ -797,7 +800,7 @@ function mergeKeywords(
               </div>
             ))}
 
-            {!filteredKols.length && (
+            {!kolQuery.isLoading && !filteredKols.length && (
               <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
                 Belum ada KOL yang tersimpan.
               </p>
@@ -1537,4 +1540,37 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 function MetaBadge({ children }: { children: string }) {
   //badge metadata (Verified/Business/dll).
   return <span className="border border-[#982E41] bg-[#B33C39] px-2 py-1 text-[12px] leading-none text-white">{children}</span>;
+}
+
+
+function KolListSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-3">
+              <Skeleton className="size-12" />
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-64 max-w-full" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, metricIndex) => (
+              <Skeleton key={metricIndex} className="h-14 w-full" />
+            ))}
+          </div>
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ))}
+    </>
+  );
 }

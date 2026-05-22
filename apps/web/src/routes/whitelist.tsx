@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { requireAdminWhitelist } from "@/lib/auth-guard";
 import { client, orpc } from "@/utils/orpc";
@@ -241,7 +242,9 @@ function RouteComponent() {
         </div>
 
         <div className="space-y-3">
-          {whitelistEntries.map((entry) => (
+          {whitelistEntriesQuery.isLoading ? (
+            <WhitelistListSkeleton />
+          ) : whitelistEntries.map((entry) => (
             <div key={entry.id} className="flex items-start justify-between gap-4 border border-[#b43c39]/15 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3">
               <div className="space-y-1">
                 <p className="font-medium text-[#2b1418]">{entry.email}</p>
@@ -250,17 +253,19 @@ function RouteComponent() {
               </div>
               <Button
                 variant="destructive"
-                size="icon"
+                size="sm"
+                className="rounded-none"
                 onClick={() => deleteEntry.mutate({ id: entry.id })}
                 disabled={deleteEntry.isPending}
                 aria-label={`Delete ${entry.email}`}
               >
-                <Trash2 className="size-4" />
+                <Trash2 className="mr-1 size-4" />
+                Hapus
               </Button>
             </div>
           ))}
 
-          {!whitelistEntries.length && (
+          {!whitelistEntriesQuery.isLoading && !whitelistEntries.length && (
             <p className="text-sm text-muted-foreground">Belum ada email di whitelist database.</p>
           )}
         </div>
@@ -331,5 +336,23 @@ function RouteComponent() {
       </section>
       </div>
     </div>
+  );
+}
+
+
+function WhitelistListSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="flex items-start justify-between gap-4 border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-8 w-20" />
+        </div>
+      ))}
+    </>
   );
 }
