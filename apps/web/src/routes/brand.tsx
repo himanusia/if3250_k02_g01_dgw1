@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { CampaignRecord } from "@/lib/app-types";
 import type { BrandSummary } from "@/lib/brand-summary";
@@ -23,13 +23,37 @@ function RouteComponent() {
     };
   }, []);
 
+  const [query, setQuery] = useState("");
+  const [selectedBrandName, setSelectedBrandName] = useState<string | null>(null);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
   const brandSummaries = useMemo(() => getBrandSummaries(campaigns), [campaigns]);
+  const filteredBrands = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return brandSummaries;
+    }
+
+    return brandSummaries.filter((brand) => brand.name.toLowerCase().includes(normalizedQuery));
+  }, [brandSummaries, query]);
+  const selectedBrand = useMemo(() => {
+    if (!selectedBrandName) {
+      return filteredBrands[0] ?? brandSummaries[0];
+    }
+
+    return brandSummaries.find((brand) => brand.name === selectedBrandName) ?? filteredBrands[0] ?? null;
+  }, [brandSummaries, filteredBrands, selectedBrandName]);
+
+  useEffect(() => {
+    if (selectedBrandName && !brandSummaries.some((brand) => brand.name === selectedBrandName)) {
+      setSelectedBrandName(null);
+    }
+  }, [brandSummaries, selectedBrandName]);
 
   return (
     <div className="h-full overflow-y-auto bg-gradient-to-b from-background via-[#fff6f8] to-background">
-      <div className="container mx-auto grid max-w-4xl gap-5 px-4 py-6 lg:py-8">
+      <div className="container mx-auto grid max-w-6xl gap-5 px-4 py-6 lg:py-8">
         <section className="grid gap-2">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#B43C39]">Brand</p>
           <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">
@@ -37,44 +61,161 @@ function RouteComponent() {
           </h1>
         </section>
 
-        <section className="rounded-none border border-[#b43c39]/15 bg-white shadow-[8px_8px_0_rgba(152,46,65,0.12)]">
-          {campaignsQuery.isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">Memuat brand...</div>
-          ) : brandSummaries.length ? (
-            <div className="divide-y divide-[#b43c39]/10">
-              {brandSummaries.map((brand) => (
-                <BrandRow key={brand.name} brand={brand} />
-              ))}
-            </div>
-          ) : (
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-[#2b1418]">Belum ada brand.</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Buat campaign pertama dan isi nama brand untuk menampilkannya di halaman ini.
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
+          <div className="rounded-none border border-[#b43c39]/15 bg-white shadow-[8px_8px_0_rgba(152,46,65,0.12)]">
+            <div className="border-b border-[#b43c39]/10 p-4">
+              <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7B204C]" htmlFor="brand-search">
+                Cari brand
+              </label>
+              <input
+                id="brand-search"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Ketik nama brand..."
+                className="mt-2 h-11 w-full rounded-none border border-[#b43c39]/20 bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-[#B43C39] focus:ring-2 focus:ring-[#B43C39]/15"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {campaignsQuery.isLoading ? "Memuat brand..." : `${filteredBrands.length} dari ${brandSummaries.length} brand`}
               </p>
-              <Link
-                to="/campaigns"
-                className="mt-5 inline-flex items-center justify-center rounded-none bg-[#B43C39] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#8f2e2c]"
-              >
-                Buat campaign
-              </Link>
             </div>
-          )}
+
+            {campaignsQuery.isLoading ? (
+              <div className="p-6 text-sm text-muted-foreground">Memuat brand...</div>
+            ) : filteredBrands.length ? (
+              <div className="divide-y divide-[#b43c39]/10">
+                {filteredBrands.map((brand) => (
+                  <BrandRow
+                    key={brand.name}
+                    brand={brand}
+                    isSelected={brand.name === selectedBrand?.name}
+                    onSelect={() => setSelectedBrandName(brand.name)}
+                  />
+                ))}
+              </div>
+            ) : brandSummaries.length ? (
+              <div className="p-6">
+                <h2 className="text-xl font-semibold text-[#2b1418]">Brand tidak ditemukan.</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Coba kata kunci lain.</p>
+              </div>
+            ) : (
+              <div className="p-6">
+                <h2 className="text-xl font-semibold text-[#2b1418]">Belum ada brand.</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Buat campaign pertama dan isi nama brand untuk menampilkannya di halaman ini.
+                </p>
+                <Link
+                  to="/campaigns"
+                  className="mt-5 inline-flex items-center justify-center rounded-none bg-[#B43C39] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#8f2e2c]"
+                >
+                  Buat campaign
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <BrandDetail brand={selectedBrand} />
         </section>
       </div>
     </div>
   );
 }
 
-function BrandRow({ brand }: { brand: BrandSummary }) {
+function BrandRow({ brand, isSelected, onSelect }: { brand: BrandSummary; isSelected: boolean; onSelect: () => void }) {
   return (
-    <Link
-      to="/campaigns"
-      className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-[#fff6f8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B43C39]"
-      aria-label={`Buka campaign untuk ${brand.name}`}
+    <button
+      type="button"
+      className={`flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B43C39] ${
+        isSelected ? "bg-[#fff3d8]" : "hover:bg-[#fff6f8]"
+      }`}
+      aria-pressed={isSelected}
+      onClick={onSelect}
     >
-      <span className="text-lg font-semibold text-[#2b1418]">{brand.name}</span>
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B43C39]">Lihat</span>
-    </Link>
+      <span>
+        <span className="block text-lg font-semibold text-[#2b1418]">{brand.name}</span>
+        <span className="mt-1 block text-xs font-medium text-muted-foreground">
+          {brand.campaigns.length} campaign · {brand.totalKols} KOL
+        </span>
+      </span>
+      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B43C39]">Detail</span>
+    </button>
   );
+}
+
+function BrandDetail({ brand }: { brand: BrandSummary | null }) {
+  if (!brand) {
+    return (
+      <aside className="rounded-none border border-dashed border-[#b43c39]/25 bg-white/70 p-6 text-sm text-muted-foreground">
+        Pilih brand untuk melihat detail.
+      </aside>
+    );
+  }
+
+  const latestCampaigns = brand.campaigns.slice(0, 5);
+
+  return (
+    <aside className="rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)] lg:sticky lg:top-6 lg:self-start">
+      <div className="border-b border-[#b43c39]/10 pb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B43C39]">Detail brand</p>
+        <h2 className="mt-1 text-2xl font-semibold text-[#2b1418]">{brand.name}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Update terakhir {formatDate(brand.latestUpdatedAt)}</p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <DetailStat label="Campaign" value={brand.campaigns.length.toString()} />
+        <DetailStat label="Aktif" value={brand.activeCampaigns.toString()} />
+        <DetailStat label="KOL" value={brand.totalKols.toString()} />
+      </div>
+
+      <div className="mt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7B204C]">Platform</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {brand.platforms.length ? (
+            brand.platforms.map((platform) => (
+              <span key={platform} className="rounded-none bg-[#fff3d8] px-3 py-1 text-xs font-semibold text-[#7B204C]">
+                {platform}
+              </span>
+            ))
+          ) : (
+            <span className="text-sm text-muted-foreground">Belum ada platform.</span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7B204C]">Campaign brand</p>
+        <div className="mt-2 divide-y divide-border border border-border/70">
+          {latestCampaigns.map((campaign) => (
+            <div key={campaign.id} className="px-3 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-medium text-[#2b1418]">{campaign.name}</p>
+                <span className="bg-muted px-2 py-1 text-xs capitalize text-muted-foreground">{campaign.status}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{(campaign.kols ?? []).length} KOL</p>
+            </div>
+          ))}
+        </div>
+        {brand.campaigns.length > latestCampaigns.length ? (
+          <p className="mt-2 text-xs text-muted-foreground">+{brand.campaigns.length - latestCampaigns.length} campaign lain</p>
+        ) : null}
+      </div>
+    </aside>
+  );
+}
+
+function DetailStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-none bg-[#fff6f8] p-3 ring-1 ring-[#b43c39]/10">
+      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-[#2b1418]">{value}</p>
+    </div>
+  );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
 }
