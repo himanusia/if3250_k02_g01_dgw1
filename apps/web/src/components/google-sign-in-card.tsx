@@ -1,5 +1,5 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -8,6 +8,16 @@ import { getLoginErrorMessage } from "@/lib/login-error-message";
 import { Button } from "./ui/button";
 
 export default function GoogleSignInCard() {
+  useEffect(() => {
+    document.documentElement.classList.add("digiTheme");
+    document.body.classList.add("digiTheme");
+
+    return () => {
+      document.documentElement.classList.remove("digiTheme");
+      document.body.classList.remove("digiTheme");
+    };
+  }, []);
+
   const { isPending: isSessionPending } = authClient.useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -58,8 +68,8 @@ export default function GoogleSignInCard() {
     <div className="min-h-svh bg-[#f7f5f2] px-6 py-8 text-[#171312]">
       <div className="mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl items-center gap-10 lg:grid-cols-[1fr_0.88fr]">
         <section className="flex flex-col items-center justify-center text-center lg:items-start lg:text-left">
-          <div className="relative flex size-40 items-center justify-center rounded-[2.5rem] bg-white p-7 shadow-[0_28px_90px_rgba(23,19,18,0.12)] ring-1 ring-black/5 sm:size-52 sm:rounded-[3rem] sm:p-9 lg:size-72 lg:rounded-[4rem] lg:p-12">
-            <div className="pointer-events-none absolute inset-4 rounded-[inherit] bg-gradient-to-br from-[#B43C39]/8 via-transparent to-[#7B204C]/10" />
+          <div className="relative flex size-40 items-center justify-center rounded-none bg-white p-7 shadow-[10px_10px_0_rgba(152,46,65,0.12)] ring-1 ring-black/5 sm:size-52 sm:rounded-none sm:p-9 lg:size-72 lg:rounded-none lg:p-12">
+            <div className="pointer-events-none absolute inset-4 rounded-none bg-gradient-to-br from-[#B43C39]/8 via-transparent to-[#7B204C]/10" />
             <img src="/images/logo-placeholder.svg" alt="Digi Wonder" className="relative h-full w-full object-contain" />
           </div>
           <p className="mt-6 text-xs font-semibold uppercase tracking-[0.32em] text-[#7B204C]/65">
@@ -67,7 +77,7 @@ export default function GoogleSignInCard() {
           </p>
         </section>
 
-        <section className="mx-auto w-full max-w-md rounded-[2rem] border border-black/5 bg-white/80 p-6 shadow-[0_28px_90px_rgba(23,19,18,0.10)] backdrop-blur md:p-8">
+        <section className="mx-auto w-full max-w-md rounded-none border border-black/5 bg-white/80 p-6 shadow-[10px_10px_0_rgba(152,46,65,0.10)] backdrop-blur md:p-8">
           <div className="space-y-2">
             <p className="text-sm font-medium text-[#B43C39]">Welcome back</p>
             <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[#171312] md:text-4xl">
@@ -80,7 +90,7 @@ export default function GoogleSignInCard() {
 
           {loginErrorMessage && (
             <div
-              className="mt-6 flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/8 p-4 text-left text-destructive"
+              className="mt-6 flex items-start gap-3 rounded-none border border-destructive/25 bg-destructive/8 p-4 text-left text-destructive"
               role="alert"
             >
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
@@ -89,7 +99,7 @@ export default function GoogleSignInCard() {
           )}
 
           <Button
-            className="mt-8 h-13 w-full rounded-2xl border border-black/10 bg-[#171312] text-sm font-semibold text-white shadow-[0_18px_45px_rgba(23,19,18,0.18)] transition hover:-translate-y-0.5 hover:bg-[#2b2421] hover:shadow-[0_24px_60px_rgba(23,19,18,0.22)]"
+            className="mt-8 h-13 w-full rounded-none border border-black/10 bg-[#171312] text-sm font-semibold text-white shadow-[5px_5px_0_rgba(152,46,65,0.22)] transition hover:bg-[#2b2421] hover:shadow-[7px_7px_0_rgba(152,46,65,0.28)]"
             size="lg"
             onClick={handleGoogleSignIn}
             disabled={isLoading}

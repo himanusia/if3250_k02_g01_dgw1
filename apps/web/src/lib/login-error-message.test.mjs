@@ -9,6 +9,12 @@ describe("getLoginErrorMessage", () => {
     );
   });
 
+  test("normalizes underscored provider errors before showing them", () => {
+    expect(getLoginErrorMessage("?error=Email_ini_belum_masuk_whitelist_aplikasi.")).toBe(
+      "Email ini belum masuk whitelist aplikasi."
+    );
+  });
+
   test("keeps login clean when there is no error query", () => {
     expect(getLoginErrorMessage("")).toBeNull();
   });

@@ -8,5 +8,7 @@ export function getLoginErrorMessage(search: string) {
     return null;
   }
 
-  return error.trim() || GENERIC_LOGIN_ERROR_MESSAGE;
+  const normalizedError = error.replace(/_/g, " ").trim();
+
+  return normalizedError || GENERIC_LOGIN_ERROR_MESSAGE;
 }
