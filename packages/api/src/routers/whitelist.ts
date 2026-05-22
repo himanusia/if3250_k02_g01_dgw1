@@ -1,5 +1,5 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
-import { allowedEmail, appSettings } from "@if3250_k02_g01_dgw1/db/schema/access";
+import { whitelistEmail, appSettings } from "@if3250_k02_g01_dgw1/db/schema/whitelist";
 import { ORPCError } from "@orpc/server";
 import { desc, eq } from "drizzle-orm";
 import z from "zod";
@@ -19,7 +19,7 @@ export const whitelistRouter = {
     }
 
     const result = await db
-      .insert(allowedEmail)
+      .insert(whitelistEmail)
       .values({
         createdByUserId: context.session.user.id,
         email: input.email.trim().toLowerCase(),
@@ -27,7 +27,7 @@ export const whitelistRouter = {
         role: input.role,
       })
       .onConflictDoUpdate({
-        target: allowedEmail.email,
+        target: whitelistEmail.email,
         set: {
           isActive: true,
           note: input.note,
@@ -52,7 +52,7 @@ export const whitelistRouter = {
         throw new ORPCError("FORBIDDEN");
       }
 
-      await db.delete(allowedEmail).where(eq(allowedEmail.id, input.id));
+      await db.delete(whitelistEmail).where(eq(whitelistEmail.id, input.id));
 
       return {
         success: true,
@@ -63,7 +63,7 @@ export const whitelistRouter = {
       throw new ORPCError("FORBIDDEN");
     }
 
-    const rows = await db.select().from(allowedEmail).orderBy(desc(allowedEmail.createdAt));
+    const rows = await db.select().from(whitelistEmail).orderBy(desc(whitelistEmail.createdAt));
 
     return rows.map((row) => ({
       ...row,

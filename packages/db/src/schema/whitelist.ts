@@ -6,8 +6,8 @@ export const appRoleEnum = pgEnum("app_role", ["admin", "user"]);
 
 export type AppRole = (typeof appRoleEnum.enumValues)[number];
 
-export const allowedEmail = pgTable(
-  "allowed_email",
+export const whitelistEmail = pgTable(
+  "whitelist",
   {
     id: serial("id").primaryKey(),
     email: text("email").notNull(),
@@ -24,8 +24,8 @@ export const allowedEmail = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex("allowed_email_email_idx").on(table.email),
-    index("allowed_email_role_idx").on(table.role),
+    uniqueIndex("whitelist_email_idx").on(table.email),
+    index("whitelist_role_idx").on(table.role),
   ],
 );
 

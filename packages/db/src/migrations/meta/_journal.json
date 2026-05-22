@@ -8,6 +8,13 @@
       "when": 1779410661288,
       "tag": "0000_dashing_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779411210866,
+      "tag": "0001_rename_access_whitelist",
+      "breakpoints": true
     }
   ]
 }
