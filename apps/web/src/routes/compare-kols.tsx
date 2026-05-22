@@ -89,15 +89,14 @@ function RouteComponent() {
     return map;
   }, [selectedKols]);
   return (
-    <div className="h-full overflow-y-auto bg-[#FFF8F9]">
-      <div className="mx-auto grid w-full max-w-[1700px] gap-6 px-[10px] py-6 md:px-[14px] [font-family:var(--font-poppins)] xl:grid-cols-[0.9fr_1.1fr]">
-      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
+    <div className="h-full overflow-y-auto bg-gradient-to-b from-background via-[#fff6f8] to-background">
+      <div className="container mx-auto grid max-w-6xl gap-5 px-4 py-6 lg:grid-cols-[0.95fr_1.05fr] lg:py-8">
+      <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
-          <h1 className="text-2xl font-semibold text-[#2B1418]">Bandingkan kandidat KOL</h1>
-          <p className="text-[#6D3A44]">
-            Cari berdasarkan nama, handle, bidang, atau keyword, lalu pilih beberapa KOL untuk
-            dibandingkan.
+          <h1 className="text-2xl font-semibold text-[#2b1418]">Bandingkan kandidat KOL</h1>
+          <p className="text-muted-foreground">
+            Cari berdasarkan nama, handle, bidang, atau keyword, lalu pilih beberapa KOL untuk dibandingkan.
           </p>
         </div>
 
@@ -106,7 +105,7 @@ function RouteComponent() {
           <FilterInput label="Keyword" value={keywordFilter} onChange={setKeywordFilter} />
         </div>
 
-        <div className="max-h-128 space-y-2 overflow-auto border border-[#982E41]/35 bg-[#FFF8F9] p-3">
+        <div className="max-h-128 space-y-2 overflow-auto border border-[#b43c39]/15 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3">
           {filteredKols.map((kol) => {
             const selected = selectedKolIds.includes(kol.id);
 
@@ -114,7 +113,7 @@ function RouteComponent() {
               <button
                 key={kol.id}
                 type="button"
-                className={`w-full border p-3 text-left transition-colors ${selected ? "border-[#982E41] bg-[#F8EAED]" : "border-[#982E41]/25 bg-white hover:bg-[#F8EAED]/60"}`}
+                className={`w-full border p-3 text-left transition-colors ${selected ? "border-[#B43C39] bg-[#fff3d8]" : "border-[#b43c39]/15 bg-white hover:bg-[#fff6f8]"}`}
                 onClick={() => {
                   setSelectedKolIds((current) =>
                     current.includes(kol.id)
@@ -125,14 +124,14 @@ function RouteComponent() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-medium text-[#2B1418]">{kol.displayName}</p>
-                    <p className="text-sm text-[#6D3A44]">
+                    <p className="font-medium text-[#2b1418]">{kol.displayName}</p>
+                    <p className="text-sm text-muted-foreground">
                       {kol.accounts.map((account) => `@${account.handle}`).join(" • ")}
                     </p>
                   </div>
-                  <span className="text-xs text-[#6D3A44]">{kol.accounts.length} akun</span>
+                  <span className="text-xs text-muted-foreground">{kol.accounts.length} akun</span>
                 </div>
-                <div className="mt-2 grid gap-1 text-sm text-[#6D3A44] md:grid-cols-2">
+                <div className="mt-2 grid gap-1 text-sm text-muted-foreground md:grid-cols-2">
                   <p>Keywords: {kol.keywords || "-"}</p>
                   <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
                 </div>
@@ -141,25 +140,25 @@ function RouteComponent() {
           })}
 
           {!filteredKols.length && (
-            <p className="text-sm text-[#6D3A44]">Tidak ada akun yang cocok dengan filter.</p>
+            <p className="text-sm text-muted-foreground">Tidak ada akun yang cocok dengan filter.</p>
           )}
         </div>
       </section>
 
-      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
+      <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-[#2B1418]">Hasil perbandingan</h2>
-            <p className="text-[#6D3A44]">
+            <h2 className="text-xl font-semibold text-[#2b1418]">Hasil perbandingan</h2>
+            <p className="text-muted-foreground">
               Pilih beberapa akun untuk melihat metriknya side by side.
             </p>
           </div>
 
           <div className="grid gap-2">
-            <span className="text-sm text-[#2B1418]">Tambahkan akun terpilih ke campaign</span>
+            <span className="text-sm text-[#2b1418]">Tambahkan akun terpilih ke campaign</span>
             <div className="flex gap-2">
               <Select
-                className="border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+                className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={selectedCampaignId}
                 onChange={(event) => setSelectedCampaignId(event.target.value)}
               >
@@ -171,7 +170,7 @@ function RouteComponent() {
                 ))}
               </Select>
               <Button
-                className="rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
+                className="rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
                 disabled={!selectedCampaignId || !selectedKolIds.length || addKol.isPending}
                 onClick={async () => {
                   try {
@@ -197,64 +196,64 @@ function RouteComponent() {
         </div>
 
         <div className="overflow-x-auto">
-          <h2 className="mb-2 text-lg font-semibold capitalize text-[#2B1418]">
+          <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             Overall
           </h2>
-          <table className="w-full border border-[#982E41]/35 text-sm">
-            <thead className="bg-[#F8EAED] text-[#2B1418]">
+          <table className="w-full border border-[#b43c39]/15 text-sm">
+            <thead className="bg-[#fff3d8] text-[#2b1418]">
               <tr>
-                <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Name
                 </th>
-                <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Followers
                 </th>
-                <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Avg Likes
                 </th>
-                <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Avg Views
                 </th>
-                <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   ER
                 </th>
-                <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Est. Post
                 </th>
-                <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Actual Post
                 </th>
               </tr>
             </thead>
 
-            <tbody className="text-[#2B1418]">
+            <tbody className="text-[#2b1418]">
               {selectedKols.map((kol) => (
-                <tr key={kol.id} className="hover:bg-[#FFF8F9]">
-                  <td className="border border-[#982E41]/35 px-3 py-2 font-medium">
+                <tr key={kol.id} className="hover:bg-gradient-to-b from-background via-[#fff6f8] to-background">
+                  <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
                     {kol.displayName}
                   </td>
 
-                  <td className="border border-[#982E41]/35 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.totalFollowers.toLocaleString()}
                   </td>
 
-                  <td className="border border-[#982E41]/35 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.averageLikes.toLocaleString()}
                   </td>
 
-                  <td className="border border-[#982E41]/35 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.averageViews.toLocaleString()}
                   </td>
 
-                  <td className="border border-[#982E41]/35 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.engagementRate || "-"}
                   </td>
 
-                  <td className="border border-[#982E41]/35 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}
                   </td>
 
-                  <td className="border border-[#982E41]/35 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}
                   </td>
                 </tr>
@@ -265,73 +264,73 @@ function RouteComponent() {
 
         {(Object.entries(groupedByPlatform) as Array<[SocialPlatform, GroupedPlatformAccount[]]>).map(([platform, accounts]) => (
         <div key={platform} className="mb-6">
-          <h2 className="mb-2 text-lg font-semibold capitalize text-[#2B1418]">
+          <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             {platform}
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="w-full border border-[#982E41]/35 text-sm">
-              <thead className="bg-[#F8EAED] text-[#2B1418]">
+            <table className="w-full border border-[#b43c39]/15 text-sm">
+              <thead className="bg-[#fff3d8] text-[#2b1418]">
                 <tr>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Name
                   </th>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Handle
                   </th>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Followers
                   </th>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Avg Likes
                   </th>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Avg Views
                   </th>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     ER
                   </th>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Est. Post
                   </th>
-                  <th className="border border-[#982E41]/35 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Actual Post
                   </th>
                 </tr>
               </thead>
 
-              <tbody className="text-[#2B1418]">
+              <tbody className="text-[#2b1418]">
                 {accounts.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-[#FFF8F9]">
-                    <td className="border border-[#982E41]/35 px-3 py-2 font-medium">
+                  <tr key={acc.id} className="hover:bg-gradient-to-b from-background via-[#fff6f8] to-background">
+                    <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
                       {acc.displayName}
                     </td>
 
-                    <td className="border border-[#982E41]/35 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       @{acc.handle}
                     </td>
 
-                    <td className="border border-[#982E41]/35 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.followers.toLocaleString()}
                     </td>
 
-                    <td className="border border-[#982E41]/35 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.averageLikes.toLocaleString()}
                     </td>
 
-                    <td className="border border-[#982E41]/35 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.averageViews.toLocaleString()}
                     </td>
 
-                    <td className="border border-[#982E41]/35 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.engagementRate || "-"}
                     </td>
 
-                    <td className="border border-[#982E41]/35 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {formatCurrencyIdr(acc.estimatedPostRate)}
                     </td>
 
-                    <td className="border border-[#982E41]/35 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {formatCurrencyIdr(acc.actualPostRate)}
                     </td>
                   </tr>
@@ -357,10 +356,10 @@ function FilterInput({
   value: string;
 }) {
   return (
-    <Label className="grid gap-2 text-sm text-[#2B1418]">
+    <Label className="grid gap-2 text-sm text-[#2b1418]">
       <span>{label}</span>
       <Input
-        className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />

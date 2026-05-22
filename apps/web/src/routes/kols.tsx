@@ -516,26 +516,25 @@ function mergeKeywords(
   return (
     <>
       <div
-        className="h-full overflow-y-auto overflow-x-hidden py-6"
-        style={{ backgroundColor: KOLS_COLORS.pageBackground }}
+        className="h-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background py-6"
+
       >
         <div
-          className="mx-auto w-full max-w-[1700px] space-y-6 px-[10px] md:px-[14px] [font-family:var(--font-poppins)] font-normal"
+          className="container mx-auto max-w-6xl space-y-5 px-4 lg:py-2"
           style={{ color: KOLS_COLORS.text }}
         >
           <section
-            className="space-y-4 border p-4"
-            style={{
-              backgroundColor: "#FFFFFF",
-              borderColor: `${KOLS_COLORS.stroke}80`,
-            }}
+            className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]"
           >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <h1 className="text-[22px] font-bold uppercase tracking-tight md:text-[32px]">Daftar KOL</h1>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">KOL</p>
+              <h1 className="text-[22px] font-bold uppercase tracking-tight md:text-[32px]">Daftar KOL</h1>
+            </div>
             <Button
               type="button"
               onClick={openCreateDialog}
-              className="h-8 rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
+              className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
             >
               <Plus className="mr-2 size-4" />
               Tambah KOL
@@ -543,7 +542,7 @@ function mergeKeywords(
 
             <Button
               type="button"
-              className="h-8 rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
+              className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
               onClick={() =>
                 fileInputRef.current?.click()
               }
@@ -564,17 +563,16 @@ function mergeKeywords(
           </div>
 
           <div className="max-w-md">
-            <FormInput label="Search" value={search} onChange={setSearch} placeholder="Cari Nama, Handle, Keyword" />
+            <FormInput label="Search" value={search} onChange={setSearch} placeholder="Cari nama, handle, atau keyword" />
           </div>
 
-          <div className="border-[1.2px] border-dashed" style={{ borderColor: `${KOLS_COLORS.stroke}80` }} />
+          <div className="border border-dashed border-[#b43c39]/15" />
 
           <div className="space-y-5">
             {filteredKols.map((kol) => (
               <div
                 key={kol.id}
-                className="space-y-4 border-[1.6px] bg-white p-4"
-                style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+                className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]"
               >
                 {(() => {
                   const primaryAccount = kol.accounts[0];
@@ -594,17 +592,12 @@ function mergeKeywords(
                       <img
                         src={getAvatarSrc(primaryMetadata.avatarUrl)}
                         alt={kol.displayName}
-                        className="size-12 shrink-0 border object-cover"
-                        style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+                        className="size-12 shrink-0 border border-[#b43c39]/15 object-cover"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div
-                        className="flex size-12 shrink-0 items-center justify-center border text-[14px] font-medium"
-                        style={{
-                          backgroundColor: "#F8EAED",
-                          borderColor: `${KOLS_COLORS.stroke}66`,
-                        }}
+                        className="flex size-12 shrink-0 items-center justify-center border border-[#b43c39]/15 bg-[#fff3d8] text-[14px] font-medium"
                       >
                         {initials}
                       </div>
@@ -706,8 +699,7 @@ function mergeKeywords(
                   {kol.accounts.map((account) => (
                     <div
                       key={account.id}
-                      className="grid gap-3 border-[1.6px] bg-[#FFF5F7] p-3"
-                      style={{ borderColor: `${KOLS_COLORS.darkText}66` }}
+                      className="grid gap-3 border border-[#b43c39]/15 bg-[#fff6f8] p-3"
                     >
                       {(() => {
                         const metadata = getAccountMetadata(account.metadata);
@@ -826,7 +818,7 @@ function mergeKeywords(
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
+        <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
           <DialogHeader>
             <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
               <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
@@ -834,7 +826,7 @@ function mergeKeywords(
           </DialogHeader>
 
           <form
-            className="grid max-h-[calc(92vh-76px)] gap-5 overflow-y-auto overflow-x-hidden bg-[#FFF8F9] px-4 py-4 sm:px-6 sm:py-6"
+            className="grid max-h-[calc(92vh-76px)] gap-5 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background px-4 py-4 sm:px-6 sm:py-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
@@ -881,7 +873,7 @@ function mergeKeywords(
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-8 rounded-none !border-2 !border-[#982E41] !bg-[#F3D7DE] px-3 !text-[13px] !font-medium !text-[#7A2233] shadow-[0_0_0_1px_rgba(152,46,65,0.08)] transition-colors hover:!bg-[#982E41] hover:!text-white focus-visible:!ring-2 focus-visible:!ring-[#982E41]/30"
+                  className="h-8 rounded-none !border-2 !border-[#B43C39] !bg-[#B43C39] px-3 !text-[13px] !font-medium !text-white shadow-[0_0_0_1px_rgba(152,46,65,0.08)] transition-colors hover:!bg-[#8f2e2c] hover:!text-white focus-visible:!ring-2 focus-visible:!ring-[#B43C39]/15"
                   onClick={() => {
                     setForm((current) => ({
                       ...current,
@@ -1037,7 +1029,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"
@@ -1165,7 +1157,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"
@@ -1453,16 +1445,16 @@ function DisplayNameInput({
           onBlur={() => {
             setTimeout(() => setOpen(false), 100);
           }}
-          className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+          className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         />
       </Label>
 
       {open && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-28 w-full overflow-y-auto border border-[#982E41]/80 bg-[#FFF8F9] shadow-lg">
+        <div className="absolute z-10 mt-1 max-h-28 w-full overflow-y-auto border border-[#982E41]/80 bg-gradient-to-b from-background via-[#fff6f8] to-background shadow-lg">
           {filtered.map((opt) => (
             <div
               key={opt}
-              className="cursor-pointer px-3 py-2 text-[#2B1418] hover:bg-[#F4DCE1]"
+              className="cursor-pointer px-3 py-2 text-[#2b1418] hover:bg-[#F4DCE1]"
               onMouseDown={() => {
                 onChange(opt);
                 setOpen(false);
@@ -1514,8 +1506,8 @@ function FormInput({
           required={!placeholder}
           className={`
             relative w-full rounded-none
-            border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75]
-            focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30
+            border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75]
+            focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15
             ${ghost ? "bg-transparent" : ""}
           `}
         />
@@ -1526,7 +1518,7 @@ function FormInput({
 
 function MetricBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 border-[1.6px] bg-white/70 px-3 py-2" style={{ borderColor: `${KOLS_COLORS.stroke}80` }}>
+    <div className="grid gap-1 border border-[#b43c39]/15 bg-white/70 px-3 py-2">
       <p className="text-[13px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
       <p className="text-[19px] font-[560] leading-none tracking-[0.04em]">{value}</p>
     </div>

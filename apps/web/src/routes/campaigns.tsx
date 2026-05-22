@@ -620,8 +620,8 @@ function RouteComponent() {
               </Button>
             </div>
 
-            <div className="grid gap-3 border border-[#982E41]/15 bg-[#FFF8F9] p-3 md:grid-cols-[minmax(0,1fr)_220px]">
-              <Label className="grid gap-2 text-sm text-[#2B1418]">
+            <div className="grid gap-3 border border-[#982E41]/15 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3 md:grid-cols-[minmax(0,1fr)_220px]">
+              <Label className="grid gap-2 text-sm text-[#2b1418]">
                 <span>Cari campaign</span>
                 <Input
                   placeholder="Nama, brand, keyword, objective"
@@ -629,7 +629,7 @@ function RouteComponent() {
                   onChange={(event) => setCampaignSearch(event.target.value)}
                 />
               </Label>
-              <Label className="grid gap-2 text-sm text-[#2B1418]">
+              <Label className="grid gap-2 text-sm text-[#2b1418]">
                 <span>Filter status</span>
                 <Select
                   value={campaignStatusFilter}
@@ -695,7 +695,7 @@ function RouteComponent() {
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {targetTiers.map((tier) => (
-                        <span key={tier.tier} className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#2B1418]">
+                        <span key={tier.tier} className="border border-[#982E41]/25 bg-gradient-to-b from-background via-[#fff6f8] to-background px-2 py-1 text-xs font-medium text-[#2b1418]">
                           {tier.tier} {tier.count}
                         </span>
                       ))}
@@ -766,10 +766,10 @@ function RouteComponent() {
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2B1418]">
+        <DialogContent className="max-h-[92vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
           <DialogHeader>
             <div className="border-b border-[#982E41]/30 px-4 py-4 sm:px-6">
-              <DialogTitle className="text-[#2B1418]">{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
+              <DialogTitle className="text-[#2b1418]">{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
               <DialogDescription>
                 Isi brief dan pilih KOL yang masuk shortlist.
               </DialogDescription>
@@ -777,7 +777,7 @@ function RouteComponent() {
           </DialogHeader>
 
           <form
-            className="grid max-h-[calc(92vh-82px)] gap-5 overflow-y-auto overflow-x-hidden bg-[#FFF8F9] px-4 py-4 sm:px-6 sm:py-6"
+            className="grid max-h-[calc(92vh-82px)] gap-5 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background px-4 py-4 sm:px-6 sm:py-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
@@ -815,7 +815,7 @@ function RouteComponent() {
                   }))
                 }
               />
-              <div className="grid gap-2 border border-[#982E41]/20 bg-white px-3 py-2 text-sm text-[#2B1418] md:col-span-2">
+              <div className="grid gap-2 border border-[#982E41]/20 bg-white px-3 py-2 text-sm text-[#2b1418] md:col-span-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Status otomatis</span>
                 <span>{formatCampaignStatus(getCampaignTemporalStatus(form.periodStart, form.periodEnd))}</span>
                 <span className="text-xs text-muted-foreground">Status dihitung dari periode campaign, bukan input manual.</span>
@@ -846,7 +846,7 @@ function RouteComponent() {
 
             <div className="grid gap-2">
               <Label>Pilih KOL untuk campaign ini</Label>
-              
+
               <div className="space-y-3">
                 <Input
                   placeholder="Cari KOL berdasarkan nama, keyword, atau handle"
@@ -963,7 +963,7 @@ function RouteComponent() {
           setIsDetailDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2B1418]">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2b1418]">
           <DialogHeader>
             <div className="border-b border-[#982E41]/30 px-4 py-4 sm:px-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1046,7 +1046,7 @@ function RouteComponent() {
                               {group.handles.length ? group.handles.join(" / ") : "Tidak ada handle yang tersimpan."}
                             </p>
                           </div>
-                          <span className="border border-border bg-[#F8EAED] px-2 py-1 text-xs text-[#6D3A44]">
+                          <span className="border border-border bg-[#fff3d8] px-2 py-1 text-xs text-muted-foreground">
                             {group.contents.length} konten
                           </span>
                         </div>
@@ -1193,7 +1193,7 @@ function RouteComponent() {
                               {group.handles.length ? group.handles.join(" / ") : "Tidak ada handle yang tersimpan."}
                             </p>
                           </div>
-                          <span className="border border-border bg-[#F1E2E6] px-2 py-1 text-xs text-[#6D3A44]">
+                          <span className="border border-border bg-[#F1E2E6] px-2 py-1 text-xs text-muted-foreground">
                             {group.contents.length} archived
                           </span>
                         </div>
@@ -1279,7 +1279,7 @@ function RouteComponent() {
           setIsAddContentDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2B1418]">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2b1418]">
           <DialogHeader>
             <div className="border-border border-b px-4 py-4 sm:px-6">
               <DialogTitle>Tambah content</DialogTitle>
@@ -1385,13 +1385,13 @@ function RouteComponent() {
 
 function ProgressBlock({ label, meta, percent }: { label: string; meta: string; percent: number }) {
   return (
-    <div className="border border-[#982E41]/20 bg-[#FFF8F9] p-3">
+    <div className="border border-[#982E41]/20 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3">
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">{label}</p>
           <p className="text-xs text-muted-foreground">{meta}</p>
         </div>
-        <span className="text-2xl font-semibold text-[#2B1418]">{percent}%</span>
+        <span className="text-2xl font-semibold text-[#2b1418]">{percent}%</span>
       </div>
       <div className="mt-2 h-2 overflow-hidden bg-[#F2DDE2]">
         <div className="h-full bg-[#982E41]" style={{ width: `${percent}%` }} />
@@ -1402,12 +1402,12 @@ function ProgressBlock({ label, meta, percent }: { label: string; meta: string; 
 
 function MetricTargetBadge({ actual, label, percent, target }: MetricTarget) {
   return (
-    <div className="border border-[#982E41]/25 bg-white px-3 py-2 text-xs text-[#2B1418]">
+    <div className="border border-[#982E41]/25 bg-white px-3 py-2 text-xs text-[#2b1418]">
       <div className="flex items-start justify-between gap-2">
         <span className="font-semibold uppercase tracking-[0.14em] text-[#982E41]">{label}</span>
         <span className="font-semibold">{target === null ? "-" : `${percent}%`}</span>
       </div>
-      <p className="mt-1 text-[#6D3A44]">
+      <p className="mt-1 text-muted-foreground">
         {formatNumber(actual)} / {target === null ? "belum ada target" : formatNumber(target)}
       </p>
     </div>
@@ -1455,12 +1455,12 @@ function DateRangePicker({ label, onChange, value }: { label: string; onChange: 
   return (
     <div className="space-y-2 md:col-span-2">
       <Label>{label}</Label>
-      <Button type="button" variant="outline" className="w-full justify-start gap-2 border-[#982E41]/70 bg-white font-normal text-[#2B1418] hover:bg-[#F8EAED] hover:text-[#2B1418]" onClick={() => setOpen((current) => !current)}>
+      <Button type="button" variant="outline" className="w-full justify-start gap-2 border-[#b43c39]/20 bg-white font-normal text-[#2b1418] hover:bg-[#fff3d8] hover:text-[#2b1418]" onClick={() => setOpen((current) => !current)}>
         <CalendarIcon className="size-4" />
         {value.from ? `${formatShortDate(toDateInputValue(value.from))} - ${value.to ? formatShortDate(toDateInputValue(value.to)) : "Pilih selesai"}` : "Pilih rentang tanggal"}
       </Button>
       {open && (
-        <div className="w-fit max-w-full overflow-x-auto border border-[#982E41]/35 bg-white p-3 shadow-sm">
+        <div className="w-fit max-w-full overflow-x-auto border border-[#b43c39]/15 bg-white p-3 shadow-sm">
           <Calendar mode="range" numberOfMonths={2} selected={value} onSelect={onChange} />
         </div>
       )}
@@ -1525,7 +1525,7 @@ function FormInput({
     <Label className="grid gap-2">
       <span>{label}</span>
       <Input
-        className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -1550,7 +1550,7 @@ function FormTextarea({
     <Label className="grid gap-2">
       <span>{label}</span>
       <Textarea
-        className="border-[#982E41]/70 bg-white text-xs text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+        className="border-[#b43c39]/20 bg-white text-xs text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

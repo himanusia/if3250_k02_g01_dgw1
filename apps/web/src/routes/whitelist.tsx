@@ -170,15 +170,15 @@ function RouteComponent() {
   });
 
   return (
-    <div className="h-full overflow-y-auto bg-[#FFF8F9]">
-      <div className="mx-auto grid w-full max-w-[1700px] gap-6 px-[10px] py-6 md:px-[14px] [font-family:var(--font-poppins)] lg:grid-cols-[0.9fr_1.1fr]">
-      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
+    <div className="h-full overflow-y-auto bg-gradient-to-b from-background via-[#fff6f8] to-background">
+      <div className="container mx-auto grid max-w-6xl gap-5 px-4 py-6 lg:grid-cols-[0.95fr_1.05fr] lg:py-8">
+      <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">
             Administrator only
           </p>
-          <h1 className="text-2xl font-semibold text-[#2B1418]">Kelola whitelist email</h1>
-          <p className="text-[#6D3A44]">
+          <h1 className="text-2xl font-semibold text-[#2b1418]">Kelola whitelist email</h1>
+          <p className="text-muted-foreground">
             Administrator bisa menentukan email mana yang boleh login, sekaligus role user-nya.
           </p>
         </div>
@@ -193,7 +193,7 @@ function RouteComponent() {
           <Label className="grid gap-2 text-sm">
             <span>Email</span>
             <Input
-              className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+              className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
               type="email"
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
@@ -205,7 +205,7 @@ function RouteComponent() {
           <Label className="grid gap-2 text-sm">
             <span>Role</span>
             <Select
-              className="border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+              className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
               value={form.role}
               onChange={(event) =>
                 setForm((current) => ({
@@ -222,31 +222,31 @@ function RouteComponent() {
           <Label className="grid gap-2 text-sm">
             <span>Catatan</span>
             <Textarea
-              className="border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+              className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
               value={form.note}
               onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
               placeholder="Contoh: tim brand, boleh mengelola campaign"
             />
           </Label>
 
-          <Button type="submit" disabled={createEntry.isPending} className="rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white">
+          <Button type="submit" disabled={createEntry.isPending} className="rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]">
             {createEntry.isPending ? "Menyimpan..." : "Simpan whitelist"}
           </Button>
         </form>
       </section>
 
-      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
+      <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
-          <h2 className="text-xl font-semibold text-[#2B1418]">Daftar email yang diizinkan</h2>
+          <h2 className="text-xl font-semibold text-[#2b1418]">Daftar email yang diizinkan</h2>
         </div>
 
         <div className="space-y-3">
           {whitelistEntries.map((entry) => (
-            <div key={entry.id} className="flex items-start justify-between gap-4 border border-[#982E41]/35 bg-[#FFF8F9] p-3">
+            <div key={entry.id} className="flex items-start justify-between gap-4 border border-[#b43c39]/15 bg-gradient-to-b from-background via-[#fff6f8] to-background p-3">
               <div className="space-y-1">
-                <p className="font-medium text-[#2B1418]">{entry.email}</p>
-                <p className="text-sm text-[#6D3A44]">Role: {entry.role}</p>
-                {entry.note && <p className="text-sm text-[#6D3A44]">{entry.note}</p>}
+                <p className="font-medium text-[#2b1418]">{entry.email}</p>
+                <p className="text-sm text-muted-foreground">Role: {entry.role}</p>
+                {entry.note && <p className="text-sm text-muted-foreground">{entry.note}</p>}
               </div>
               <Button
                 variant="destructive"
@@ -261,22 +261,22 @@ function RouteComponent() {
           ))}
 
           {!whitelistEntries.length && (
-            <p className="text-sm text-[#6D3A44]">Belum ada email di whitelist database.</p>
+            <p className="text-sm text-muted-foreground">Belum ada email di whitelist database.</p>
           )}
         </div>
       </section>
-      <section className="space-y-4 border-[1.6px] border-[#982E41]/60 bg-white p-4 shadow-[0_18px_45px_rgba(152,46,65,0.08)]">
+      <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
-          <h2 className="text-xl font-semibold text-[#2B1418]">Global Sync Settings</h2>
-          <p className="text-sm text-[#6D3A44]">
+          <h2 className="text-xl font-semibold text-[#2b1418]">Global Sync Settings</h2>
+          <p className="text-sm text-muted-foreground">
             Atur seberapa sering semua KOL akan disinkronkan.
           </p>
-          <p className="text-sm text-[#6D3A44]">
+          <p className="text-sm text-muted-foreground">
             {nextSyncLabel}
           </p>
         </div>
 
-        <Label className="flex items-center gap-2 text-sm text-[#2B1418]">
+        <Label className="flex items-center gap-2 text-sm text-[#2b1418]">
           <Checkbox
             checked={syncForm.enabled}
             onCheckedChange={(checked) =>
@@ -291,7 +291,7 @@ function RouteComponent() {
 
         <div className="flex items-center gap-2">
           <Input
-            className="w-28 border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+            className="w-28 border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
             type="number"
             min={1}
             value={syncForm.intervalValue}
@@ -305,7 +305,7 @@ function RouteComponent() {
           />
 
           <Select
-            className="border-[#982E41]/70 bg-white text-[#2B1418] focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30"
+            className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
             value={syncForm.intervalUnit}
             disabled={!enabled}
             onChange={(e) =>
@@ -315,16 +315,16 @@ function RouteComponent() {
               }))
             }
           >
-            <option value="minute">Minute(s)</option>
-            <option value="hour">Hour(s)</option>
-            <option value="day">Day(s)</option>
+            <option value="minute">Menit</option>
+            <option value="hour">Jam</option>
+            <option value="day">Hari</option>
           </Select>
         </div>
 
         <Button
           onClick={submitSyncSettings}
           disabled={updateSyncSettings.isPending}
-          className="rounded-none border border-[#982E41] bg-[#F3D7DE] px-4 text-[13px] font-medium text-[#7A2233] hover:bg-[#982E41] hover:text-white"
+          className="rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
         >
           {updateSyncSettings.isPending ? "Saving..." : "Save Settings"}
         </Button>
