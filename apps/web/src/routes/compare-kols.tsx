@@ -113,10 +113,11 @@ function RouteComponent() {
             const selected = selectedKolIds.includes(kol.id);
 
             return (
-              <button
+              <Button
                 key={kol.id}
                 type="button"
-                className={`w-full border p-3 text-left transition-colors ${selected ? "border-[#B43C39] bg-[#fff3d8]" : "border-[#b43c39]/15 bg-white hover:bg-[#fff6f8]"}`}
+                variant={selected ? "default" : "outline"}
+                className={`h-auto w-full justify-start border p-3 text-left transition-colors ${selected ? "border-[#B43C39] bg-[#fff3d8] text-[#2b1418] hover:bg-[#ffeabd]" : "border-[#b43c39]/15 bg-white text-[#2b1418] hover:bg-[#fff6f8]"}`}
                 onClick={() => {
                   setSelectedKolIds((current) =>
                     current.includes(kol.id)
@@ -125,20 +126,22 @@ function RouteComponent() {
                   );
                 }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-[#2b1418]">{kol.displayName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {kol.accounts.map((account) => `@${account.handle}`).join(" • ")}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{kol.accounts.length} akun</span>
-                </div>
-                <div className="mt-2 grid gap-1 text-sm text-muted-foreground md:grid-cols-2">
-                  <p>Keywords: {kol.keywords || "-"}</p>
-                  <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
-                </div>
-              </button>
+                <span className="block w-full">
+                  <span className="flex items-start justify-between gap-3">
+                    <span>
+                      <span className="block font-medium text-[#2b1418]">{kol.displayName}</span>
+                      <span className="block text-sm text-muted-foreground">
+                        {kol.accounts.map((account) => `@${account.handle}`).join(" • ")}
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">{kol.accounts.length} akun</span>
+                  </span>
+                  <span className="mt-2 grid gap-1 text-sm text-muted-foreground md:grid-cols-2">
+                    <span>Keywords: {kol.keywords || "-"}</span>
+                    <span>Followers: {kol.totalFollowers.toLocaleString()}</span>
+                  </span>
+                </span>
+              </Button>
             );
           })}
 

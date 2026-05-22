@@ -821,7 +821,7 @@ function mergeKeywords(
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
+        <DialogContent className="max-h-[92vh] max-w-6xl text-[#2b1418]">
           <DialogHeader>
             <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
               <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
@@ -985,7 +985,7 @@ function mergeKeywords(
         }}
       >
         <DialogContent
-          className="border"
+          className="max-w-md"
           style={{
             backgroundColor: KOLS_COLORS.surface,
             borderColor: KOLS_COLORS.stroke,
@@ -1032,7 +1032,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
+        <DialogContent className="max-h-[90vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"
@@ -1160,7 +1160,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
+        <DialogContent className="max-h-[90vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"

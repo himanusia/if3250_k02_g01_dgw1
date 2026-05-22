@@ -289,6 +289,11 @@ function RouteComponent() {
   );
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
   const detailCampaignData = (detailCampaignQuery.data as CampaignDetailRecord | null | undefined) ?? null;
+  const brandOptions = useMemo(() => {
+    return Array.from(new Set(campaigns.map((campaign) => campaign.brand.trim()).filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  }, [campaigns]);
+
   const campaignReportUrl = detailCampaignId !== null ? `/api/rpc/campaign-report?campaignId=${detailCampaignId}` : "";
 
   const addContentCampaign = useMemo(() => {
@@ -775,14 +780,12 @@ function RouteComponent() {
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-hidden border border-[#982E41] bg-white p-0 text-[#2b1418]">
+        <DialogContent className="max-h-[92vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
-            <div className="border-b border-[#982E41]/30 px-4 py-4 sm:px-6">
-              <DialogTitle className="text-[#2b1418]">{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
-              <DialogDescription>
-                Isi brief dan pilih KOL yang masuk shortlist.
-              </DialogDescription>
-            </div>
+            <DialogTitle>{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
+            <DialogDescription>
+              Isi brief, brand, target KPI, dan shortlist KOL. Brand existing muncul sebagai suggestion; brand baru cukup diketik.
+            </DialogDescription>
           </DialogHeader>
 
           <form
@@ -798,8 +801,8 @@ function RouteComponent() {
                 value={form.name}
                 onChange={(value) => setForm((current) => ({ ...current, name: value }))}
               />
-              <FormInput
-                label="Brand"
+              <BrandInput
+                options={brandOptions}
                 value={form.brand}
                 onChange={(value) => setForm((current) => ({ ...current, brand: value }))}
               />
@@ -868,9 +871,11 @@ function RouteComponent() {
                     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Filter by keyword</p>
                     <div className="flex flex-wrap gap-2">
                       {allKeywords.map((keyword) => (
-                        <button
+                        <Button
                           key={keyword}
                           type="button"
+                          size="xs"
+                          variant={selectedKeywordFilter.includes(keyword) ? "default" : "outline"}
                           onClick={() => {
                             setSelectedKeywordFilter((current) =>
                               current.includes(keyword)
@@ -878,17 +883,12 @@ function RouteComponent() {
                                 : [...current, keyword]
                             );
                           }}
-                          className={`
-                            border px-2 py-1 text-xs transition-colors
-                            ${
-                              selectedKeywordFilter.includes(keyword)
-                                ? "border-foreground bg-primary text-background"
-                                : "border-border text-muted-foreground hover:border-primary"
-                            }
-                          `}
+                          className={selectedKeywordFilter.includes(keyword)
+                            ? "border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
+                            : "border-[#982E41]/25 bg-white text-[#982E41] hover:bg-[#982E41]/10"}
                         >
                           {keyword}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
@@ -972,7 +972,7 @@ function RouteComponent() {
           setIsDetailDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2b1418]">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto text-[#2b1418]">
           <DialogHeader>
             <div className="border-b border-[#982E41]/30 px-4 py-4 sm:px-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1320,7 +1320,7 @@ function RouteComponent() {
           setIsAddContentDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto border border-[#982E41] bg-white p-0 text-[#2b1418]">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto text-[#2b1418]">
           <DialogHeader>
             <div className="border-border border-b px-4 py-4 sm:px-6">
               <DialogTitle>Tambah content</DialogTitle>
@@ -1441,7 +1441,7 @@ function ProgressBlock({ label, meta, percent }: { label: string; meta: string; 
   );
 }
 
-function MetricTargetBadge({ actual, isFallback, label, percent, target }: MetricTarget) {
+function MetricTargetBadge({ actual, label, percent, target }: MetricTarget) {
   return (
     <div className="border border-[#982E41]/25 bg-white px-3 py-2 text-xs text-[#2b1418]">
       <div className="flex items-start justify-between gap-2">
@@ -1548,6 +1548,32 @@ function ObjectiveNumberInput({ label, onChange, value }: { label: string; onCha
         placeholder="0"
       />
     </div>
+  );
+}
+
+function BrandInput({ onChange, options, value }: { onChange: (value: string) => void; options: string[]; value: string }) {
+  const normalizedValue = value.trim().toLowerCase();
+  const isNewBrand = value.trim().length > 0 && !options.some((option) => option.toLowerCase() === normalizedValue);
+
+  return (
+    <label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
+      <span>Brand</span>
+      <Input
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+        list="campaign-brand-options"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Pilih brand existing atau ketik brand baru"
+        value={value}
+      />
+      <datalist id="campaign-brand-options">
+        {options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+      <span className="text-[11px] font-normal normal-case tracking-normal text-muted-foreground">
+        {isNewBrand ? `Brand baru “${value.trim()}” akan dipakai otomatis saat campaign disimpan.` : "Suggestion diambil dari brand campaign existing."}
+      </span>
+    </label>
   );
 }
 
