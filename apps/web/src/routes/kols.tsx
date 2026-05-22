@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, useRef  } from "react";
+import { Instagram, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
 
@@ -87,6 +87,28 @@ const KOLS_COLORS = {
 
 const KOL_ACTION_BUTTON_CLASS =
   "h-8 rounded-none !border !border-[#982E41] !bg-white px-3 !text-[12px] !font-semibold !text-[#982E41] shadow-[3px_3px_0_rgba(152,46,65,0.12)] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
+
+function getSocialUrl(platform: SocialPlatform, handle: string) {
+  const cleanHandle = handle.replace(/^@/, "").trim();
+
+  if (platform === "instagram") {
+    return `https://www.instagram.com/${cleanHandle}/`;
+  }
+
+  return `https://www.tiktok.com/@${cleanHandle}`;
+}
+
+function SocialPlatformIcon({ platform, className = "size-4" }: { platform: SocialPlatform; className?: string }) {
+  if (platform === "instagram") {
+    return <Instagram className={className} aria-hidden="true" />;
+  }
+
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16.5 3.2c.4 2.4 1.8 3.9 4.1 4.1v3.1c-1.4.1-2.7-.3-4-1.1v5.9c0 4.2-2.7 6.6-6.2 6.6-3.1 0-5.6-2.1-5.6-5.2 0-3.4 2.6-5.6 6.3-5.4v3.2c-1.8-.3-3 .5-3 2 0 1.3 1 2.1 2.2 2.1 1.4 0 2.5-.8 2.5-3V3.2h3.7Z" />
+    </svg>
+  );
+}
 function getKolErrorMessage(error: unknown, fallback: string) {
   const rpcError = error as RpcLikeError;
   const reason = rpcError?.data?.reason;
@@ -122,15 +144,24 @@ function RouteComponent() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [keywordFilter, setKeywordFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState<"all" | SocialPlatform>("all");
+  const [tierFilter, setTierFilter] = useState("all");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
+  const keywordOptions = useMemo(() => {
+    return Array.from(new Set(kols.flatMap((kol) => parseKeywordSegments(kol.keywords))))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  }, [kols]);
+
+  const tierOptions = useMemo(() => {
+    return Array.from(new Set(kols.map((kol) => kol.followerTier).filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  }, [kols]);
+
   const filteredKols = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return kols;
-    }
 
     return kols.filter((kol) => {
       const haystack = [
@@ -142,9 +173,16 @@ function RouteComponent() {
         .join(" ")
         .toLowerCase();
 
-      return haystack.includes(normalizedSearch);
+      const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
+      const matchesKeyword = keywordFilter === "all" || parseKeywordSegments(kol.keywords).some(
+        (keyword) => keyword.toLowerCase() === keywordFilter.toLowerCase(),
+      );
+      const matchesPlatform = platformFilter === "all" || kol.accounts.some((account) => account.platform === platformFilter);
+      const matchesTier = tierFilter === "all" || kol.followerTier === tierFilter;
+
+      return matchesSearch && matchesKeyword && matchesPlatform && matchesTier;
     });
-  }, [kols, search]);
+  }, [keywordFilter, kols, platformFilter, search, tierFilter]);
 
   const createKol = useMutation({
     mutationFn: (input: KolFormState) => client.kol.create(input),
@@ -219,11 +257,7 @@ function RouteComponent() {
     setIsDialogOpen(true);
   }
 
-  const allKeywords = useMemo(() => {
-    return Array.from(
-      new Set(filteredKols.flatMap((kol) => parseKeywordSegments(kol.keywords))),
-    );
-  }, [filteredKols]);
+  const allKeywords = keywordOptions;
 
   const displayNames = useMemo(() => {
     return Array.from(
@@ -529,30 +563,32 @@ function mergeKeywords(
           >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">KOL</p>
-              <h1 className="text-[22px] font-bold uppercase tracking-tight md:text-[32px]">Daftar KOL</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#B43C39]">KOL</p>
+              <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Daftar KOL</h1>
             </div>
-            <Button
-              type="button"
-              onClick={openCreateDialog}
-              className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
-            >
-              <Plus className="mr-2 size-4" />
-              Tambah KOL
-            </Button>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Button
+                type="button"
+                onClick={openCreateDialog}
+                className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
+              >
+                <Plus className="mr-2 size-4" />
+                Tambah KOL
+              </Button>
 
-            <Button
-              type="button"
-              className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
-              onClick={() =>
-                fileInputRef.current?.click()
-              }
-              disabled={importKol.isPending}
-            >
-              {importKol.isPending
-                ? "Mengimport..."
-                : "Import Spreadsheet"}
-            </Button>
+              <Button
+                type="button"
+                className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
+                onClick={() =>
+                  fileInputRef.current?.click()
+                }
+                disabled={importKol.isPending}
+              >
+                {importKol.isPending
+                  ? "Mengimport..."
+                  : "Import Spreadsheet"}
+              </Button>
+            </div>
 
             <input
               ref={fileInputRef}
@@ -563,9 +599,60 @@ function mergeKeywords(
             />
           </div>
 
-          <div className="max-w-md">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
             <FormInput label="Search" value={search} onChange={setSearch} placeholder="Cari nama, handle, atau keyword" />
+            <Label className="grid gap-2 text-sm">
+              <span>Platform</span>
+              <Select
+                className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                value={platformFilter}
+                onChange={(event) => setPlatformFilter(event.target.value as typeof platformFilter)}
+              >
+                <option value="all">Semua platform</option>
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+              </Select>
+            </Label>
+            <Label className="grid gap-2 text-sm">
+              <span>Tier</span>
+              <Select
+                className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                value={tierFilter}
+                onChange={(event) => setTierFilter(event.target.value)}
+              >
+                <option value="all">Semua tier</option>
+                {tierOptions.map((tier) => (
+                  <option key={tier} value={tier}>{tier}</option>
+                ))}
+              </Select>
+            </Label>
           </div>
+
+          {keywordOptions.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="xs"
+                variant={keywordFilter === "all" ? "default" : "outline"}
+                className={keywordFilter === "all" ? "rounded-none bg-[#B43C39] text-white hover:bg-[#8f2e2c]" : "rounded-none border-[#982E41]/25 bg-white text-[#982E41] hover:bg-[#982E41]/10"}
+                onClick={() => setKeywordFilter("all")}
+              >
+                Semua keyword
+              </Button>
+              {keywordOptions.map((keyword) => (
+                <Button
+                  key={keyword}
+                  type="button"
+                  size="xs"
+                  variant={keywordFilter === keyword ? "default" : "outline"}
+                  className={keywordFilter === keyword ? "rounded-none bg-[#B43C39] text-white hover:bg-[#8f2e2c]" : "rounded-none border-[#982E41]/25 bg-white text-[#982E41] hover:bg-[#982E41]/10"}
+                  onClick={() => setKeywordFilter(keyword)}
+                >
+                  {keyword}
+                </Button>
+              ))}
+            </div>
+          )}
 
           <div className="border border-dashed border-[#b43c39]/15" />
 
@@ -613,9 +700,21 @@ function mergeKeywords(
                       >
                         {kol.displayName}
                       </Link>
-                      <p className="text-[13px]" style={{ color: KOLS_COLORS.text }}>
-                        {kol.accounts.length} akun terhubung
-                      </p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {kol.accounts.map((account) => (
+                          <a
+                            key={`${account.platform}-${account.handle}`}
+                            href={getSocialUrl(account.platform, account.handle)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 border border-[#982E41]/20 bg-[#FFF8F9] px-2 py-1 text-[12px] font-medium text-[#722331] underline-offset-2 hover:underline"
+                            aria-label={`Buka ${account.platform} @${account.handle}`}
+                          >
+                            <SocialPlatformIcon platform={account.platform} className="size-3.5" />
+                            @{account.handle}
+                          </a>
+                        ))}
+                      </div>
                       {primaryMetadata?.category && (
                         <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
                           {primaryMetadata.category}
@@ -669,7 +768,7 @@ function mergeKeywords(
                   );
                 })()}
 
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[6px]" style={{ color: KOLS_COLORS.darkText }}>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" style={{ color: KOLS_COLORS.darkText }}>
                   <MetricBox label="Total followers" value={formatNumber(kol.totalFollowers)} />
                   <MetricBox label="Avg likes" value={formatNumber(kol.averageLikes)} />
                   <MetricBox label="Avg views" value={formatNumber(kol.averageViews)} />
@@ -732,10 +831,24 @@ function mergeKeywords(
                                 )}
 
                                 <div className="min-w-0 space-y-1">
-                                  <p className="text-[16px] font-bold uppercase leading-none">{account.platform}</p>
-                                  <p className="wrap-break-word text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
+                                  <a
+                                    href={getSocialUrl(account.platform, account.handle)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-2 text-[16px] font-bold uppercase leading-none text-[#1D1114] underline-offset-2 hover:underline"
+                                  >
+                                    <SocialPlatformIcon platform={account.platform} />
+                                    {account.platform}
+                                  </a>
+                                  <a
+                                    href={getSocialUrl(account.platform, account.handle)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex wrap-break-word items-center gap-1 text-[13px] underline-offset-2 hover:underline"
+                                    style={{ color: KOLS_COLORS.mutedText }}
+                                  >
                                     @{account.handle}
-                                  </p>
+                                  </a>
                                   {metadata?.fullName && metadata.fullName !== account.handle && (
                                     <p className="text-[13px]">{metadata.fullName}</p>
                                   )}
@@ -823,19 +936,25 @@ function mergeKeywords(
       >
         <DialogContent className="max-h-[92vh] max-w-6xl text-[#2b1418]">
           <DialogHeader>
-            <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
-              <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
+            <div className="border-b bg-gradient-to-r from-[#FFF8F9] via-white to-[#fff3d8] px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
+              <DialogTitle className="!text-[22px] !font-bold tracking-tight text-[#1D1114]">
+                {editingId ? "Edit KOL" : "Tambah KOL"}
+              </DialogTitle>
             </div>
           </DialogHeader>
 
           <form
-            className="grid max-h-[calc(92vh-76px)] gap-5 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background px-4 py-4 sm:px-6 sm:py-6"
+            className="grid max-h-[calc(92vh-88px)] gap-5 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background px-4 py-4 sm:px-6 sm:py-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
             }}
           >
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5">
+              <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: KOLS_COLORS.stroke }}>Profil KOL</p>
+              </div>
               <DisplayNameInput
                 label="Display name"
                 value={form.displayName}
@@ -845,7 +964,9 @@ function mergeKeywords(
               <FormInput
                 label="Keywords"
                 value={form.keywords}
-                onChange={(value) => {setForm((current) => ({ ...current, keywords: value }));}}
+                onChange={(value) => {
+                  setForm((current) => ({ ...current, keywords: value }));
+                }}
                 ghost={suggestion}
                 onKeyDown={(e) => {
                   if (e.key === "Tab" && suggestion) {
@@ -868,11 +989,11 @@ function mergeKeywords(
                   }
                 }}
               />
-            </div>
+              </section>
 
-            <div className="grid gap-3">
+              <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-[15px] font-medium">Akun</h2>
+                <h2 className="text-[15px] font-medium">Akun sosial</h2>
                 <Button
                   type="button"
                   variant="outline"
@@ -945,9 +1066,10 @@ function mergeKeywords(
                   </div>
                 </div>
               ))}
+            </section>
             </div>
 
-            <DialogFooter className="border-t border-[#982E41]/40 bg-white px-0 pt-4">
+            <DialogFooter className="sticky bottom-0 border-t border-[#982E41]/40 bg-white px-4 py-3 shadow-[0_-8px_20px_rgba(152,46,65,0.08)]">
               {editingId && (
                 <Button
                   type="button"
@@ -1546,15 +1668,15 @@ function MetaBadge({ children }: { children: string }) {
 function KolListSkeleton() {
   return (
     <>
-      {Array.from({ length: 4 }).map((_, index) => (
+      {Array.from({ length: 3 }).map((_, index) => (
         <div key={index} className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-3">
-              <Skeleton className="size-12" />
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-48" />
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-64 max-w-full" />
+            <div className="flex min-w-0 items-start gap-3">
+              <Skeleton className="size-12 shrink-0" />
+              <div className="min-w-0 space-y-2">
+                <Skeleton className="h-5 w-48 max-w-full" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-72 max-w-full" />
               </div>
             </div>
             <div className="flex flex-wrap gap-2 md:justify-end">
@@ -1563,12 +1685,44 @@ function KolListSkeleton() {
               <Skeleton className="h-8 w-20" />
             </div>
           </div>
+
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, metricIndex) => (
-              <Skeleton key={metricIndex} className="h-14 w-full" />
+              <div key={metricIndex} className="border border-[#b43c39]/15 bg-white/70 px-3 py-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="mt-2 h-5 w-20" />
+              </div>
             ))}
           </div>
-          <Skeleton className="h-24 w-full" />
+
+          <div className="grid gap-1 text-[13px] md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, detailIndex) => (
+              <Skeleton key={detailIndex} className="h-4 w-full max-w-56" />
+            ))}
+          </div>
+
+          <div className="grid gap-5">
+            {Array.from({ length: 2 }).map((_, accountIndex) => (
+              <div key={accountIndex} className="grid gap-3 border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <Skeleton className="size-14 shrink-0" />
+                  <div className="min-w-0 space-y-2">
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-4 w-40 max-w-full" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-16" />
+                      <Skeleton className="h-6 w-20" />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+                  {Array.from({ length: 6 }).map((_, metricIndex) => (
+                    <Skeleton key={metricIndex} className="h-9 w-full" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </>

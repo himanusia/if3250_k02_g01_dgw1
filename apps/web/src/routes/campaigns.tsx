@@ -782,20 +782,25 @@ function RouteComponent() {
       >
         <DialogContent className="max-h-[92vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
-            <DialogDescription>
-              Isi brief, brand, target KPI, dan shortlist KOL. Brand existing muncul sebagai suggestion; brand baru cukup diketik.
-            </DialogDescription>
+            <div className="border-b border-[#982E41]/30 bg-gradient-to-r from-[#FFF8F9] via-white to-[#fff3d8] px-4 py-4 sm:px-6">
+              <DialogTitle className="!text-[22px] !font-bold tracking-tight text-[#2b1418]">
+                {editingId ? "Edit campaign" : "Tambah campaign"}
+              </DialogTitle>
+            </div>
           </DialogHeader>
 
           <form
-            className="grid max-h-[calc(92vh-82px)] gap-5 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background px-4 py-4 sm:px-6 sm:py-6"
+            className="grid max-h-[calc(92vh-88px)] gap-5 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background px-4 py-4 sm:px-6 sm:py-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
             }}
           >
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5">
+            <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Identitas campaign</p>
+              </div>
               <FormInput
                 label="Nama campaign"
                 value={form.name}
@@ -827,12 +832,17 @@ function RouteComponent() {
                   }))
                 }
               />
-              <div className="grid gap-2 border border-[#982E41]/20 bg-white px-3 py-2 text-sm text-[#2b1418] md:col-span-2">
+              <div className="grid gap-2 border border-[#982E41]/20 bg-[#FFF8F9] px-3 py-2 text-sm text-[#2b1418] md:col-span-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Status otomatis</span>
                 <span>{formatCampaignStatus(getCampaignTemporalStatus(form.periodStart, form.periodEnd))}</span>
                 <span className="text-xs text-muted-foreground">Status dihitung dari periode campaign, bukan input manual.</span>
               </div>
-            </div>
+            </section>
+
+            <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Brief & target</p>
+              </div>
 
             <FormTextarea
               label="Deskripsi"
@@ -855,6 +865,12 @@ function RouteComponent() {
               onChange={(value) => setForm((current) => ({ ...current, postBriefs: value }))}
               placeholder="Satu brief per baris"
             />
+            </section>
+
+            <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Shortlist KOL</p>
+              </div>
 
             <div className="grid gap-2">
               <Label>Pilih KOL untuk campaign ini</Label>
@@ -940,8 +956,10 @@ function RouteComponent() {
                 )}
               </div>
             </div>
+            </section>
+            </div>
 
-            <DialogFooter className="border-t border-[#982E41]/40 bg-white pt-4">
+            <DialogFooter className="sticky bottom-0 border-t border-[#982E41]/40 bg-white px-4 py-3 shadow-[0_-8px_20px_rgba(152,46,65,0.08)]">
               {editingId && (
                 <Button type="button" variant="outline" className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]" onClick={resetForm}>
                   Batal edit
@@ -1629,29 +1647,54 @@ function FormTextarea({
 function CampaignListSkeleton() {
   return (
     <>
-      {Array.from({ length: 4 }).map((_, index) => (
+      {Array.from({ length: 3 }).map((_, index) => (
         <article key={index} className="rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-6 w-64 max-w-full" />
-              <Skeleton className="h-4 w-80 max-w-full" />
+            <div className="min-w-0 space-y-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-6 w-72 max-w-full" />
+              <Skeleton className="h-4 w-96 max-w-full" />
             </div>
-            <Skeleton className="h-7 w-28" />
+            <Skeleton className="h-7 w-24" />
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, metricIndex) => (
-              <Skeleton key={metricIndex} className="h-14 w-full" />
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+            {Array.from({ length: 2 }).map((_, progressIndex) => (
+              <div key={progressIndex} className="border border-[#982E41]/20 bg-[#FFF8F9] p-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-3 w-48 max-w-full" />
+                  </div>
+                  <Skeleton className="h-7 w-14" />
+                </div>
+                <Skeleton className="mt-3 h-2 w-full" />
+              </div>
             ))}
           </div>
-          <div className="mt-4 flex justify-end gap-2">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-8 w-16" />
-            <Skeleton className="h-8 w-20" />
+
+          <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, metricIndex) => (
+              <div key={metricIndex} className="border border-[#982E41]/25 bg-white px-3 py-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="mt-2 h-4 w-28" />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Skeleton className="h-7 w-20" />
+            <Skeleton className="h-7 w-24" />
+            <Skeleton className="h-7 w-20" />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <Skeleton className="h-4 w-44" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-20" />
+            </div>
           </div>
         </article>
       ))}

@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import type { WhitelistEntry, WhitelistRole } from "@/lib/app-types";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { requireAdminWhitelist } from "@/lib/auth-guard";
 import { client, orpc } from "@/utils/orpc";
@@ -178,7 +178,7 @@ function RouteComponent() {
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">
             Administrator only
           </p>
-          <h1 className="text-2xl font-semibold text-[#2b1418]">Kelola whitelist email</h1>
+          <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Kelola whitelist email</h1>
           <p className="text-muted-foreground">
             Administrator bisa menentukan email mana yang boleh login, sekaligus role user-nya.
           </p>
@@ -238,7 +238,7 @@ function RouteComponent() {
 
       <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
-          <h2 className="text-xl font-semibold text-[#2b1418]">Daftar email yang diizinkan</h2>
+          <h2 className="font-goldman text-2xl font-bold uppercase tracking-wide text-[#2b1418]">Daftar email yang diizinkan</h2>
         </div>
 
         <div className="space-y-3">
@@ -272,7 +272,7 @@ function RouteComponent() {
       </section>
       <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
-          <h2 className="text-xl font-semibold text-[#2b1418]">Global Sync Settings</h2>
+          <h2 className="font-goldman text-2xl font-bold uppercase tracking-wide text-[#2b1418]">Global Sync Settings</h2>
           <p className="text-sm text-muted-foreground">
             Atur seberapa sering semua KOL akan disinkronkan.
           </p>
@@ -281,18 +281,18 @@ function RouteComponent() {
           </p>
         </div>
 
-        <Label className="flex items-center gap-2 text-sm text-[#2b1418]">
-          <Checkbox
+        <div className="flex items-center justify-between gap-3 border border-[#b43c39]/15 bg-[#fff6f8] px-3 py-2 text-sm text-[#2b1418]">
+          <span className="font-medium">Enable global sync</span>
+          <Switch
             checked={syncForm.enabled}
             onCheckedChange={(checked) =>
               setSyncForm((prev) => ({
                 ...prev,
-                enabled: checked === true,
+                enabled: checked,
               }))
             }
           />
-          Enable global sync
-        </Label>
+        </div>
 
         <div className="flex items-center gap-2">
           <Input

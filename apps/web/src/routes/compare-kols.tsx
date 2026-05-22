@@ -95,7 +95,7 @@ function RouteComponent() {
       <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
-          <h1 className="text-2xl font-semibold text-[#2b1418]">Bandingkan kandidat KOL</h1>
+          <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Bandingkan kandidat KOL</h1>
           <p className="text-muted-foreground">
             Cari berdasarkan nama, handle, bidang, atau keyword, lalu pilih beberapa KOL untuk dibandingkan.
           </p>
@@ -154,7 +154,7 @@ function RouteComponent() {
       <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-[#2b1418]">Hasil perbandingan</h2>
+            <h2 className="font-goldman text-2xl font-bold uppercase tracking-wide text-[#2b1418]">Hasil perbandingan</h2>
             <p className="text-muted-foreground">
               Pilih beberapa akun untuk melihat metriknya side by side.
             </p>
