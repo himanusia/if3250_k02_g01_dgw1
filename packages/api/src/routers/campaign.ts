@@ -7,8 +7,10 @@ import z from "zod";
 import { protectedProcedure } from "../index";
 import {
   addCampaignContents,
+  archiveCampaignContent,
   deleteCampaignContent,
   getCampaignDetail,
+  restoreCampaignContent,
   syncCampaignContent,
 } from "../lib/campaign-content";
 
@@ -122,6 +124,11 @@ export const campaignRouter = {
   addContent: protectedProcedure.input(campaignContentInputSchema).handler(async ({ context, input }) => {
     return await addCampaignContents(input, context.session.user.id);
   }),
+  archiveContent: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      return await archiveCampaignContent(input.id);
+    }),
   create: protectedProcedure.input(campaignInputSchema).handler(async ({ context, input }) => {
     const created = await db.transaction(async (tx) => {
       const result = await tx
@@ -211,6 +218,11 @@ export const campaignRouter = {
     .input(z.object({ id: z.number().int().positive() }))
     .handler(async ({ input }) => {
       return await deleteCampaignContent(input.id);
+    }),
+  restoreContent: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .handler(async ({ input }) => {
+      return await restoreCampaignContent(input.id);
     }),
   syncContent: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))

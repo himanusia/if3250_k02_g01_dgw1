@@ -1,10 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Download, ExternalLink, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
+import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
 import { formatDateTime, formatNumber } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,8 @@ function RouteComponent() {
   const [addContentCampaignId, setAddContentCampaignId] = useState<number | null>(null);
   const [isAddContentDialogOpen, setIsAddContentDialogOpen] = useState(false);
   const [syncingContentId, setSyncingContentId] = useState<number | null>(null);
+  const [archivingContentId, setArchivingContentId] = useState<number | null>(null);
+  const [restoringContentId, setRestoringContentId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
@@ -120,6 +123,25 @@ function RouteComponent() {
 
     return campaigns.find((campaign) => campaign.id === detailCampaignId) ?? null;
   }, [campaigns, detailCampaignId]);
+
+  const { activeContentGroups, archivedContentGroups } = useMemo(() => {
+    const activeGroups: CampaignDetailRecord["contentsByKol"] = [];
+    const archivedGroups: CampaignDetailRecord["contentsByKol"] = [];
+
+    for (const group of detailCampaignData?.contentsByKol ?? []) {
+      const { activeContents, archivedContents } = splitCampaignContentsByArchiveState(group.contents);
+
+      if (activeContents.length) {
+        activeGroups.push({ ...group, contents: activeContents });
+      }
+
+      if (archivedContents.length) {
+        archivedGroups.push({ ...group, contents: archivedContents });
+      }
+    }
+
+    return { activeContentGroups: activeGroups, archivedContentGroups: archivedGroups };
+  }, [detailCampaignData]);
 
   const filteredKols = useMemo(() => {
   return kols.filter((kol) => {
@@ -186,6 +208,34 @@ function RouteComponent() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Gagal melakukan sync konten");
+    },
+  });
+
+  const archiveContent = useMutation({
+    mutationFn: ({ id }: { id: number }) => client.campaign.archiveContent({ id }),
+    onSuccess: () => {
+      toast.success("Konten berhasil diarsipkan");
+
+      if (detailCampaignQuery.isFetched) {
+        detailCampaignQuery.refetch();
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal mengarsipkan konten");
+    },
+  });
+
+  const restoreContent = useMutation({
+    mutationFn: ({ id }: { id: number }) => client.campaign.restoreContent({ id }),
+    onSuccess: () => {
+      toast.success("Konten dikembalikan dari arsip");
+
+      if (detailCampaignQuery.isFetched) {
+        detailCampaignQuery.refetch();
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal mengembalikan konten");
     },
   });
 
@@ -723,13 +773,13 @@ function RouteComponent() {
                 <div>
                   <h3 className="text-[15px] font-semibold text-foreground">Konten campaign</h3>
                   <p className="text-xs text-muted-foreground">
-                    Konten dikelompokkan per KOL. Sync dan hapus dilakukan pada tiap item konten.
+                    Konten aktif dikelompokkan per KOL. Archive menyembunyikan post dari daftar aktif tanpa menghapus data.
                   </p>
                 </div>
 
-                {detailCampaignData.contentsByKol.length ? (
+                {activeContentGroups.length ? (
                   <div className="space-y-4">
-                    {detailCampaignData.contentsByKol.map((group) => (
+                    {activeContentGroups.map((group) => (
                       <article key={group.kolId} className="border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
                         <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
                           <div>
@@ -802,11 +852,28 @@ function RouteComponent() {
                                     {syncingContentId === content.id ? "Sync in progress..." : "Sync now"}
                                   </Button>
                                   <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={archiveContent.isPending || archivingContentId === content.id}
+                                    onClick={async () => {
+                                      setArchivingContentId(content.id);
+
+                                      try {
+                                        await archiveContent.mutateAsync({ id: content.id });
+                                      } finally {
+                                        setArchivingContentId((current) => (current === content.id ? null : current));
+                                      }
+                                    }}
+                                  >
+                                    <Archive className="mr-1 size-4" />
+                                    {archivingContentId === content.id ? "Archiving..." : "Archive"}
+                                  </Button>
+                                  <Button
                                     variant="destructive"
                                     size="sm"
                                     disabled={deleteContent.isPending}
                                     onClick={() => {
-                                      if (window.confirm("Hapus konten ini?")) {
+                                      if (window.confirm("Hapus permanen konten ini?")) {
                                         deleteContent.mutate({ id: content.id });
                                       }
                                     }}
@@ -845,9 +912,99 @@ function RouteComponent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-sm">Belum ada konten yang di-scrap untuk campaign ini.</p>
+                  <p className="text-muted-foreground text-sm">Belum ada konten aktif untuk campaign ini.</p>
                 )}
               </section>
+
+              {archivedContentGroups.length ? (
+                <section className="space-y-3">
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-foreground">Archive konten</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Post yang diarsip tetap tersimpan, tapi tidak ikut daftar konten aktif.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {archivedContentGroups.map((group) => (
+                      <article key={`archived-${group.kolId}`} className="border-[1.6px] border-border/70 bg-white/70 p-4 sm:p-5">
+                        <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-[18px] font-semibold leading-none text-foreground">{group.displayName}</p>
+                            <p className="text-[13px] text-muted-foreground">
+                              {group.handles.length ? group.handles.join(" / ") : "Tidak ada handle yang tersimpan."}
+                            </p>
+                          </div>
+                          <span className="border border-border bg-[#F1E2E6] px-2 py-1 text-xs text-[#6D3A44]">
+                            {group.contents.length} archived
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          {group.contents.map((content) => (
+                            <article key={content.id} className="space-y-3 border-[1.6px] border-border/70 bg-[#F9EEF1] p-3 opacity-80 sm:p-4">
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="min-w-0 space-y-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="border border-border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                                      archived
+                                    </span>
+                                    <span className="border border-border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                                      {content.platform}
+                                    </span>
+                                  </div>
+                                  <a
+                                    className="break-all text-xs text-primary underline-offset-4 hover:underline"
+                                    href={content.contentUrl}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                  >
+                                    {content.contentUrl}
+                                  </a>
+                                  <p className="text-xs text-muted-foreground">Archived at {formatDateTime(content.archivedAt)}</p>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={restoreContent.isPending || restoringContentId === content.id}
+                                    onClick={async () => {
+                                      setRestoringContentId(content.id);
+
+                                      try {
+                                        await restoreContent.mutateAsync({ id: content.id });
+                                      } finally {
+                                        setRestoringContentId((current) => (current === content.id ? null : current));
+                                      }
+                                    }}
+                                  >
+                                    <ArchiveRestore className="mr-1 size-4" />
+                                    {restoringContentId === content.id ? "Restoring..." : "Restore"}
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    disabled={deleteContent.isPending}
+                                    onClick={() => {
+                                      if (window.confirm("Hapus permanen konten ini?")) {
+                                        deleteContent.mutate({ id: content.id });
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="mr-1 size-4" />
+                                    Hapus
+                                  </Button>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
             </div>
           )}
         </DialogContent>

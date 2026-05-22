@@ -118,6 +118,7 @@ export type CampaignRecord = {
 };
 
 export type CampaignContentRecord = {
+  archivedAt: string | null;
   authorDisplayName: string;
   authorHandle: string;
   campaignId: number;
