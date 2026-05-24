@@ -9,13 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WhitelistRouteImport } from './routes/whitelist'
 import { Route as UnauthorizedRouteImport } from './routes/unauthorized'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as KolsRouteImport } from './routes/kols'
-import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CompareKolsRouteImport } from './routes/compare-kols'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
+import { Route as BrandRouteImport } from './routes/brand'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as KolsKolIdRouteImport } from './routes/kols.$kolId'
 import { Route as ApiAvatarRouteImport } from './routes/api/avatar'
@@ -23,14 +23,14 @@ import { Route as ApiRpcSplatRouteImport } from './routes/api/rpc/$'
 import { Route as ApiCronSyncKolsRouteImport } from './routes/api/cron/sync-kols'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
-const WhitelistRoute = WhitelistRouteImport.update({
-  id: '/whitelist',
-  path: '/whitelist',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const UnauthorizedRoute = UnauthorizedRouteImport.update({
   id: '/unauthorized',
   path: '/unauthorized',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -43,11 +43,6 @@ const KolsRoute = KolsRouteImport.update({
   path: '/kols',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CompareKolsRoute = CompareKolsRouteImport.update({
   id: '/compare-kols',
   path: '/compare-kols',
@@ -56,6 +51,11 @@ const CompareKolsRoute = CompareKolsRouteImport.update({
 const CampaignsRoute = CampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandRoute = BrandRouteImport.update({
+  id: '/brand',
+  path: '/brand',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -91,13 +91,13 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/brand': typeof BrandRoute
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
-  '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/unauthorized': typeof UnauthorizedRoute
-  '/whitelist': typeof WhitelistRoute
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -106,13 +106,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/brand': typeof BrandRoute
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
-  '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/unauthorized': typeof UnauthorizedRoute
-  '/whitelist': typeof WhitelistRoute
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -122,13 +122,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/brand': typeof BrandRoute
   '/campaigns': typeof CampaignsRoute
   '/compare-kols': typeof CompareKolsRoute
-  '/dashboard': typeof DashboardRoute
   '/kols': typeof KolsRouteWithChildren
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/unauthorized': typeof UnauthorizedRoute
-  '/whitelist': typeof WhitelistRoute
   '/api/avatar': typeof ApiAvatarRoute
   '/kols/$kolId': typeof KolsKolIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -139,13 +139,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/brand'
     | '/campaigns'
     | '/compare-kols'
-    | '/dashboard'
     | '/kols'
     | '/login'
+    | '/settings'
     | '/unauthorized'
-    | '/whitelist'
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
@@ -154,13 +154,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/brand'
     | '/campaigns'
     | '/compare-kols'
-    | '/dashboard'
     | '/kols'
     | '/login'
+    | '/settings'
     | '/unauthorized'
-    | '/whitelist'
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
@@ -169,13 +169,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/brand'
     | '/campaigns'
     | '/compare-kols'
-    | '/dashboard'
     | '/kols'
     | '/login'
+    | '/settings'
     | '/unauthorized'
-    | '/whitelist'
     | '/api/avatar'
     | '/kols/$kolId'
     | '/api/auth/$'
@@ -185,13 +185,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BrandRoute: typeof BrandRoute
   CampaignsRoute: typeof CampaignsRoute
   CompareKolsRoute: typeof CompareKolsRoute
-  DashboardRoute: typeof DashboardRoute
   KolsRoute: typeof KolsRouteWithChildren
   LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   UnauthorizedRoute: typeof UnauthorizedRoute
-  WhitelistRoute: typeof WhitelistRoute
   ApiAvatarRoute: typeof ApiAvatarRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronSyncKolsRoute: typeof ApiCronSyncKolsRoute
@@ -200,18 +200,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/whitelist': {
-      id: '/whitelist'
-      path: '/whitelist'
-      fullPath: '/whitelist'
-      preLoaderRoute: typeof WhitelistRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/unauthorized': {
       id: '/unauthorized'
       path: '/unauthorized'
       fullPath: '/unauthorized'
       preLoaderRoute: typeof UnauthorizedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -228,13 +228,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/compare-kols': {
       id: '/compare-kols'
       path: '/compare-kols'
@@ -247,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/campaigns'
       fullPath: '/campaigns'
       preLoaderRoute: typeof CampaignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brand': {
+      id: '/brand'
+      path: '/brand'
+      fullPath: '/brand'
+      preLoaderRoute: typeof BrandRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -306,13 +306,13 @@ const KolsRouteWithChildren = KolsRoute._addFileChildren(KolsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BrandRoute: BrandRoute,
   CampaignsRoute: CampaignsRoute,
   CompareKolsRoute: CompareKolsRoute,
-  DashboardRoute: DashboardRoute,
   KolsRoute: KolsRouteWithChildren,
   LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   UnauthorizedRoute: UnauthorizedRoute,
-  WhitelistRoute: WhitelistRoute,
   ApiAvatarRoute: ApiAvatarRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronSyncKolsRoute: ApiCronSyncKolsRoute,

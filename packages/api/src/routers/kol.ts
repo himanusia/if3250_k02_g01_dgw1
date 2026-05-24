@@ -1,4 +1,5 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
+import { campaign, campaignContent } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolCampaignHistory, kolProfile, kolRateCardHistory } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
 import { desc, eq, isNull, lt, or, sql } from "drizzle-orm";
@@ -291,6 +292,41 @@ async function mapKolRecord(kolId: number) {
     .from(kolRateCardHistory)
     .where(eq(kolRateCardHistory.kolId, kolId))
     .orderBy(desc(kolRateCardHistory.createdAt));
+  const contents = await db
+    .select({
+      archivedAt: campaignContent.archivedAt,
+      authorDisplayName: campaignContent.authorDisplayName,
+      authorHandle: campaignContent.authorHandle,
+      campaignId: campaignContent.campaignId,
+      campaignName: campaign.name,
+      caption: campaignContent.caption,
+      commentCount: campaignContent.commentCount,
+      contentUrl: campaignContent.contentUrl,
+      createdAt: campaignContent.createdAt,
+      externalId: campaignContent.externalId,
+      engagementRate: campaignContent.engagementRate,
+      id: campaignContent.id,
+      kolDisplayName: kolProfile.displayName,
+      kolId: campaignContent.kolId,
+      likeCount: campaignContent.likeCount,
+      metadata: campaignContent.metadata,
+      platform: campaignContent.platform,
+      postedAt: campaignContent.postedAt,
+      shareCount: campaignContent.shareCount,
+      syncErrorCode: campaignContent.syncErrorCode,
+      syncMessage: campaignContent.syncMessage,
+      syncStatus: campaignContent.syncStatus,
+      syncedAt: campaignContent.syncedAt,
+      thumbnailUrl: campaignContent.thumbnailUrl,
+      title: campaignContent.title,
+      updatedAt: campaignContent.updatedAt,
+      viewCount: campaignContent.viewCount,
+    })
+    .from(campaignContent)
+    .innerJoin(campaign, eq(campaignContent.campaignId, campaign.id))
+    .innerJoin(kolProfile, eq(campaignContent.kolId, kolProfile.id))
+    .where(eq(campaignContent.kolId, kolId))
+    .orderBy(desc(campaignContent.postedAt), desc(campaignContent.updatedAt));
 
   return {
     ...profile,
@@ -300,6 +336,18 @@ async function mapKolRecord(kolId: number) {
       lastSyncedAt: account.lastSyncedAt?.toISOString() ?? null,
       metadata: account.metadata ?? null,
       updatedAt: account.updatedAt.toISOString(),
+    })),
+    contents: contents.map(({ campaignName, ...content }) => ({
+      ...content,
+      archivedAt: content.archivedAt?.toISOString() ?? null,
+      campaignName,
+      caption: content.caption,
+      createdAt: content.createdAt.toISOString(),
+      kolHandles: accounts.map((account) => `${account.platform}:${account.handle}`),
+      metadata: content.metadata ?? null,
+      postedAt: content.postedAt?.toISOString() ?? null,
+      syncedAt: content.syncedAt?.toISOString() ?? null,
+      updatedAt: content.updatedAt.toISOString(),
     })),
     createdAt: profile.createdAt.toISOString(),
     history: history.map((item) => ({

@@ -78,6 +78,7 @@ export type KolRateCardHistoryRecord = {
 
 export type KolRecord = {
   accounts: KolAccountRecord[];
+  contents: CampaignContentRecord[];
   createdAt: string;
   displayName: string;
   engagementRate: string;
@@ -118,9 +119,11 @@ export type CampaignRecord = {
 };
 
 export type CampaignContentRecord = {
+  archivedAt: string | null;
   authorDisplayName: string;
   authorHandle: string;
   campaignId: number;
+  campaignName?: string;
   caption: string;
   commentCount: number;
   contentUrl: string;
@@ -155,4 +158,29 @@ export type CampaignContentGroupRecord = {
 
 export type CampaignDetailRecord = CampaignRecord & {
   contentsByKol: CampaignContentGroupRecord[];
+};
+
+export type CampaignDashboardRecord = {
+  brand: string;
+  commentCount: number;
+  contentCount: number;
+  createdAt: string;
+  failedSyncCount: number;
+  id: number;
+  kolCount: number;
+  lastScrapedAt: string | null;
+  lastSyncedAt: string | null;
+  likeCount: number;
+  name: string;
+  objective: string;
+  pendingSyncCount: number;
+  periodEnd: string;
+  periodStart: string;
+  shareCount: number;
+  status: CampaignRecord["status"];
+  syncedContentCount: number;
+  targetFollowerTier: string;
+  targetKolCount: number;
+  updatedAt: string;
+  viewCount: number;
 };

@@ -1,9 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, useRef  } from "react";
+import { Instagram, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import * as XLSX from "@e965/xlsx";
 
 import type { KolRecord, SocialPlatform } from "@/lib/app-types";
 import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
@@ -11,6 +11,8 @@ import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, ge
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -68,9 +70,24 @@ function parseKeywordSegments(keywords: string | null | undefined): string[] {
   const raw = keywords?.trim();
   if (!raw) return [];
   return raw
-    .split(",")
+    .split(/[\s,]+/)
     .map((k) => k.trim())
     .filter(Boolean);
+}
+
+function encodeKeywordSegments(keywords: string[]) {
+  return Array.from(new Set(keywords.map((keyword) => keyword.trim()).filter(Boolean))).join(" ");
+}
+
+function formatFollowerTier(tier: string | null | undefined) {
+  const labels: Record<string, string> = {
+    macro: "Macro (100 ribu - 999 ribu followers)",
+    mega: "Mega (1 juta+ followers)",
+    micro: "Micro (10 ribu - 99 ribu followers)",
+    nano: "Nano (< 10 ribu followers)",
+  };
+
+  return tier ? labels[tier] ?? tier : "-";
 }
 
 const KOLS_COLORS = {
@@ -84,7 +101,29 @@ const KOLS_COLORS = {
 } as const;
 
 const KOL_ACTION_BUTTON_CLASS =
-  "h-7 rounded-none !border !border-[#982E41] !bg-[#F7E7EB] px-2.5 !text-[12px] !font-normal !text-[#982E41] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
+  "h-8 rounded-none !border !border-[#982E41] !bg-white px-3 !text-[12px] !font-semibold !text-[#982E41] shadow-[3px_3px_0_rgba(152,46,65,0.12)] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
+
+function getSocialUrl(platform: SocialPlatform, handle: string) {
+  const cleanHandle = handle.replace(/^@/, "").trim();
+
+  if (platform === "instagram") {
+    return `https://www.instagram.com/${cleanHandle}/`;
+  }
+
+  return `https://www.tiktok.com/@${cleanHandle}`;
+}
+
+function SocialPlatformIcon({ platform, className = "size-4" }: { platform: SocialPlatform; className?: string }) {
+  if (platform === "instagram") {
+    return <Instagram className={className} aria-hidden="true" />;
+  }
+
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16.5 3.2c.4 2.4 1.8 3.9 4.1 4.1v3.1c-1.4.1-2.7-.3-4-1.1v5.9c0 4.2-2.7 6.6-6.2 6.6-3.1 0-5.6-2.1-5.6-5.2 0-3.4 2.6-5.6 6.3-5.4v3.2c-1.8-.3-3 .5-3 2 0 1.3 1 2.1 2.2 2.1 1.4 0 2.5-.8 2.5-3V3.2h3.7Z" />
+    </svg>
+  );
+}
 function getKolErrorMessage(error: unknown, fallback: string) {
   const rpcError = error as RpcLikeError;
   const reason = rpcError?.data?.reason;
@@ -113,22 +152,80 @@ function getKolErrorMessage(error: unknown, fallback: string) {
 
 export const Route = createFileRoute("/kols")({
   component: RouteComponent,
+  pendingComponent: KolsPendingComponent,
 });
+
+function KolsPendingComponent() {
+  return (
+    <div className="h-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background py-6">
+      <div className="container mx-auto max-w-6xl space-y-5 px-4 lg:py-2" style={{ color: KOLS_COLORS.text }}>
+        <section className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-12 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-56 bg-[#b43c39]/10" />
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Skeleton className="h-8 w-28 bg-[#b43c39]/10" />
+              <Skeleton className="h-8 w-40 bg-[#b43c39]/10" />
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-16 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-full bg-[#b43c39]/10" />
+            </div>
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-20 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-full bg-[#b43c39]/10" />
+            </div>
+            <div className="grid gap-2">
+              <Skeleton className="h-4 w-12 bg-[#b43c39]/15" />
+              <Skeleton className="h-10 w-full bg-[#b43c39]/10" />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} className="h-7 w-24 bg-[#b43c39]/10" />
+            ))}
+          </div>
+
+          <div className="border border-dashed border-[#b43c39]/15" />
+
+          <div className="space-y-5">
+            <KolListSkeleton />
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
 
 function RouteComponent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [keywordFilter, setKeywordFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState<"all" | SocialPlatform>("all");
+  const [tierFilter, setTierFilter] = useState("all");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
+  const keywordOptions = useMemo(() => {
+    return Array.from(new Set(kols.flatMap((kol) => parseKeywordSegments(kol.keywords))))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  }, [kols]);
+
+  const tierOptions = useMemo(() => {
+    return Array.from(new Set(kols.map((kol) => kol.followerTier).filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  }, [kols]);
+
   const filteredKols = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return kols;
-    }
 
     return kols.filter((kol) => {
       const haystack = [
@@ -140,9 +237,16 @@ function RouteComponent() {
         .join(" ")
         .toLowerCase();
 
-      return haystack.includes(normalizedSearch);
+      const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
+      const matchesKeyword = keywordFilter === "all" || parseKeywordSegments(kol.keywords).some(
+        (keyword) => keyword.toLowerCase() === keywordFilter.toLowerCase(),
+      );
+      const matchesPlatform = platformFilter === "all" || kol.accounts.some((account) => account.platform === platformFilter);
+      const matchesTier = tierFilter === "all" || kol.followerTier === tierFilter;
+
+      return matchesSearch && matchesKeyword && matchesPlatform && matchesTier;
     });
-  }, [kols, search]);
+  }, [keywordFilter, kols, platformFilter, search, tierFilter]);
 
   const createKol = useMutation({
     mutationFn: (input: KolFormState) => client.kol.create(input),
@@ -217,43 +321,11 @@ function RouteComponent() {
     setIsDialogOpen(true);
   }
 
-  const allKeywords = useMemo(() => {
-    return Array.from(
-      new Set(filteredKols.flatMap((kol) => parseKeywordSegments(kol.keywords))),
-    );
-  }, [filteredKols]);
-
   const displayNames = useMemo(() => {
     return Array.from(
       new Set(filteredKols.map((kol) => kol.displayName))
     );
   }, [filteredKols]);
-
-  const getBestMatch = (input: string) => {
-    const parts = input.split(",");
-    const lastRaw = parts[parts.length - 1];
-    const last = lastRaw.trim().toLowerCase();
-
-    if (!last) return "";
-
-    const matches = allKeywords.filter((k) =>
-      k.toLowerCase().startsWith(last)
-    );
-
-    if (matches.length === 0) return "";
-
-    matches.sort((a, b) => {
-      const aRemain = a.length - last.length;
-      const bRemain = b.length - last.length;
-      return aRemain - bRemain;
-    });
-
-    const best = matches[0];
-
-    return best.slice(last.length);
-  };
-
-  const suggestion = getBestMatch(form.keywords);
 
   useEffect(() => {
     const previousBodyBackground = document.body.style.backgroundColor;
@@ -515,43 +587,44 @@ function mergeKeywords(
   return (
     <>
       <div
-        className="h-full overflow-y-auto overflow-x-hidden py-6"
-        style={{ backgroundColor: KOLS_COLORS.pageBackground }}
+        className="h-full overflow-y-auto overflow-x-hidden bg-gradient-to-b from-background via-[#fff6f8] to-background py-6"
+
       >
         <div
-          className="mx-auto w-full max-w-[1700px] space-y-6 px-[10px] md:px-[14px] [font-family:var(--font-poppins)] font-normal"
+          className="container mx-auto max-w-6xl space-y-5 px-4 lg:py-2"
           style={{ color: KOLS_COLORS.text }}
         >
           <section
-            className="space-y-4 border p-4"
-            style={{
-              backgroundColor: "#FFFFFF",
-              borderColor: `${KOLS_COLORS.stroke}80`,
-            }}
+            className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]"
           >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <h1 className="text-[22px] font-bold uppercase tracking-tight md:text-[32px]">Daftar KOL</h1>
-            <Button
-              type="button"
-              onClick={openCreateDialog}
-              className="h-8 rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
-            >
-              <Plus className="mr-2 size-4" />
-              Tambah KOL
-            </Button>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#B43C39]">KOL</p>
+              <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Daftar KOL</h1>
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Button
+                type="button"
+                onClick={openCreateDialog}
+                className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
+              >
+                <Plus className="mr-2 size-4" />
+                Tambah KOL
+              </Button>
 
-            <Button
-              type="button"
-              className="h-8 rounded-full border border-[#DDAEB8] bg-[#EEDDE1] px-4 text-[13px] font-medium text-[#982E41] hover:bg-[#E4CBD2]"
-              onClick={() =>
-                fileInputRef.current?.click()
-              }
-              disabled={importKol.isPending}
-            >
-              {importKol.isPending
-                ? "Mengimport..."
-                : "Import Spreadsheet"}
-            </Button>
+              <Button
+                type="button"
+                className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
+                onClick={() =>
+                  fileInputRef.current?.click()
+                }
+                disabled={importKol.isPending}
+              >
+                {importKol.isPending
+                  ? "Mengimport..."
+                  : "Import Spreadsheet"}
+              </Button>
+            </div>
 
             <input
               ref={fileInputRef}
@@ -562,23 +635,72 @@ function mergeKeywords(
             />
           </div>
 
-          <div className="max-w-md">
-            <FormInput label="Search" value={search} onChange={setSearch} placeholder="Cari Nama, Handle, Keyword" />
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+            <FormInput label="Cari" value={search} onChange={setSearch} placeholder="Cari nama, handle, atau keyword" />
+            <Label className="grid gap-2 text-sm">
+              <span>Platform</span>
+              <Select
+                className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                value={platformFilter}
+                onChange={(event) => setPlatformFilter(event.target.value as typeof platformFilter)}
+              >
+                <option value="all">Semua platform</option>
+                <option value="instagram">Instagram</option>
+                <option value="tiktok">TikTok</option>
+              </Select>
+            </Label>
+            <Label className="grid gap-2 text-sm">
+              <span>Tier</span>
+              <Select
+                className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                value={tierFilter}
+                onChange={(event) => setTierFilter(event.target.value)}
+              >
+                <option value="all">Semua tier</option>
+                {tierOptions.map((tier) => (
+                  <option key={tier} value={tier}>{tier}</option>
+                ))}
+              </Select>
+            </Label>
           </div>
 
-          <div className="border-[1.2px] border-dashed" style={{ borderColor: `${KOLS_COLORS.stroke}80` }} />
+          {keywordOptions.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="xs"
+                variant={keywordFilter === "all" ? "default" : "outline"}
+                className={keywordFilter === "all" ? "rounded-none bg-[#B43C39] text-white hover:bg-[#8f2e2c]" : "rounded-none border-[#982E41]/25 bg-white text-[#982E41] hover:bg-[#982E41]/10"}
+                onClick={() => setKeywordFilter("all")}
+              >
+                Semua keyword
+              </Button>
+              {keywordOptions.map((keyword) => (
+                <Button
+                  key={keyword}
+                  type="button"
+                  size="xs"
+                  variant={keywordFilter === keyword ? "default" : "outline"}
+                  className={keywordFilter === keyword ? "rounded-none bg-[#B43C39] text-white hover:bg-[#8f2e2c]" : "rounded-none border-[#982E41]/25 bg-white text-[#982E41] hover:bg-[#982E41]/10"}
+                  onClick={() => setKeywordFilter(keyword)}
+                >
+                  {keyword}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          <div className="border border-dashed border-[#b43c39]/15" />
 
           <div className="space-y-5">
-            {filteredKols.map((kol) => (
+            {kolQuery.isLoading ? (
+              <KolListSkeleton />
+            ) : filteredKols.map((kol) => (
               <div
                 key={kol.id}
-                className="space-y-4 border-[1.6px] bg-white p-4"
-                style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+                className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]"
               >
                 {(() => {
-                  const primaryAccount = kol.accounts[0];
-                  const biography = kol.accounts.find((account) => account.biography)?.biography;
-                  const primaryMetadata = primaryAccount ? getAccountMetadata(primaryAccount.metadata) : null;
                   const initials =
                     kol.displayName
                       .split(" ")
@@ -589,25 +711,9 @@ function mergeKeywords(
                   return (
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    {primaryMetadata?.avatarUrl ? (
-                      <img
-                        src={getAvatarSrc(primaryMetadata.avatarUrl)}
-                        alt={kol.displayName}
-                        className="size-12 shrink-0 border object-cover"
-                        style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div
-                        className="flex size-12 shrink-0 items-center justify-center border text-[14px] font-medium"
-                        style={{
-                          backgroundColor: "#F8EAED",
-                          borderColor: `${KOLS_COLORS.stroke}66`,
-                        }}
-                      >
-                        {initials}
-                      </div>
-                    )}
+                    <div className="flex size-12 shrink-0 items-center justify-center border border-[#b43c39]/15 bg-[#fff3d8] text-[14px] font-medium">
+                      {initials}
+                    </div>
                     <div className="min-w-0">
                       <Link
                         to="/kols/$kolId"
@@ -616,35 +722,28 @@ function mergeKeywords(
                       >
                         {kol.displayName}
                       </Link>
-                      <p className="text-[13px]" style={{ color: KOLS_COLORS.text }}>
-                        {kol.accounts.length} akun terhubung
-                      </p>
-                      {primaryMetadata?.category && (
-                        <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
-                          {primaryMetadata.category}
-                        </p>
-                      )}
-                      {biography && (
-                        <p className="mt-1 text-[13px] wrap-break-word" style={{ color: KOLS_COLORS.mutedText }}>
-                          {biography}
-                        </p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <span className="border border-[#982E41]/20 bg-[#FFF8F9] px-2 py-1 text-[12px] font-medium text-[#722331]">
+                          {formatFollowerTier(kol.followerTier)}
+                        </span>
+                        <span className="border border-[#982E41]/20 bg-white px-2 py-1 text-[12px] font-medium text-[#722331]">
+                          {kol.accounts.length} akun sosial
+                        </span>
+                      </div>
+                      {kol.keywords && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {parseKeywordSegments(kol.keywords).map((keyword) => (
+                            <span key={keyword} className="border border-[#982E41]/20 bg-white px-2 py-0.5 text-[12px] text-[#722331]">
+                              #{keyword}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
 
                   <div className="flex flex-col items-start gap-2 md:items-end">
                     <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={KOL_ACTION_BUTTON_CLASS}
-                        onClick={() => {
-                          toast.info("masih dummy");
-                        }}
-                      >
-                        Atur Sinkronisasi
-                      </Button>
-
                       <Button
                         variant="outline"
                         size="sm"
@@ -683,7 +782,7 @@ function mergeKeywords(
                   );
                 })()}
 
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 text-[6px]" style={{ color: KOLS_COLORS.darkText }}>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" style={{ color: KOLS_COLORS.darkText }}>
                   <MetricBox label="Total followers" value={formatNumber(kol.totalFollowers)} />
                   <MetricBox label="Avg likes" value={formatNumber(kol.averageLikes)} />
                   <MetricBox label="Avg views" value={formatNumber(kol.averageViews)} />
@@ -691,7 +790,7 @@ function mergeKeywords(
                 </div>
 
                 <div className="grid gap-1 text-[13px] md:grid-cols-2" style={{ color: KOLS_COLORS.text }}>
-                  <p><span className="font-bold uppercase">Tier:</span> {kol.followerTier}</p>
+                  <p><span className="font-bold uppercase">Tier:</span> {formatFollowerTier(kol.followerTier)}</p>
                   <p><span className="font-medium">Status sync:</span> {kol.syncStatus}</p>
                   <p><span className="font-bold">Last Sync:</span> {formatDateTime(kol.lastSyncedAt)}</p>
                   <p><span className="font-medium">Est. post:</span> {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
@@ -712,12 +811,18 @@ function mergeKeywords(
                   </p>
                 )}
 
-                <div className="grid gap-5">
-                  {kol.accounts.map((account) => (
+                <details className="border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-[13px] font-semibold text-[#2b1418]">
+                    <span>Akun sosial</span>
+                    <span className="inline-flex items-center gap-1 text-xs font-normal text-[#722331]">
+                      {kol.accounts.length} akun
+                    </span>
+                  </summary>
+                  <div className="mt-3 grid gap-5">
+                    {kol.accounts.map((account) => (
                     <div
                       key={account.id}
-                      className="grid gap-3 border-[1.6px] bg-[#FFF5F7] p-3"
-                      style={{ borderColor: `${KOLS_COLORS.darkText}66` }}
+                      className="grid gap-3 border border-[#b43c39]/15 bg-[#fff6f8] p-3"
                     >
                       {(() => {
                         const metadata = getAccountMetadata(account.metadata);
@@ -747,10 +852,24 @@ function mergeKeywords(
                                 )}
 
                                 <div className="min-w-0 space-y-1">
-                                  <p className="text-[16px] font-bold uppercase leading-none">{account.platform}</p>
-                                  <p className="wrap-break-word text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
+                                  <a
+                                    href={getSocialUrl(account.platform, account.handle)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-2 text-[16px] font-bold uppercase leading-none text-[#1D1114] underline-offset-2 hover:underline"
+                                  >
+                                    <SocialPlatformIcon platform={account.platform} />
+                                    {account.platform}
+                                  </a>
+                                  <a
+                                    href={getSocialUrl(account.platform, account.handle)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex wrap-break-word items-center gap-1 text-[13px] underline-offset-2 hover:underline"
+                                    style={{ color: KOLS_COLORS.mutedText }}
+                                  >
                                     @{account.handle}
-                                  </p>
+                                  </a>
                                   {metadata?.fullName && metadata.fullName !== account.handle && (
                                     <p className="text-[13px]">{metadata.fullName}</p>
                                   )}
@@ -804,18 +923,45 @@ function mergeKeywords(
                         );
                       })()}
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </details>
 
-                {kol.keywords && (
-                  <p className="text-[13px]" style={{ color: KOLS_COLORS.text }}>
-                    <span className="font-semibold">Keywords:</span> {kol.keywords}
-                  </p>
-                )}
+                <details className="border border-[#b43c39]/15 bg-white p-3">
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-[13px] font-semibold text-[#2b1418]">
+                    <span>Post tersimpan</span>
+                    <span className="text-xs font-normal text-[#722331]">{kol.contents.length} post</span>
+                  </summary>
+                  <div className="mt-3 grid gap-3">
+                    {kol.contents.length ? kol.contents.map((content) => (
+                      <a
+                        key={content.id}
+                        href={content.contentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="grid gap-2 border border-[#b43c39]/15 bg-[#fff6f8] p-3 text-[13px] text-[#2b1418] underline-offset-2 hover:underline md:grid-cols-[120px_minmax(0,1fr)]"
+                      >
+                        <div className="flex items-center gap-2 font-semibold uppercase tracking-[0.14em] text-[#982E41]">
+                          <SocialPlatformIcon platform={content.platform} className="size-4" />
+                          {content.platform}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{content.title || content.campaignName || content.contentUrl}</p>
+                          <p className="text-muted-foreground">
+                            {content.campaignName ? `${content.campaignName} • ` : ""}
+                            {formatDateTime(content.postedAt)} • {formatNumber(content.viewCount)} views • {formatNumber(content.likeCount)} likes
+                          </p>
+                        </div>
+                      </a>
+                    )) : (
+                      <p className="text-[13px] text-muted-foreground">Belum ada post KOL ini yang tersimpan di database.</p>
+                    )}
+                  </div>
+                </details>
               </div>
             ))}
 
-            {!filteredKols.length && (
+            {!kolQuery.isLoading && !filteredKols.length && (
               <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
                 Belum ada KOL yang tersimpan.
               </p>
@@ -836,69 +982,47 @@ function mergeKeywords(
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent
-          className="max-h-[92vh] max-w-6xl overflow-y-auto border p-0"
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderColor: KOLS_COLORS.stroke,
-            color: KOLS_COLORS.text,
-          }}
-        >
+        <DialogContent className="max-h-[92vh] max-w-6xl text-[#2b1418]">
           <DialogHeader>
-            <div className="border-b px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
-              <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
+            <div className="border-b bg-white px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
+              <DialogTitle className="!text-[22px] !font-bold tracking-tight text-[#1D1114]">
+                {editingId ? "Edit KOL" : "Tambah KOL"}
+              </DialogTitle>
             </div>
           </DialogHeader>
 
           <form
-            className="grid gap-5 overflow-x-hidden px-4 pb-4 sm:px-6 sm:pb-6"
+            className="grid max-h-[calc(92vh-88px)] gap-5 overflow-y-auto overflow-x-hidden bg-white px-4 py-4 sm:px-6 sm:py-6"
             onSubmit={(event) => {
               event.preventDefault();
               submit();
             }}
           >
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5">
+              <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: KOLS_COLORS.stroke }}>Profil KOL</p>
+              </div>
               <DisplayNameInput
                 label="Display name"
                 value={form.displayName}
                 options={displayNames}
                 onChange={(value) => setForm((current) => ({ ...current, displayName: value }))}
               />
-              <FormInput
+              <KeywordTokenInput
                 label="Keywords"
                 value={form.keywords}
-                onChange={(value) => {setForm((current) => ({ ...current, keywords: value }));}}
-                ghost={suggestion}
-                onKeyDown={(e) => {
-                  if (e.key === "Tab" && suggestion) {
-                    e.preventDefault();
-
-                    const parts = form.keywords.split(",");
-                    const last = parts.pop() ?? "";
-
-                    const trimmed = last.trim();
-                    const completed = trimmed + suggestion;
-
-                    parts.push(" " + completed);
-
-                    const newValue = parts.join(",").replace(/^ /, "");
-
-                    setForm((current) => ({
-                      ...current,
-                      keywords: newValue,
-                    }));
-                  }
-                }}
+                onChange={(value) => setForm((current) => ({ ...current, keywords: value }))}
               />
-            </div>
+              </section>
 
-            <div className="grid gap-3">
+              <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-[15px] font-medium">Akun</h2>
+                <h2 className="text-[15px] font-medium">Akun sosial</h2>
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-8 rounded-none !border-2 !border-[#982E41] !bg-[#F3D7DE] px-3 !text-[13px] !font-medium !text-[#7A2233] shadow-[0_0_0_1px_rgba(152,46,65,0.08)] transition-colors hover:!bg-[#982E41] hover:!text-white focus-visible:!ring-2 focus-visible:!ring-[#982E41]/30"
+                  className="h-8 rounded-none !border-2 !border-[#B43C39] !bg-[#B43C39] px-3 !text-[13px] !font-medium !text-white shadow-[0_0_0_1px_rgba(152,46,65,0.08)] transition-colors hover:!bg-[#8f2e2c] hover:!text-white focus-visible:!ring-2 focus-visible:!ring-[#B43C39]/15"
                   onClick={() => {
                     setForm((current) => ({
                       ...current,
@@ -914,13 +1038,15 @@ function mergeKeywords(
               {form.accounts.map((account, index) => (
                 <div
                   key={`${account.platform}-${index}`}
-                  className="grid min-w-0 gap-4 border bg-white/50 p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
-                  style={{ borderColor: `${KOLS_COLORS.stroke}66` }}
+                  className="grid min-w-0 gap-4 border border-[#982E41]/40 bg-white p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
                 >
                   <Label className="grid gap-2">
-                    <span>Platform</span>
-                    <select
-                      className="min-h-10 w-full min-w-0 rounded-none border border-[#982E41]/60 bg-white/80 px-3 text-[12px] outline-none focus-visible:border-[#982E41] focus-visible:ring-1 focus-visible:ring-[#982E41]/30"
+                    <span className="inline-flex items-center gap-2">
+                      <SocialPlatformIcon platform={account.platform} className="size-4" />
+                      Platform
+                    </span>
+                    <Select
+                      className="text-[12px]"
                       value={account.platform}
                       onChange={(event) => {
                         const platform = event.target.value as SocialPlatform;
@@ -934,7 +1060,7 @@ function mergeKeywords(
                     >
                       <option value="instagram">Instagram</option>
                       <option value="tiktok">TikTok</option>
-                    </select>
+                    </Select>
                   </Label>
 
                   <FormInput
@@ -968,9 +1094,10 @@ function mergeKeywords(
                   </div>
                 </div>
               ))}
+            </section>
             </div>
 
-            <DialogFooter className="border-t pt-4" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
+            <DialogFooter className="sticky bottom-0 border-t border-[#982E41]/40 bg-white px-4 pb-6 pt-3 shadow-[0_-8px_20px_rgba(152,46,65,0.08)]">
               {editingId && (
                 <Button
                   type="button"
@@ -1008,7 +1135,7 @@ function mergeKeywords(
         }}
       >
         <DialogContent
-          className="border"
+          className="max-w-md"
           style={{
             backgroundColor: KOLS_COLORS.surface,
             borderColor: KOLS_COLORS.stroke,
@@ -1055,14 +1182,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent
-          className="max-h-[90vh] max-w-5xl overflow-hidden border p-0"
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderColor: KOLS_COLORS.stroke,
-            color: KOLS_COLORS.text,
-          }}
-        >
+        <DialogContent className="max-h-[90vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"
@@ -1078,7 +1198,7 @@ function mergeKeywords(
 
           <div className="px-4 pb-4 sm:px-6">
             <div
-              className="mb-4 rounded border px-3 py-2 text-[13px]"
+              className="mb-4 border px-3 py-2 text-[13px]"
               style={{
                 borderColor: `${KOLS_COLORS.stroke}66`,
                 backgroundColor: "#FFF8F9",
@@ -1150,9 +1270,10 @@ function mergeKeywords(
               </table>
             </div>
 
-            <DialogFooter className="mt-4">
+            <DialogFooter className="mt-4 border-t border-[#982E41]/40 bg-white pt-4">
               <Button
                 variant="outline"
+                className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
                 onClick={() => {
                   setIsImportDialogOpen(false);
                   setImportPreview([]);
@@ -1189,14 +1310,7 @@ function mergeKeywords(
           }
         }}
       >
-        <DialogContent
-          className="max-h-[90vh] max-w-5xl overflow-hidden border p-0"
-          style={{
-            backgroundColor: "#FFFFFF",
-            borderColor: KOLS_COLORS.stroke,
-            color: KOLS_COLORS.text,
-          }}
-        >
+        <DialogContent className="max-h-[90vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
             <div
               className="border-b px-4 py-4 sm:px-6"
@@ -1433,7 +1547,7 @@ function mergeKeywords(
                 </div>
               )}
 
-              <DialogFooter className="mt-5 border-t pt-4">
+              <DialogFooter className="mt-5 border-t border-[#982E41]/40 bg-white pt-4">
                 <Button
                   className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
                   onClick={() => {
@@ -1471,10 +1585,10 @@ function DisplayNameInput({
 
   return (
     <div className="relative">
-      <label className="grid gap-2">
+      <Label className="grid gap-2">
         <span>{label}</span>
 
-        <input
+        <Input
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
@@ -1484,16 +1598,16 @@ function DisplayNameInput({
           onBlur={() => {
             setTimeout(() => setOpen(false), 100);
           }}
-          className="w-full rounded-[6px] border border-[#982E41]/70 bg-white px-3 py-2 text-[#2B1418] outline-none focus:border-[#982E41]"
+          className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         />
-      </label>
+      </Label>
 
       {open && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 max-h-28 w-full overflow-y-auto border border-[#982E41]/80 bg-[#FFF8F9] shadow-lg">
+        <div className="absolute z-10 mt-1 max-h-28 w-full overflow-y-auto border border-[#982E41]/80 bg-gradient-to-b from-background via-[#fff6f8] to-background shadow-lg">
           {filtered.map((opt) => (
             <div
               key={opt}
-              className="cursor-pointer px-3 py-2 text-[#2B1418] hover:bg-[#F4DCE1]"
+              className="cursor-pointer px-3 py-2 text-[#2b1418] hover:bg-[#F4DCE1]"
               onMouseDown={() => {
                 onChange(opt);
                 setOpen(false);
@@ -1544,9 +1658,9 @@ function FormInput({
           placeholder={placeholder}
           required={!placeholder}
           className={`
-            relative w-full rounded-[6px]
-            border-[#982E41]/70 bg-white text-[#2B1418] placeholder:text-[#A16A75]
-            focus-visible:border-[#982E41] focus-visible:ring-[#982E41]/30
+            relative w-full rounded-none
+            border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75]
+            focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15
             ${ghost ? "bg-transparent" : ""}
           `}
         />
@@ -1555,9 +1669,62 @@ function FormInput({
   );
 }
 
+function KeywordTokenInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+  const tokens = parseKeywordSegments(value);
+  const [draft, setDraft] = useState("");
+
+  function commitDraft(rawDraft = draft) {
+    const nextTokens = parseKeywordSegments(rawDraft);
+    if (!nextTokens.length) {
+      setDraft("");
+      return;
+    }
+
+    onChange(encodeKeywordSegments([...tokens, ...nextTokens]));
+    setDraft("");
+  }
+
+  return (
+    <div className="space-y-2 md:col-span-2">
+      <Label>{label}</Label>
+      <div className="flex min-h-11 flex-wrap items-center gap-2 border border-[#b43c39]/20 bg-white px-3 py-2 focus-within:border-[#B43C39] focus-within:ring-[3px] focus-within:ring-[#B43C39]/15">
+        {tokens.map((token) => (
+          <button
+            key={token}
+            type="button"
+            className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#982E41] hover:bg-[#982E41]/10"
+            onClick={() => onChange(encodeKeywordSegments(tokens.filter((item) => item !== token)))}
+            aria-label={`Hapus keyword ${token}`}
+          >
+            #{token} x
+          </button>
+        ))}
+        <input
+          className="min-w-32 flex-1 bg-transparent text-sm text-[#2b1418] outline-none placeholder:text-[#A16A75]"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => commitDraft()}
+          onKeyDown={(event) => {
+            if ([" ", "Enter", ","].includes(event.key)) {
+              event.preventDefault();
+              commitDraft();
+            }
+
+            if (event.key === "Backspace" && !draft && tokens.length) {
+              event.preventDefault();
+              onChange(encodeKeywordSegments(tokens.slice(0, -1)));
+            }
+          }}
+          placeholder={tokens.length ? "Tambah lalu tekan spasi" : "Ketik keyword lalu tekan spasi"}
+        />
+      </div>
+    </div>
+  );
+}
+
 function MetricBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid gap-1 border-[1.6px] bg-white/70 px-3 py-2" style={{ borderColor: `${KOLS_COLORS.stroke}80` }}>
+    <div className="grid gap-1 border border-[#b43c39]/15 bg-white/70 px-3 py-2">
       <p className="text-[13px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
       <p className="text-[19px] font-[560] leading-none tracking-[0.04em]">{value}</p>
     </div>
@@ -1576,4 +1743,69 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 function MetaBadge({ children }: { children: string }) {
   //badge metadata (Verified/Business/dll).
   return <span className="border border-[#982E41] bg-[#B33C39] px-2 py-1 text-[12px] leading-none text-white">{children}</span>;
+}
+
+
+function KolListSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <Skeleton className="size-12 shrink-0" />
+              <div className="min-w-0 space-y-2">
+                <Skeleton className="h-5 w-48 max-w-full" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-72 max-w-full" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, metricIndex) => (
+              <div key={metricIndex} className="border border-[#b43c39]/15 bg-white/70 px-3 py-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="mt-2 h-5 w-20" />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-1 text-[13px] md:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, detailIndex) => (
+              <Skeleton key={detailIndex} className="h-4 w-full max-w-56" />
+            ))}
+          </div>
+
+          <div className="grid gap-5">
+            {Array.from({ length: 2 }).map((_, accountIndex) => (
+              <div key={accountIndex} className="grid gap-3 border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <Skeleton className="size-14 shrink-0" />
+                  <div className="min-w-0 space-y-2">
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-4 w-40 max-w-full" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-16" />
+                      <Skeleton className="h-6 w-20" />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+                  {Array.from({ length: 6 }).map((_, metricIndex) => (
+                    <Skeleton key={metricIndex} className="h-9 w-full" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
 }

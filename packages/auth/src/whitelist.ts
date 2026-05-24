@@ -1,5 +1,5 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
-import { allowedEmail, type AppRole } from "@if3250_k02_g01_dgw1/db/schema/access";
+import { whitelistEmail, type AppRole } from "@if3250_k02_g01_dgw1/db/schema/whitelist";
 import { env } from "@if3250_k02_g01_dgw1/env/server";
 import { and, eq } from "drizzle-orm";
 
@@ -38,11 +38,11 @@ export async function getWhitelistForEmail(email?: string | null): Promise<White
 
   const [record] = await db
     .select({
-      email: allowedEmail.email,
-      role: allowedEmail.role,
+      email: whitelistEmail.email,
+      role: whitelistEmail.role,
     })
-    .from(allowedEmail)
-    .where(and(eq(allowedEmail.email, normalizedEmail), eq(allowedEmail.isActive, true)))
+    .from(whitelistEmail)
+    .where(and(eq(whitelistEmail.email, normalizedEmail), eq(whitelistEmail.isActive, true)))
     .limit(1);
 
   if (!record) {

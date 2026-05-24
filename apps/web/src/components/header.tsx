@@ -24,19 +24,20 @@ export default function Header() {
 
   const isAdmin = privateDataQuery.data?.whitelist?.role === "admin";
   const links = [
-    { to: "/dashboard", label: "Dashboard" },
+    { to: "/", label: "Dashboard" },
+    { to: "/brand", label: "Brand" },
     { to: "/campaigns", label: "Campaigns" },
     { to: "/kols", label: "KOL" },
     { to: "/compare-kols", label: "CompareKOL" },
   ] as const;
-  const adminLinks = isAdmin ? ([{ to: "/whitelist", label: "Whitelist" }] as const) : [];
+  const adminLinks = isAdmin ? ([{ to: "/settings", label: "Settings" }] as const) : [];
   const visibleLinks = [...links, ...adminLinks];
 
   return (
     <div className="sticky top-0 z-40 flex w-full items-center justify-between gap-3 bg-gradient-to-r from-[#B43C39] to-[#7B204C] px-4 py-3 shadow-md sm:px-6 lg:px-12">
       {/* Logo & Tulisan */}
       <Link
-        to="/dashboard"
+        to="/"
         aria-label="Ke dashboard DigiWonder"
         className="flex min-w-0 items-center gap-3 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#B43C39]"
       >

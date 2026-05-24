@@ -1,3 +1,4 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Disallow: /
+
+# DigiWonder is a private dashboard. Public crawlers should not index authenticated app surfaces.

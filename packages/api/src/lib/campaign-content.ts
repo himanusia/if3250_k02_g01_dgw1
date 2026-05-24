@@ -14,6 +14,7 @@ export type CampaignKolLink = {
 };
 
 export type CampaignContentRecord = {
+  archivedAt: string | null;
   authorDisplayName: string;
   authorHandle: string;
   campaignId: number;
@@ -81,6 +82,7 @@ type CampaignContentInput = {
 };
 
 type CampaignContentRow = {
+  archivedAt: Date | null;
   authorDisplayName: string;
   authorHandle: string;
   campaignId: number;
@@ -118,6 +120,7 @@ function toShortDate(value: Date) {
 
 function normalizeCampaignContentRow(row: CampaignContentRow, handles: string[]): CampaignContentRecord {
   return {
+    archivedAt: toIso(row.archivedAt),
     authorDisplayName: row.authorDisplayName,
     authorHandle: row.authorHandle,
     campaignId: row.campaignId,
@@ -184,6 +187,7 @@ async function loadCampaignKolLinks(campaignId: number) {
 async function loadCampaignContentRows(campaignId: number, linksByKolId: Map<number, CampaignKolLink>) {
   const rows = await db
     .select({
+      archivedAt: campaignContent.archivedAt,
       authorDisplayName: campaignContent.authorDisplayName,
       authorHandle: campaignContent.authorHandle,
       campaignId: campaignContent.campaignId,
@@ -335,6 +339,7 @@ function ensureCampaignContentUrl(rowIndex: number, row: CampaignContentInputRow
 async function loadCampaignContentRow(contentId: number) {
   const [row] = await db
     .select({
+      archivedAt: campaignContent.archivedAt,
       authorDisplayName: campaignContent.authorDisplayName,
       authorHandle: campaignContent.authorHandle,
       campaignId: campaignContent.campaignId,
@@ -420,6 +425,7 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
   const linkMap = new Map(links.map((link) => [link.id, link] as const));
   const [latest] = await db
     .select({
+      archivedAt: campaignContent.archivedAt,
       authorDisplayName: campaignContent.authorDisplayName,
       authorHandle: campaignContent.authorHandle,
       campaignId: campaignContent.campaignId,
@@ -540,6 +546,7 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
     const [created] = await db
       .insert(campaignContent)
       .values({
+        archivedAt: null,
         authorDisplayName: "",
         authorHandle: "",
         campaignId: input.campaignId,
@@ -609,6 +616,54 @@ export async function syncCampaignContent(contentId: number) {
   }
 
   return await updateCampaignContentMetrics(contentId, metrics);
+}
+
+export async function archiveCampaignContent(contentId: number) {
+  const current = await loadCampaignContentRow(contentId);
+
+  await db
+    .update(campaignContent)
+    .set({
+      archivedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(campaignContent.id, contentId));
+
+  const links = await loadCampaignKolLinks(current.campaignId);
+  const linkMap = new Map(links.map((link) => [link.id, link] as const));
+  const latest = await loadCampaignContentRow(contentId);
+
+  return normalizeCampaignContentRow(
+    {
+      ...latest,
+      metadata: (latest.metadata ?? null) as Record<string, unknown> | null,
+    },
+    linkMap.get(latest.kolId)?.handles ?? [],
+  );
+}
+
+export async function restoreCampaignContent(contentId: number) {
+  const current = await loadCampaignContentRow(contentId);
+
+  await db
+    .update(campaignContent)
+    .set({
+      archivedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(campaignContent.id, contentId));
+
+  const links = await loadCampaignKolLinks(current.campaignId);
+  const linkMap = new Map(links.map((link) => [link.id, link] as const));
+  const latest = await loadCampaignContentRow(contentId);
+
+  return normalizeCampaignContentRow(
+    {
+      ...latest,
+      metadata: (latest.metadata ?? null) as Record<string, unknown> | null,
+    },
+    linkMap.get(latest.kolId)?.handles ?? [],
+  );
 }
 
 export async function deleteCampaignContent(contentId: number) {

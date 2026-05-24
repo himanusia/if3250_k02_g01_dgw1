@@ -81,6 +81,7 @@ export const campaignContent = pgTable(
     syncMessage: text("sync_message"),
     syncErrorCode: text("sync_error_code"),
     syncedAt: timestamp("synced_at"),
+    archivedAt: timestamp("archived_at"),
     createdByUserId: text("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -95,5 +96,6 @@ export const campaignContent = pgTable(
     index("campaign_content_campaign_idx").on(table.campaignId),
     index("campaign_content_kol_idx").on(table.kolId),
     index("campaign_content_sync_status_idx").on(table.syncStatus),
+    index("campaign_content_archived_at_idx").on(table.archivedAt),
   ],
 );

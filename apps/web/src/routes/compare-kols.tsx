@@ -7,6 +7,10 @@ import type { CampaignRecord, KolRecord, SocialPlatform } from "@/lib/app-types"
 import { formatCurrencyIdr } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/compare-kols")({
@@ -86,16 +90,12 @@ function RouteComponent() {
     return map;
   }, [selectedKols]);
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="container mx-auto grid gap-6 px-4 py-6 xl:grid-cols-[0.9fr_1.1fr]">
-      <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+    <div className="h-full overflow-y-auto bg-background">
+      <div className="container mx-auto grid w-full max-w-6xl gap-5 overflow-x-hidden px-4 py-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:py-8">
+      <section className="min-w-0 max-w-full overflow-hidden space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
-          <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">Compare KOL</p>
-          <h1 className="text-2xl font-semibold">Bandingkan kandidat KOL</h1>
-          <p className="text-muted-foreground">
-            Cari berdasarkan nama, handle, bidang, atau keyword, lalu pilih beberapa KOL untuk
-            dibandingkan.
-          </p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
+          <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Bandingkan kandidat KOL</h1>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -103,15 +103,18 @@ function RouteComponent() {
           <FilterInput label="Keyword" value={keywordFilter} onChange={setKeywordFilter} />
         </div>
 
-        <div className="border-border max-h-128 space-y-2 overflow-auto border p-3">
-          {filteredKols.map((kol) => {
+        <div className="max-h-128 space-y-2 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+          {kolQuery.isLoading ? (
+            <CompareKolPickerSkeleton />
+          ) : filteredKols.map((kol) => {
             const selected = selectedKolIds.includes(kol.id);
 
             return (
-              <button
+              <Button
                 key={kol.id}
                 type="button"
-                className={`border-border w-full border p-3 text-left transition-colors ${selected ? "bg-muted" : "hover:bg-muted/40"}`}
+                variant={selected ? "default" : "outline"}
+                className={`h-auto w-full justify-start border p-3 text-left transition-colors ${selected ? "border-[#B43C39] bg-[#fff3d8] text-[#2b1418] hover:bg-[#ffeabd]" : "border-[#b43c39]/15 bg-white text-[#2b1418] hover:bg-[#fff6f8]"}`}
                 onClick={() => {
                   setSelectedKolIds((current) =>
                     current.includes(kol.id)
@@ -120,43 +123,42 @@ function RouteComponent() {
                   );
                 }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{kol.displayName}</p>
-                    <p className="text-muted-foreground text-sm">
-                      {kol.accounts.map((account) => `@${account.handle}`).join(" • ")}
-                    </p>
-                  </div>
-                  <span className="text-muted-foreground text-xs">{kol.accounts.length} akun</span>
-                </div>
-                <div className="text-muted-foreground mt-2 grid gap-1 text-sm md:grid-cols-2">
-                  <p>Keywords: {kol.keywords || "-"}</p>
-                  <p>Followers: {kol.totalFollowers.toLocaleString()}</p>
-                </div>
-              </button>
+                <span className="block w-full">
+                  <span className="flex items-start justify-between gap-3">
+                    <span>
+                      <span className="block font-medium text-[#2b1418]">{kol.displayName}</span>
+                      <span className="block text-sm text-muted-foreground">
+                        {kol.accounts.map((account) => `@${account.handle}`).join(" • ")}
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">{kol.accounts.length} akun</span>
+                  </span>
+                  <span className="mt-2 grid gap-1 text-sm text-muted-foreground md:grid-cols-2">
+                    <span>Keywords: {kol.keywords || "-"}</span>
+                    <span>Followers: {kol.totalFollowers.toLocaleString()}</span>
+                  </span>
+                </span>
+              </Button>
             );
           })}
 
-          {!filteredKols.length && (
-            <p className="text-muted-foreground text-sm">Tidak ada akun yang cocok dengan filter.</p>
+          {!kolQuery.isLoading && !filteredKols.length && (
+            <p className="text-sm text-muted-foreground">Tidak ada akun yang cocok dengan filter.</p>
           )}
         </div>
       </section>
 
-      <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+      <section className="min-w-0 max-w-full overflow-hidden space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Hasil perbandingan</h2>
-            <p className="text-muted-foreground">
-              Pilih beberapa akun untuk melihat metriknya side by side.
-            </p>
+            <h2 className="font-goldman text-2xl font-bold uppercase tracking-wide text-[#2b1418]">Hasil perbandingan</h2>
           </div>
 
           <div className="grid gap-2">
-            <span className="text-sm">Tambahkan akun terpilih ke campaign</span>
-            <div className="flex gap-2">
-              <select
-                className="border-border bg-background min-h-10 border px-3"
+            <span className="text-sm text-[#2b1418]">Tambahkan akun terpilih ke campaign</span>
+            <div className="flex min-w-0 flex-wrap gap-2">
+              <Select
+                className="min-w-0 flex-1 border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={selectedCampaignId}
                 onChange={(event) => setSelectedCampaignId(event.target.value)}
               >
@@ -166,8 +168,9 @@ function RouteComponent() {
                     {campaign.name}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button
+                className="rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
                 disabled={!selectedCampaignId || !selectedKolIds.length || addKol.isPending}
                 onClick={async () => {
                   try {
@@ -192,143 +195,142 @@ function RouteComponent() {
           </div>
         </div>
 
-        {/* TODO: kalau fix, rapiin jadi komponen */}
         <div className="overflow-x-auto">
-          <h2 className="mb-2 text-lg font-semibold capitalize text-gray-200">
+          <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             Overall
           </h2>
-          <table className="w-full border border-gray-700 text-sm">
-            <thead className="bg-gray-900 text-gray-300">
+          {kolQuery.isLoading ? <CompareTableSkeleton /> : <table className="w-full min-w-[760px] table-fixed border border-[#b43c39]/15 text-sm">
+            <thead className="bg-[#fff3d8] text-[#2b1418]">
               <tr>
-                <th className="border border-gray-700 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Name
                 </th>
-                <th className="border border-gray-700 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Followers
                 </th>
-                <th className="border border-gray-700 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Avg Likes
                 </th>
-                <th className="border border-gray-700 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Avg Views
                 </th>
-                <th className="border border-gray-700 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   ER
                 </th>
-                <th className="border border-gray-700 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Est. Post
                 </th>
-                <th className="border border-gray-700 px-3 py-2 text-left">
+                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                   Actual Post
                 </th>
               </tr>
             </thead>
 
-            <tbody className="text-gray-200">
+            <tbody className="text-[#2b1418]">
               {selectedKols.map((kol) => (
-                <tr key={kol.id} className="hover:bg-gray-800">
-                  <td className="border border-gray-700 px-3 py-2 font-medium">
+                <tr key={kol.id} className="hover:bg-[#fff6f8]">
+                  <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
                     {kol.displayName}
                   </td>
 
-                  <td className="border border-gray-700 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.totalFollowers.toLocaleString()}
                   </td>
 
-                  <td className="border border-gray-700 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.averageLikes.toLocaleString()}
                   </td>
 
-                  <td className="border border-gray-700 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.averageViews.toLocaleString()}
                   </td>
 
-                  <td className="border border-gray-700 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {kol.engagementRate || "-"}
                   </td>
 
-                  <td className="border border-gray-700 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}
                   </td>
 
-                  <td className="border border-gray-700 px-3 py-2">
+                  <td className="border border-[#b43c39]/15 px-3 py-2">
                     {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table>}
         </div>
 
         {(Object.entries(groupedByPlatform) as Array<[SocialPlatform, GroupedPlatformAccount[]]>).map(([platform, accounts]) => (
         <div key={platform} className="mb-6">
-          <h2 className="mb-2 text-lg font-semibold capitalize text-gray-200">
+          <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             {platform}
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="w-full border border-gray-700 text-sm">
-              <thead className="bg-gray-900 text-gray-300">
+            <table className="w-full min-w-[860px] table-fixed border border-[#b43c39]/15 text-sm">
+              <thead className="bg-[#fff3d8] text-[#2b1418]">
                 <tr>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Name
                   </th>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Handle
                   </th>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Followers
                   </th>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Avg Likes
                   </th>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Avg Views
                   </th>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     ER
                   </th>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Est. Post
                   </th>
-                  <th className="border border-gray-700 px-3 py-2 text-left">
+                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
                     Actual Post
                   </th>
                 </tr>
               </thead>
 
-              <tbody className="text-gray-200">
+              <tbody className="text-[#2b1418]">
                 {accounts.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-gray-800">
-                    <td className="border border-gray-700 px-3 py-2 font-medium">
+                  <tr key={acc.id} className="hover:bg-[#fff6f8]">
+                    <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
                       {acc.displayName}
                     </td>
 
-                    <td className="border border-gray-700 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       @{acc.handle}
                     </td>
 
-                    <td className="border border-gray-700 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.followers.toLocaleString()}
                     </td>
 
-                    <td className="border border-gray-700 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.averageLikes.toLocaleString()}
                     </td>
 
-                    <td className="border border-gray-700 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.averageViews.toLocaleString()}
                     </td>
 
-                    <td className="border border-gray-700 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {acc.engagementRate || "-"}
                     </td>
 
-                    <td className="border border-gray-700 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {formatCurrencyIdr(acc.estimatedPostRate)}
                     </td>
 
-                    <td className="border border-gray-700 px-3 py-2">
+                    <td className="border border-[#b43c39]/15 px-3 py-2">
                       {formatCurrencyIdr(acc.actualPostRate)}
                     </td>
                   </tr>
@@ -354,13 +356,54 @@ function FilterInput({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm">
+    <Label className="grid gap-2 text-sm text-[#2b1418]">
       <span>{label}</span>
-      <input
-        className="border-border bg-background min-h-10 border px-3"
+      <Input
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </label>
+    </Label>
+  );
+}
+
+
+function CompareKolPickerSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="border border-[#b43c39]/15 bg-white p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-44" />
+              <Skeleton className="h-4 w-64 max-w-full" />
+            </div>
+            <Skeleton className="h-4 w-14" />
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function CompareTableSkeleton() {
+  return (
+    <div className="border border-[#b43c39]/15 bg-white p-3">
+      <div className="grid gap-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="grid grid-cols-5 gap-2">
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -16,6 +16,7 @@ import type { orpc } from "@/utils/orpc";
 import { Toaster } from "@/components/ui/sonner";
 import { getAuthState } from "../functions/get-auth-state";
 import { loadAuthStateSafely } from "../lib/auth-state";
+import { getDocumentThemeClass } from "../lib/document-theme";
 
 import Header from "../components/header";
 import appCss from "../index.css?url";
@@ -30,6 +31,29 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
     if (isApiRoute) {
       return;
+    }
+
+    // Local-only visual QA bypass. It only works on the dev server and localhost.
+    const isLocalUiCheck = import.meta.env.DEV
+      && new URLSearchParams(location.search).get("uiCheckBypass") === "1"
+      && (typeof window === "undefined" || ["localhost", "127.0.0.1"].includes(window.location.hostname));
+
+    if (isLocalUiCheck) {
+      return {
+        session: {
+          user: {
+            email: "ui-check@local.test",
+            id: "local-ui-check",
+            name: "Local UI Check",
+          },
+        },
+        whitelist: {
+          email: "ui-check@local.test",
+          id: 0,
+          isActive: true,
+          role: "admin",
+        },
+      };
     }
 
     const isPublicRoute = ["/login", "/unauthorized"].includes(location.pathname);
@@ -49,7 +73,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
     if (authState.session && authState.whitelist && isPublicRoute) {
       throw redirect({
-        to: "/dashboard",
+        to: "/",
       });
     }
 
@@ -65,13 +89,63 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "DigiWonder",
+        title: "DigiWonder | KOL Campaign Dashboard",
+      },
+      {
+        name: "description",
+        content:
+          "DigiWonder is a private campaign dashboard for managing KOL profiles, campaign planning, and social-content performance.",
+      },
+      {
+        name: "robots",
+        content: "noindex, nofollow",
+      },
+      {
+        name: "theme-color",
+        content: "#f7e7eb",
+      },
+      {
+        property: "og:site_name",
+        content: "DigiWonder",
+      },
+      {
+        property: "og:title",
+        content: "DigiWonder | KOL Campaign Dashboard",
+      },
+      {
+        property: "og:description",
+        content:
+          "Private campaign dashboard for KOL profiles, campaign planning, and social-content performance.",
+      },
+      {
+        property: "og:type",
+        content: "website",
+      },
+      {
+        property: "og:image",
+        content: "/images/logo-placeholder.svg",
+      },
+      {
+        name: "twitter:card",
+        content: "summary",
       },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "manifest",
+        href: "/site.webmanifest",
+      },
+      {
+        rel: "icon",
+        href: "/favicon.ico",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/icon-180.png",
       },
     ],
   }),
@@ -82,16 +156,17 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 function RootDocument() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const showHeader = pathname !== "/login";
+  const documentThemeClass = getDocumentThemeClass(pathname);
 
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={documentThemeClass}>
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className={documentThemeClass}>
         <div className="grid h-svh grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
           {showHeader && <Header />}
-          <main className="min-h-0 overflow-hidden">
+          <main className="h-full min-h-0 overflow-hidden">
             <Outlet />
           </main>
         </div>
