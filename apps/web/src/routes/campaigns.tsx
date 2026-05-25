@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
 import { encodeCampaignObjective, formatObjectiveDetails, formatObjectiveSummary, getProgressPercent, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
-import { formatDateTime, formatNumber } from "@/lib/kol-utils";
+import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -153,6 +153,7 @@ const TARGET_KOL_TIERS = [
   { key: "macro", label: "Macro" },
   { key: "mega", label: "Mega" },
 ] as const;
+const CAMPAIGN_PAGE_SIZE = 8;
 
 type TargetKolTier = { count: number; tier: string };
 type MetricTarget = { actual: number; isFallback: boolean; label: string; percent: number; target: number };
@@ -189,7 +190,7 @@ function getCampaignTemporalStatus(periodStart: string, periodEnd: string): Camp
 function formatCampaignStatus(status: CampaignRecord["status"]) {
   const labels: Record<CampaignRecord["status"], string> = {
     active: "Berjalan",
-    archived: "Diarsipkan",
+    archived: "Selesai",
     completed: "Selesai",
     draft: "Belum mulai",
   };
@@ -361,7 +362,8 @@ function RouteComponent() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
   const [campaignSearch, setCampaignSearch] = useState("");
-  const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignRecord["status"]>("all");
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignRecord["status"]>("active");
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
   const [kolSearch, setKolSearch] = useState("");
   const [selectedKeywordFilter, setSelectedKeywordFilter] = useState<string[]>([]);
@@ -441,6 +443,21 @@ function RouteComponent() {
       return matchesStatus && matchesSearch;
     });
   }, [campaignSearch, campaignStatusFilter, campaigns]);
+  const totalCampaignPages = Math.max(1, Math.ceil(filteredCampaigns.length / CAMPAIGN_PAGE_SIZE));
+  const paginatedCampaigns = useMemo(
+    () => filteredCampaigns.slice((campaignPage - 1) * CAMPAIGN_PAGE_SIZE, campaignPage * CAMPAIGN_PAGE_SIZE),
+    [campaignPage, filteredCampaigns],
+  );
+
+  useEffect(() => {
+    setCampaignPage(1);
+  }, [campaignSearch, campaignStatusFilter]);
+
+  useEffect(() => {
+    if (campaignPage > totalCampaignPages) {
+      setCampaignPage(totalCampaignPages);
+    }
+  }, [campaignPage, totalCampaignPages]);
 
   const { activeContentGroups, archivedContentGroups } = useMemo(() => {
     const activeGroups: CampaignDetailRecord["contentsByKol"] = [];
@@ -629,6 +646,28 @@ function RouteComponent() {
     },
   });
 
+  const syncActiveContent = useMutation({
+    mutationFn: () => client.campaign.syncActiveContent(),
+    onSuccess: (result) => {
+      if (result.total === 0) {
+        toast.info("Tidak ada konten aktif yang perlu disinkronkan.");
+      } else if (result.failed > 0) {
+        toast.error(`${result.synced} konten tersinkron, ${result.failed} gagal.`);
+      } else {
+        toast.success(`${result.synced} konten aktif berhasil disinkronkan.`);
+      }
+
+      campaignsQuery.refetch();
+      campaignProgressQuery.refetch();
+      if (detailCampaignQuery.isFetched) {
+        detailCampaignQuery.refetch();
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Gagal sync konten campaign aktif");
+    },
+  });
+
   function resetForm() {
     setEditingId(null);
     setIsDialogOpen(false);
@@ -773,10 +812,22 @@ function RouteComponent() {
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#B43C39]">Campaigns</p>
                 <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Daftar campaign</h1>
               </div>
-              <Button type="button" onClick={openCreateDialog} className="rounded-none bg-[#B43C39] font-semibold text-white hover:bg-[#8f2e2c]">
-                <Plus className="mr-2 size-4" />
-                Tambah campaign
-              </Button>
+              <div className="flex flex-wrap gap-2 md:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={syncActiveContent.isPending}
+                  onClick={() => syncActiveContent.mutate()}
+                  className="rounded-none border-[#982E41] bg-white font-semibold text-[#982E41] hover:bg-[#982E41] hover:text-white"
+                >
+                  {syncActiveContent.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCcw className="mr-2 size-4" />}
+                  Sync konten aktif
+                </Button>
+                <Button type="button" onClick={openCreateDialog} className="rounded-none bg-[#B43C39] font-semibold text-white hover:bg-[#8f2e2c]">
+                  <Plus className="mr-2 size-4" />
+                  Tambah campaign
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
@@ -798,7 +849,6 @@ function RouteComponent() {
                   <option value="draft">Belum mulai</option>
                   <option value="active">Berjalan</option>
                   <option value="completed">Selesai</option>
-                  <option value="archived">Diarsipkan</option>
                 </Select>
               </Label>
             </div>
@@ -806,7 +856,7 @@ function RouteComponent() {
             <div className="space-y-3">
               {campaignsQuery.isLoading || campaignProgressQuery.isLoading ? (
                 <CampaignListSkeleton />
-              ) : filteredCampaigns.map((campaign) => {
+              ) : paginatedCampaigns.map((campaign) => {
                 const progress = campaignProgressById.get(campaign.id);
                 const targetTiers = parseTargetKolTiers(campaign.targetFollowerTier);
                 const derivedStatus = getCampaignTemporalStatus(campaign.periodStart, campaign.periodEnd);
@@ -912,6 +962,16 @@ function RouteComponent() {
 
               {!campaignsQuery.isLoading && !campaignProgressQuery.isLoading && !filteredCampaigns.length && (
                 <p className="text-sm text-muted-foreground">{campaigns.length ? "Tidak ada campaign yang cocok dengan filter." : "Belum ada campaign yang dibuat."}</p>
+              )}
+
+              {!campaignsQuery.isLoading && !campaignProgressQuery.isLoading && filteredCampaigns.length > 0 && (
+                <CampaignPaginationControls
+                  page={campaignPage}
+                  pageSize={CAMPAIGN_PAGE_SIZE}
+                  totalItems={filteredCampaigns.length}
+                  totalPages={totalCampaignPages}
+                  onPageChange={setCampaignPage}
+                />
               )}
             </div>
           </section>
@@ -1233,6 +1293,26 @@ function RouteComponent() {
                   <DetailStat boxed label="Deskripsi" value={detailCampaignData?.description ?? detailCampaignSummary?.description ?? "-"} />
                   <DetailStat boxed label="Post brief" value={detailCampaignData?.postBriefs ?? detailCampaignSummary?.postBriefs ?? "-"} />
                 </div>
+
+                <details className="group border border-[#982E41]/15 bg-[#FFF8F9] p-3">
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-[#2b1418]">
+                    <span className="inline-flex items-center gap-2">
+                      <ChevronDown className="size-4 -rotate-90 text-[#982E41] transition-transform group-open:rotate-0" />
+                      KOL campaign
+                    </span>
+                    <span className="text-xs font-normal text-muted-foreground">{detailCampaignData.kols.length} KOL</span>
+                  </summary>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {detailCampaignData.kols.map((kol) => (
+                      <div key={kol.id} className="border border-[#982E41]/15 bg-white p-3">
+                        <p className="font-semibold text-[#2b1418]">{kol.displayName}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {kol.handles.length ? kol.handles.join(" / ") : "Belum ada akun sosial tersimpan."}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </section>
 
               <section className="space-y-3">
@@ -1361,7 +1441,7 @@ function RouteComponent() {
                               <div className="grid gap-3 border border-[#982E41]/15 bg-white p-3 md:grid-cols-[104px_minmax(0,1fr)]">
                                 {content.thumbnailUrl ? (
                                   <img
-                                    src={content.thumbnailUrl}
+                                    src={getAvatarSrc(content.thumbnailUrl)}
                                     alt={content.title || "Preview post"}
                                     className="aspect-square w-full border border-[#982E41]/15 object-cover"
                                     referrerPolicy="no-referrer"
@@ -1419,16 +1499,20 @@ function RouteComponent() {
 
               {archivedContentGroups.length ? (
                 <section className="space-y-3">
-                  <div>
-                    <h3 className="text-[15px] font-semibold text-foreground">Arsip konten</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Post yang diarsip tetap tersimpan, tapi tidak ikut daftar konten aktif.
-                    </p>
-                  </div>
+                  <details className="group border border-[#982E41]/15 bg-white p-4">
+                    <summary className="flex cursor-pointer items-center justify-between gap-3 text-[15px] font-semibold text-foreground">
+                      <span className="inline-flex items-center gap-2">
+                        <ChevronDown className="size-4 -rotate-90 text-[#982E41] transition-transform group-open:rotate-0" />
+                        Arsip konten
+                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {archivedContentGroups.reduce((sum, group) => sum + group.contents.length, 0)} post
+                      </span>
+                    </summary>
 
-                  <div className="space-y-4">
-                    {archivedContentGroups.map((group) => (
-                      <article key={`archived-${group.kolId}`} className="border-[1.6px] border-border/70 bg-white/70 p-4 sm:p-5">
+                    <div className="mt-4 space-y-4">
+                      {archivedContentGroups.map((group) => (
+                        <article key={`archived-${group.kolId}`} className="border-[1.6px] border-border/70 bg-white/70 p-4 sm:p-5">
                         <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
                           <div>
                             <p className="text-[18px] font-semibold leading-none text-foreground">{group.displayName}</p>
@@ -1501,9 +1585,10 @@ function RouteComponent() {
                             </article>
                           ))}
                         </div>
-                      </article>
-                    ))}
-                  </div>
+                        </article>
+                      ))}
+                    </div>
+                  </details>
                 </section>
               ) : null}
             </div>
@@ -1710,9 +1795,60 @@ function MetricTargetBadge({ actual, label, percent, target }: MetricTarget) {
         <span className="font-semibold uppercase tracking-[0.14em] text-[#982E41]">{label}</span>
         <span className="font-semibold">{target === null ? "-" : `${percent}%`}</span>
       </div>
+      <div className="mt-2 h-1.5 overflow-hidden bg-[#F2DDE2]">
+        <div className="h-full bg-[#982E41]" style={{ width: `${percent}%` }} />
+      </div>
       <p className="mt-1 text-muted-foreground">
         {formatNumber(actual)} / {target === null ? "belum ada target" : formatNumber(target)}
       </p>
+    </div>
+  );
+}
+
+function CampaignPaginationControls({
+  onPageChange,
+  page,
+  pageSize,
+  totalItems,
+  totalPages,
+}: {
+  onPageChange: (page: number) => void;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}) {
+  const start = totalItems ? (page - 1) * pageSize + 1 : 0;
+  const end = Math.min(page * pageSize, totalItems);
+
+  return (
+    <div className="flex flex-col gap-3 border border-[#982E41]/15 bg-white px-4 py-3 text-sm text-[#2b1418] sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-xs text-muted-foreground">
+        {start}-{end} dari {totalItems}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+        >
+          Sebelumnya
+        </Button>
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#982E41]">
+          {page}/{totalPages}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+        >
+          Berikutnya
+        </Button>
+      </div>
     </div>
   );
 }

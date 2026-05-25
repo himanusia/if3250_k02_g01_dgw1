@@ -187,6 +187,29 @@ export const campaignRouter = {
     .handler(async ({ input }) => {
       return await archiveCampaignContent(input.id);
     }),
+  syncActiveContent: protectedProcedure.handler(async () => {
+    const rows = await db
+      .select({ id: campaignContent.id })
+      .from(campaignContent)
+      .innerJoin(campaign, eq(campaignContent.campaignId, campaign.id))
+      .where(and(eq(campaign.status, "active"), isNull(campaignContent.archivedAt)));
+
+    let failed = 0;
+
+    for (const row of rows) {
+      try {
+        await syncCampaignContent(row.id);
+      } catch {
+        failed += 1;
+      }
+    }
+
+    return {
+      failed,
+      synced: rows.length - failed,
+      total: rows.length,
+    };
+  }),
   create: protectedProcedure.input(campaignInputSchema).handler(async ({ context, input }) => {
     const created = await db.transaction(async (tx) => {
       const result = await tx
