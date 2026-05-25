@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { orpc } from "@/utils/orpc";
 
+const BRAND_PAGE_SIZE = 10;
+
 export const Route = createFileRoute("/brand")({
   component: RouteComponent,
 });
@@ -27,6 +29,7 @@ function RouteComponent() {
   }, []);
 
   const [query, setQuery] = useState("");
+  const [brandPage, setBrandPage] = useState(1);
   const [selectedBrandName, setSelectedBrandName] = useState<string | null>(null);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
   const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
@@ -47,12 +50,27 @@ function RouteComponent() {
 
     return brandSummaries.find((brand) => brand.name === selectedBrandName) ?? filteredBrands[0] ?? null;
   }, [brandSummaries, filteredBrands, selectedBrandName]);
+  const totalBrandPages = Math.max(1, Math.ceil(filteredBrands.length / BRAND_PAGE_SIZE));
+  const paginatedBrands = useMemo(
+    () => filteredBrands.slice((brandPage - 1) * BRAND_PAGE_SIZE, brandPage * BRAND_PAGE_SIZE),
+    [brandPage, filteredBrands],
+  );
 
   useEffect(() => {
     if (selectedBrandName && !brandSummaries.some((brand) => brand.name === selectedBrandName)) {
       setSelectedBrandName(null);
     }
   }, [brandSummaries, selectedBrandName]);
+
+  useEffect(() => {
+    setBrandPage(1);
+  }, [query]);
+
+  useEffect(() => {
+    if (brandPage > totalBrandPages) {
+      setBrandPage(totalBrandPages);
+    }
+  }, [brandPage, totalBrandPages]);
 
   return (
     <div className="h-full overflow-y-auto bg-gradient-to-b from-background via-[#fff6f8] to-background">
@@ -87,7 +105,7 @@ function RouteComponent() {
               <BrandListSkeleton />
             ) : filteredBrands.length ? (
               <div className="divide-y divide-[#b43c39]/10">
-                {filteredBrands.map((brand) => (
+                {paginatedBrands.map((brand) => (
                   <BrandRow
                     key={brand.name}
                     brand={brand}
@@ -95,6 +113,13 @@ function RouteComponent() {
                     onSelect={() => setSelectedBrandName(brand.name)}
                   />
                 ))}
+                <PaginationControls
+                  page={brandPage}
+                  pageSize={BRAND_PAGE_SIZE}
+                  totalItems={filteredBrands.length}
+                  totalPages={totalBrandPages}
+                  onPageChange={setBrandPage}
+                />
               </div>
             ) : brandSummaries.length ? (
               <div className="p-6">
@@ -234,7 +259,7 @@ function BrandDetail({ brand }: { brand: BrandSummary | null }) {
             <div key={campaign.id} className="px-3 py-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium text-[#2b1418]">{campaign.name}</p>
-                <span className="bg-muted px-2 py-1 text-xs capitalize text-muted-foreground">{campaign.status}</span>
+                <span className="bg-muted px-2 py-1 text-xs text-muted-foreground">{formatCampaignStatus(campaign.status)}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">Update {formatDate(campaign.updatedAt)}</p>
             </div>
@@ -257,10 +282,62 @@ function DetailStat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function PaginationControls({
+  onPageChange,
+  page,
+  pageSize,
+  totalItems,
+  totalPages,
+}: {
+  onPageChange: (page: number) => void;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}) {
+  const start = totalItems ? (page - 1) * pageSize + 1 : 0;
+  const end = Math.min(page * pageSize, totalItems);
+
+  return (
+    <div className="flex flex-col gap-3 px-5 py-4 text-sm text-[#2b1418] sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-xs text-muted-foreground">
+        {start}-{end} dari {totalItems}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="border border-[#982E41]/25 px-3 py-1 text-xs font-semibold text-[#982E41] disabled:opacity-40"
+          disabled={page <= 1}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+        >
+          Sebelumnya
+        </button>
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#982E41]">
+          {page}/{totalPages}
+        </span>
+        <button
+          type="button"
+          className="border border-[#982E41]/25 px-3 py-1 text-xs font-semibold text-[#982E41] disabled:opacity-40"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+        >
+          Berikutnya
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatCampaignStatus(status: CampaignRecord["status"]) {
+  if (status === "active") return "Berjalan";
+  if (status === "completed" || status === "archived") return "Selesai";
+  return "Belum mulai";
 }

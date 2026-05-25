@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, Clock3, Target } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardList, Target } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
 
@@ -30,16 +30,12 @@ function RouteComponent() {
   const dashboardQuery = useQuery(orpc.campaign.dashboard.queryOptions());
   const campaigns = sortCampaignsByManagementPriority((dashboardQuery.data as CampaignDashboardRecord[] | undefined) ?? []);
   const activeCampaigns = campaigns.filter((campaign) => campaign.status === "active");
-  const campaignsWithContent = campaigns.filter((campaign) => campaign.contentCount > 0);
-  const totalViews = campaigns.reduce((sum, campaign) => sum + campaign.viewCount, 0);
-  const totalInteractions = campaigns.reduce((sum, campaign) => sum + campaign.actualInteractions, 0);
-  const staleCampaigns = campaigns.filter((campaign) => campaign.syncHealth !== "fresh" && campaign.status === "active");
-  const syncCoverage = campaignsWithContent.length
-    ? getProgressPercent(
-        campaignsWithContent.reduce((sum, campaign) => sum + campaign.syncedContentCount, 0),
-        campaignsWithContent.reduce((sum, campaign) => sum + campaign.contentCount, 0),
-      )
+  const activeContentCount = activeCampaigns.reduce((sum, campaign) => sum + campaign.contentCount, 0);
+  const activeTargetProgress = activeCampaigns.length
+    ? Math.round(activeCampaigns.reduce((sum, campaign) => sum + Math.max(campaign.viewProgressPercent, campaign.interactionProgressPercent), 0) / activeCampaigns.length)
     : 0;
+  const campaignsEndingSoon = activeCampaigns.filter((campaign) => campaign.daysLeft !== null && campaign.daysLeft <= 7).length;
+  const campaignsWithoutContent = activeCampaigns.filter((campaign) => campaign.contentCount === 0).length;
 
   return (
     <div className="h-full overflow-y-auto bg-gradient-to-b from-background via-[#fff6f8] to-background">
@@ -62,9 +58,9 @@ function RouteComponent() {
           <>
             <section className="grid gap-3 md:grid-cols-4">
               <MetricCard icon={<Target className="size-4" />} label="Campaign aktif" value={activeCampaigns.length.toLocaleString("id-ID")} detail={`${campaigns.length.toLocaleString("id-ID")} total campaign`} />
-              <MetricCard icon={<CheckCircle2 className="size-4" />} label="Sync coverage" value={`${syncCoverage}%`} detail={`${campaignsWithContent.length.toLocaleString("id-ID")} campaign punya konten`} />
-              <MetricCard icon={<Clock3 className="size-4" />} label="Total views" value={formatNumber(totalViews)} detail={`${formatNumber(totalInteractions)} interaksi`} />
-              <MetricCard icon={<AlertTriangle className="size-4" />} label="Butuh perhatian" value={staleCampaigns.length.toLocaleString("id-ID")} detail="Active campaign belum fresh sync" />
+              <MetricCard icon={<ClipboardList className="size-4" />} label="Konten aktif" value={formatNumber(activeContentCount)} detail={`${campaignsWithoutContent.toLocaleString("id-ID")} campaign belum punya post`} />
+              <MetricCard icon={<CheckCircle2 className="size-4" />} label="Progress target" value={`${activeTargetProgress}%`} detail="Rata-rata target campaign aktif" />
+              <MetricCard icon={<CalendarClock className="size-4" />} label="Deadline dekat" value={campaignsEndingSoon.toLocaleString("id-ID")} detail="Campaign aktif selesai dalam 7 hari" />
             </section>
 
             {campaigns.length === 0 ? (
@@ -75,11 +71,10 @@ function RouteComponent() {
             ) : (
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-[#2b1418]">Progress campaign</h2>
-                  <p className="text-muted-foreground text-xs">Urut: aktif, draft, completed, lalu update terakhir.</p>
+                  <h2 className="text-lg font-semibold text-[#2b1418]">Campaign aktif</h2>
                 </div>
                 <div className="grid gap-3">
-                  {campaigns.map((campaign) => (
+                  {(activeCampaigns.length ? activeCampaigns : campaigns).map((campaign) => (
                     <CampaignProgressCard key={campaign.id} campaign={campaign} />
                   ))}
                 </div>
@@ -156,7 +151,7 @@ function CampaignProgressCard({ campaign }: { campaign: ReturnType<typeof sortCa
             <h3 className="text-lg font-semibold text-[#2b1418]">{campaign.name}</h3>
             <p className="text-sm text-muted-foreground">{formatObjectiveSummary(campaign.objective)}</p>
           </div>
-          <span className="w-fit border border-[#b43c39]/20 bg-[#fff3d8] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#7B204C]">{campaign.status}</span>
+          <span className="w-fit border border-[#b43c39]/20 bg-[#fff3d8] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#7B204C]">{formatCampaignStatus(campaign.status)}</span>
         </div>
         <div>
           <div className="flex items-end justify-between gap-3">
@@ -174,4 +169,10 @@ function CampaignProgressCard({ campaign }: { campaign: ReturnType<typeof sortCa
       </article>
     </Link>
   );
+}
+
+function formatCampaignStatus(status: CampaignDashboardRecord["status"]) {
+  if (status === "active") return "Berjalan";
+  if (status === "completed" || status === "archived") return "Selesai";
+  return "Belum mulai";
 }
