@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
 
-import type { KolRecord, SocialPlatform } from "@/lib/app-types";
+import type { KolRecord, RateCardValue, SocialPlatform } from "@/lib/app-types";
 import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,19 @@ type KolFormState = {
   accounts: KolAccountFormState[];
   displayName: string;
   keywords: string;
+};
+
+type RateCardFormState = {
+  postMax: string;
+  postMin: string;
+  postSuggested: string;
+  reason: string;
+  reelMax: string;
+  reelMin: string;
+  reelSuggested: string;
+  storyMax: string;
+  storyMin: string;
+  storySuggested: string;
 };
 
 type RawExcelRow = {
@@ -63,6 +76,72 @@ function getDefaultForm(): KolFormState {
     accounts: [getDefaultAccount("instagram")],
     displayName: "",
     keywords: "",
+  };
+}
+
+function toRateInput(value: number | null | undefined) {
+  return value && Number.isFinite(value) ? String(Math.round(value)) : "";
+}
+
+function getDefaultRateCardForm(kol: KolRecord | null | undefined): RateCardFormState {
+  const rateCard = kol?.actualRateCard ?? kol?.estimatedRateCard;
+
+  return {
+    postMax: toRateInput(rateCard?.post.max),
+    postMin: toRateInput(rateCard?.post.min),
+    postSuggested: toRateInput(rateCard?.post.suggested),
+    reason: "",
+    reelMax: toRateInput(rateCard?.reel.max),
+    reelMin: toRateInput(rateCard?.reel.min),
+    reelSuggested: toRateInput(rateCard?.reel.suggested),
+    storyMax: toRateInput(rateCard?.story.max),
+    storyMin: toRateInput(rateCard?.story.min),
+    storySuggested: toRateInput(rateCard?.story.suggested),
+  };
+}
+
+function parsePositiveInt(value: string) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return Math.round(parsed);
+}
+
+function buildRateCardValue(form: RateCardFormState): RateCardValue | null {
+  const postMin = parsePositiveInt(form.postMin);
+  const postSuggested = parsePositiveInt(form.postSuggested);
+  const postMax = parsePositiveInt(form.postMax);
+  const storyMin = parsePositiveInt(form.storyMin);
+  const storySuggested = parsePositiveInt(form.storySuggested);
+  const storyMax = parsePositiveInt(form.storyMax);
+  const reelMin = parsePositiveInt(form.reelMin);
+  const reelSuggested = parsePositiveInt(form.reelSuggested);
+  const reelMax = parsePositiveInt(form.reelMax);
+
+  if (!postMin || !postSuggested || !postMax || !storyMin || !storySuggested || !storyMax || !reelMin || !reelSuggested || !reelMax) {
+    return null;
+  }
+
+  const isRangeValid =
+    postMin <= postSuggested &&
+    postSuggested <= postMax &&
+    storyMin <= storySuggested &&
+    storySuggested <= storyMax &&
+    reelMin <= reelSuggested &&
+    reelSuggested <= reelMax;
+
+  if (!isRangeValid) {
+    return null;
+  }
+
+  return {
+    currency: "IDR",
+    post: { max: postMax, min: postMin, suggested: postSuggested },
+    reel: { max: reelMax, min: reelMin, suggested: reelSuggested },
+    story: { max: storyMax, min: storyMin, suggested: storySuggested },
   };
 }
 
@@ -234,6 +313,8 @@ function RouteComponent() {
   const [platformFilter, setPlatformFilter] = useState<"all" | SocialPlatform>("all");
   const [tierFilter, setTierFilter] = useState("all");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
+  const [rateEditingKolId, setRateEditingKolId] = useState<number | null>(null);
+  const [rateCardForm, setRateCardForm] = useState<RateCardFormState>(getDefaultRateCardForm(null));
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
 
@@ -282,6 +363,11 @@ function RouteComponent() {
       return matchesSearch && matchesKeyword && matchesPlatform && matchesTier;
     });
   }, [keywordFilter, kols, platformFilter, search, tierFilter]);
+
+  const rateEditingKol = useMemo(
+    () => kols.find((kol) => kol.id === rateEditingKolId) ?? null,
+    [kols, rateEditingKolId],
+  );
 
   const createKol = useMutation({
     mutationFn: (input: KolFormState) => client.kol.create(input),
@@ -340,6 +426,20 @@ function RouteComponent() {
     },
   });
 
+  const updateActualRateCard = useMutation({
+    mutationFn: (input: { actualRateCard: RateCardValue; kolId: number; reason: string }) =>
+      client.kol.updateActualRateCard(input),
+    onSuccess: () => {
+      toast.success("Rate aktual KOL berhasil diperbarui");
+      kolQuery.refetch();
+      setRateEditingKolId(null);
+      setRateCardForm(getDefaultRateCardForm(null));
+    },
+    onError: (error) => {
+      toast.error(getKolErrorMessage(error, "Gagal memperbarui rate aktual"));
+    },
+  });
+
   function resetForm() {
     setEditingId(null);
     setIsDialogOpen(false);
@@ -363,6 +463,30 @@ function RouteComponent() {
       keywords: kol.keywords,
     });
     setIsDialogOpen(true);
+  }
+
+  function editRateCard(kol: KolRecord) {
+    setRateEditingKolId(kol.id);
+    setRateCardForm(getDefaultRateCardForm(kol));
+  }
+
+  function submitRateCard() {
+    if (!rateEditingKol) {
+      toast.error("KOL belum dipilih");
+      return;
+    }
+
+    const nextRateCard = buildRateCardValue(rateCardForm);
+    if (!nextRateCard) {
+      toast.error("Rate harus angka positif dan urutannya min <= suggested <= max.");
+      return;
+    }
+
+    updateActualRateCard.mutate({
+      actualRateCard: nextRateCard,
+      kolId: rateEditingKol.id,
+      reason: rateCardForm.reason.trim(),
+    });
   }
 
   const displayNames = useMemo(() => {
@@ -842,6 +966,15 @@ function mergeKeywords(
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => editRateCard(kol)}
+                        className={KOL_ACTION_BUTTON_CLASS}
+                      >
+                        <PencilLine className="mr-1 size-3.5" />
+                        Edit rate
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setDeleteTargetId(kol.id)}
                         className={KOL_ACTION_BUTTON_CLASS}
                       >
@@ -869,10 +1002,12 @@ function mergeKeywords(
                   <p><span className="font-bold uppercase">Tier:</span> {formatFollowerTier(kol.followerTier)}</p>
                   <p className="inline-flex items-center gap-1"><span className="font-medium">Status sync:</span> {(syncingKolId === kol.id || kol.syncStatus === "pending") && <Loader2 className="size-3 animate-spin" />} {kol.syncStatus}</p>
                   <p><span className="font-bold">Last Sync:</span> {formatDateTime(kol.lastSyncedAt)}</p>
-                  <p><span className="font-medium">Est. post:</span> {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
-                  <p><span className="font-medium">Actual post:</span> {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
-                  <p><span className="font-medium">Est. story:</span> {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}</p>
-                  <p><span className="font-medium">Actual story:</span> {formatCurrencyIdr(kol.actualRateCard?.story.suggested)}</p>
+                </div>
+
+                <div className="grid gap-2 border border-[#982E41]/15 bg-[#FFF8F9] p-3 sm:grid-cols-3" style={{ color: KOLS_COLORS.text }}>
+                  <RateSummary label="Rate endorse post" estimated={kol.estimatedRateCard?.post.suggested} actual={kol.actualRateCard?.post.suggested} />
+                  <RateSummary label="Story" estimated={kol.estimatedRateCard?.story.suggested} actual={kol.actualRateCard?.story.suggested} />
+                  <RateSummary label="Reels" estimated={kol.estimatedRateCard?.reel.suggested} actual={kol.actualRateCard?.reel.suggested} />
                 </div>
 
                 {kol.syncMessage && (
@@ -1183,6 +1318,105 @@ function mergeKeywords(
                   : createKol.isPending
                     ? "Menyimpan..."
                     : "Simpan KOL"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={rateEditingKolId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRateEditingKolId(null);
+            setRateCardForm(getDefaultRateCardForm(null));
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden text-[#2b1418]">
+          <DialogHeader>
+            <DialogTitle>Edit rate aktual</DialogTitle>
+          </DialogHeader>
+
+          <form
+            className="flex max-h-[calc(90vh-88px)] flex-col bg-white"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitRateCard();
+            }}
+          >
+            <div className="grid gap-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
+              <div className="grid gap-2 border border-[#982E41]/20 bg-[#FFF8F9] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">KOL</p>
+                <p className="text-lg font-semibold text-[#2b1418]">{rateEditingKol?.displayName ?? "-"}</p>
+              </div>
+
+              <div className="grid gap-4">
+                <RateCardInputGroup
+                  label="Post"
+                  max={rateCardForm.postMax}
+                  min={rateCardForm.postMin}
+                  suggested={rateCardForm.postSuggested}
+                  onChange={(patch) => setRateCardForm((current) => ({
+                    ...current,
+                    postMax: patch.max ?? current.postMax,
+                    postMin: patch.min ?? current.postMin,
+                    postSuggested: patch.suggested ?? current.postSuggested,
+                  }))}
+                />
+                <RateCardInputGroup
+                  label="Story"
+                  max={rateCardForm.storyMax}
+                  min={rateCardForm.storyMin}
+                  suggested={rateCardForm.storySuggested}
+                  onChange={(patch) => setRateCardForm((current) => ({
+                    ...current,
+                    storyMax: patch.max ?? current.storyMax,
+                    storyMin: patch.min ?? current.storyMin,
+                    storySuggested: patch.suggested ?? current.storySuggested,
+                  }))}
+                />
+                <RateCardInputGroup
+                  label="Reels"
+                  max={rateCardForm.reelMax}
+                  min={rateCardForm.reelMin}
+                  suggested={rateCardForm.reelSuggested}
+                  onChange={(patch) => setRateCardForm((current) => ({
+                    ...current,
+                    reelMax: patch.max ?? current.reelMax,
+                    reelMin: patch.min ?? current.reelMin,
+                    reelSuggested: patch.suggested ?? current.reelSuggested,
+                  }))}
+                />
+              </div>
+
+              <FormInput
+                label="Catatan perubahan"
+                placeholder="Konfirmasi rate resmi dari KOL"
+                value={rateCardForm.reason}
+                onChange={(reason) => setRateCardForm((current) => ({ ...current, reason }))}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
+                onClick={() => {
+                  setRateEditingKolId(null);
+                  setRateCardForm(getDefaultRateCardForm(null));
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateActualRateCard.isPending}
+                className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
+              >
+                {updateActualRateCard.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {updateActualRateCard.isPending ? "Menyimpan..." : "Update rate aktual"}
               </Button>
             </DialogFooter>
           </form>
@@ -1786,6 +2020,58 @@ function KeywordTokenInput({ label, onChange, value }: { label: string; onChange
         />
       </div>
     </div>
+  );
+}
+
+function RateSummary({ actual, estimated, label }: { actual: number | null | undefined; estimated: number | null | undefined; label: string }) {
+  return (
+    <div className="grid gap-1 border border-[#982E41]/15 bg-white p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">{label}</p>
+      <p className="text-[12px] text-muted-foreground">Estimasi: {formatCurrencyIdr(estimated)}</p>
+      <p className="text-[14px] font-semibold text-[#2b1418]">Aktual: {formatCurrencyIdr(actual)}</p>
+    </div>
+  );
+}
+
+function RateCardInputGroup({
+  label,
+  max,
+  min,
+  onChange,
+  suggested,
+}: {
+  label: string;
+  max: string;
+  min: string;
+  onChange: (patch: { max?: string; min?: string; suggested?: string }) => void;
+  suggested: string;
+}) {
+  return (
+    <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">{label}</p>
+      <div className="grid gap-3 md:grid-cols-3">
+        <RateInput label="Min" value={min} onChange={(value) => onChange({ min: value })} />
+        <RateInput label="Suggested" value={suggested} onChange={(value) => onChange({ suggested: value })} />
+        <RateInput label="Max" value={max} onChange={(value) => onChange({ max: value })} />
+      </div>
+    </section>
+  );
+}
+
+function RateInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+  return (
+    <Label className="grid gap-2">
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#982E41]">{label}</span>
+      <Input
+        inputMode="numeric"
+        min="1"
+        placeholder="0"
+        type="number"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+      />
+    </Label>
   );
 }
 
