@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Instagram, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Instagram, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
@@ -64,6 +64,27 @@ function getDefaultForm(): KolFormState {
     displayName: "",
     keywords: "",
   };
+}
+
+function getNormalizedAccountKey(account: KolAccountFormState) {
+  return `${account.platform}:${account.handle.trim().replace(/^@/, "").toLowerCase()}`;
+}
+
+function getDuplicateAccountMessage(accounts: KolAccountFormState[]) {
+  const seen = new Set<string>();
+
+  for (const account of accounts) {
+    const key = getNormalizedAccountKey(account);
+    if (!account.handle.trim()) continue;
+
+    if (seen.has(key)) {
+      return `Akun ${account.platform} @${account.handle.replace(/^@/, "").trim()} terduplikat di form.`;
+    }
+
+    seen.add(key);
+  }
+
+  return "";
 }
 
 function parseKeywordSegments(keywords: string | null | undefined): string[] {
@@ -207,6 +228,7 @@ function RouteComponent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [syncingKolId, setSyncingKolId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [keywordFilter, setKeywordFilter] = useState("all");
   const [platformFilter, setPlatformFilter] = useState<"all" | SocialPlatform>("all");
@@ -214,6 +236,19 @@ function RouteComponent() {
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
+
+  useEffect(() => {
+    if (!kols.some((kol) => kol.syncStatus === "pending" || kol.accounts.some((account) => account.syncStatus === "pending"))) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      kolQuery.refetch();
+    }, 5_000);
+
+    return () => window.clearInterval(interval);
+  }, [kolQuery, kols]);
+
   const keywordOptions = useMemo(() => {
     return Array.from(new Set(kols.flatMap((kol) => parseKeywordSegments(kol.keywords))))
       .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
@@ -274,12 +309,21 @@ function RouteComponent() {
 
   const syncKol = useMutation({
     mutationFn: ({ id }: { id: number }) => client.kol.syncMetrics({ id }),
-    onSuccess: () => {
-      toast.success("Data KOL berhasil disinkronkan");
+    onSuccess: (kol) => {
+      if (kol?.syncStatus === "failed") {
+        toast.error(kol.syncMessage || "Sinkronisasi KOL selesai, tetapi sebagian akun gagal.");
+      } else if (kol?.syncStatus === "pending") {
+        toast.info("Sinkronisasi KOL masih berjalan. Status akan diperbarui saat data masuk.");
+      } else {
+        toast.success("Data KOL berhasil disinkronkan");
+      }
+
       kolQuery.refetch();
+      setSyncingKolId(null);
     },
     onError: (error) => {
       toast.error(getKolErrorMessage(error, "Sinkronisasi KOL gagal"));
+      setSyncingKolId(null);
     },
   });
 
@@ -342,6 +386,25 @@ function RouteComponent() {
 
 
   function submit() {
+    const duplicateMessage = getDuplicateAccountMessage(form.accounts);
+    if (duplicateMessage) {
+      toast.error(duplicateMessage);
+      return;
+    }
+
+    const existingAccount = form.accounts.find((account) => {
+      const key = getNormalizedAccountKey(account);
+      return kols.some((kol) =>
+        kol.id !== editingId &&
+        kol.accounts.some((existing) => getNormalizedAccountKey(existing) === key),
+      );
+    });
+
+    if (existingAccount) {
+      toast.error(`Akun ${existingAccount.platform} @${existingAccount.handle.replace(/^@/, "").trim()} sudah ada di database.`);
+      return;
+    }
+
     if (editingId) {
       updateKol.mutate({
         id: editingId,
@@ -747,12 +810,25 @@ function mergeKeywords(
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => syncKol.mutate({ id: kol.id })}
-                        disabled={syncKol.isPending}
+                        onClick={() => {
+                          setSyncingKolId(kol.id);
+                          toast.loading(`Sinkronisasi ${kol.displayName} berjalan...`, { id: `sync-kol-${kol.id}` });
+                          syncKol.mutate(
+                            { id: kol.id },
+                            {
+                              onSettled: () => toast.dismiss(`sync-kol-${kol.id}`),
+                            },
+                          );
+                        }}
+                        disabled={syncKol.isPending || kol.syncStatus === "pending"}
                         className={KOL_ACTION_BUTTON_CLASS}
                       >
-                        <RefreshCcw className="mr-1 size-3.5" />
-                        Sinkronkan
+                        {syncingKolId === kol.id || kol.syncStatus === "pending" ? (
+                          <Loader2 className="mr-1 size-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCcw className="mr-1 size-3.5" />
+                        )}
+                        {syncingKolId === kol.id || kol.syncStatus === "pending" ? "Sinkron..." : "Sinkronkan"}
                       </Button>
                       <Button
                         variant="outline"
@@ -791,7 +867,7 @@ function mergeKeywords(
 
                 <div className="grid gap-1 text-[13px] md:grid-cols-2" style={{ color: KOLS_COLORS.text }}>
                   <p><span className="font-bold uppercase">Tier:</span> {formatFollowerTier(kol.followerTier)}</p>
-                  <p><span className="font-medium">Status sync:</span> {kol.syncStatus}</p>
+                  <p className="inline-flex items-center gap-1"><span className="font-medium">Status sync:</span> {(syncingKolId === kol.id || kol.syncStatus === "pending") && <Loader2 className="size-3 animate-spin" />} {kol.syncStatus}</p>
                   <p><span className="font-bold">Last Sync:</span> {formatDateTime(kol.lastSyncedAt)}</p>
                   <p><span className="font-medium">Est. post:</span> {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
                   <p><span className="font-medium">Actual post:</span> {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
@@ -984,11 +1060,7 @@ function mergeKeywords(
       >
         <DialogContent className="max-h-[92vh] max-w-6xl text-[#2b1418]">
           <DialogHeader>
-            <div className="border-b bg-white px-4 py-4 sm:px-6" style={{ borderColor: `${KOLS_COLORS.stroke}66` }}>
-              <DialogTitle className="!text-[22px] !font-bold tracking-tight text-[#1D1114]">
-                {editingId ? "Edit KOL" : "Tambah KOL"}
-              </DialogTitle>
-            </div>
+            <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
           </DialogHeader>
 
           <form
@@ -1040,28 +1112,17 @@ function mergeKeywords(
                   key={`${account.platform}-${index}`}
                   className="grid min-w-0 gap-4 border border-[#982E41]/40 bg-white p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
                 >
-                  <Label className="grid gap-2">
-                    <span className="inline-flex items-center gap-2">
-                      <SocialPlatformIcon platform={account.platform} className="size-4" />
-                      Platform
-                    </span>
-                    <Select
-                      className="text-[12px]"
-                      value={account.platform}
-                      onChange={(event) => {
-                        const platform = event.target.value as SocialPlatform;
-                        setForm((current) => ({
-                          ...current,
-                          accounts: current.accounts.map((item, itemIndex) =>
-                            itemIndex === index ? { ...item, platform } : item,
-                          ),
-                        }));
-                      }}
-                    >
-                      <option value="instagram">Instagram</option>
-                      <option value="tiktok">TikTok</option>
-                    </Select>
-                  </Label>
+                  <PlatformSelect
+                    value={account.platform}
+                    onChange={(platform) => {
+                      setForm((current) => ({
+                        ...current,
+                        accounts: current.accounts.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, platform } : item,
+                        ),
+                      }));
+                    }}
+                  />
 
                   <FormInput
                     label="Handle"
@@ -1097,7 +1158,7 @@ function mergeKeywords(
             </section>
             </div>
 
-            <DialogFooter className="sticky bottom-0 border-t border-[#982E41]/40 bg-white px-4 pb-6 pt-3 shadow-[0_-8px_20px_rgba(152,46,65,0.08)]">
+            <DialogFooter>
               {editingId && (
                 <Button
                   type="button"
@@ -1113,6 +1174,7 @@ function mergeKeywords(
                 disabled={createKol.isPending || updateKol.isPending}
                 className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
               >
+                {(editingId ? updateKol.isPending : createKol.isPending) && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {editingId
                   ? updateKol.isPending
                     ? "Menyimpan perubahan..."
@@ -1184,16 +1246,7 @@ function mergeKeywords(
       >
         <DialogContent className="max-h-[90vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
-            <div
-              className="border-b px-4 py-4 sm:px-6"
-              style={{
-                borderColor: `${KOLS_COLORS.stroke}66`,
-              }}
-            >
-              <DialogTitle>
-                Preview Import Spreadsheet
-              </DialogTitle>
-            </div>
+            <DialogTitle>Preview Import Spreadsheet</DialogTitle>
           </DialogHeader>
 
           <div className="px-4 pb-4 sm:px-6">
@@ -1270,7 +1323,7 @@ function mergeKeywords(
               </table>
             </div>
 
-            <DialogFooter className="mt-4 border-t border-[#982E41]/40 bg-white pt-4">
+            <DialogFooter className="mt-4">
               <Button
                 variant="outline"
                 className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
@@ -1292,9 +1345,8 @@ function mergeKeywords(
                   importKol.mutate(importPreview);
                 }}
               >
-                {importKol.isPending
-                  ? "Importing..."
-                  : `Import ${importPreview.length} KOL`}
+                {importKol.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {importKol.isPending ? "Importing..." : `Import ${importPreview.length} KOL`}
               </Button>
             </DialogFooter>
           </div>
@@ -1312,16 +1364,7 @@ function mergeKeywords(
       >
         <DialogContent className="max-h-[90vh] max-w-5xl text-[#2b1418]">
           <DialogHeader>
-            <div
-              className="border-b px-4 py-4 sm:px-6"
-              style={{
-                borderColor: `${KOLS_COLORS.stroke}66`,
-              }}
-            >
-              <DialogTitle>
-                Hasil Import Spreadsheet
-              </DialogTitle>
-            </div>
+            <DialogTitle>Hasil Import Spreadsheet</DialogTitle>
           </DialogHeader>
 
           {importResult && (
@@ -1547,7 +1590,7 @@ function mergeKeywords(
                 </div>
               )}
 
-              <DialogFooter className="mt-5 border-t border-[#982E41]/40 bg-white pt-4">
+              <DialogFooter className="mt-5">
                 <Button
                   className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
                   onClick={() => {
@@ -1664,6 +1707,29 @@ function FormInput({
             ${ghost ? "bg-transparent" : ""}
           `}
         />
+      </div>
+    </Label>
+  );
+}
+
+function PlatformSelect({ onChange, value }: { onChange: (value: SocialPlatform) => void; value: SocialPlatform }) {
+  return (
+    <Label className="grid gap-2">
+      <span className="sr-only">Platform</span>
+      <div className="relative">
+        <SocialPlatformIcon
+          platform={value}
+          className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-[#982E41]"
+        />
+        <Select
+          aria-label="Platform"
+          className="pl-9 text-[12px]"
+          value={value}
+          onChange={(event) => onChange(event.target.value as SocialPlatform)}
+        >
+          <option value="instagram">Instagram</option>
+          <option value="tiktok">TikTok</option>
+        </Select>
       </div>
     </Label>
   );

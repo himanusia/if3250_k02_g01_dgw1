@@ -45,6 +45,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --digi-dialog-border: rgba(152, 46, 65, 0.28);
+  --digi-dialog-header-bg: #fff6f8;
+  --digi-dialog-footer-shadow: 0 -10px 24px rgba(152, 46, 65, 0.08);
+  --digi-dialog-title: #2b1418;
+  --digi-dialog-accent: #982e41;
+  --digi-dialog-surface: #ffffff;
 }
 
 .dark {
@@ -179,6 +185,12 @@
     --sidebar-accent-foreground: oklch(0.28 0.05 12);
     --sidebar-border: oklch(0.78 0.05 12 / 45%);
     --sidebar-ring: oklch(0.53 0.11 17);
+    --digi-dialog-border: rgba(152, 46, 65, 0.28);
+    --digi-dialog-header-bg: #fff6f8;
+    --digi-dialog-footer-shadow: 0 -10px 24px rgba(152, 46, 65, 0.08);
+    --digi-dialog-title: #2b1418;
+    --digi-dialog-accent: #982e41;
+    --digi-dialog-surface: #ffffff;
 
     background-color: #fff8f9;
     color: #2b1418;

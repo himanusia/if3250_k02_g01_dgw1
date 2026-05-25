@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { DateRange } from "react-day-picker";
@@ -314,6 +314,7 @@ function RouteComponent() {
   const [addContentCampaignId, setAddContentCampaignId] = useState<number | null>(null);
   const [isAddContentDialogOpen, setIsAddContentDialogOpen] = useState(false);
   const [syncingContentId, setSyncingContentId] = useState<number | null>(null);
+  const [pendingContentSyncIds, setPendingContentSyncIds] = useState<Set<number>>(new Set());
   const [archivingContentId, setArchivingContentId] = useState<number | null>(null);
   const [restoringContentId, setRestoringContentId] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -338,6 +339,24 @@ function RouteComponent() {
   );
   const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
   const detailCampaignData = (detailCampaignQuery.data as CampaignDetailRecord | null | undefined) ?? null;
+
+  useEffect(() => {
+    const hasPendingContent = detailCampaignData?.contentsByKol.some((group) =>
+      group.contents.some((content) => content.syncStatus === "pending"),
+    );
+
+    if (!hasPendingContent) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      detailCampaignQuery.refetch();
+      campaignProgressQuery.refetch();
+    }, 5_000);
+
+    return () => window.clearInterval(interval);
+  }, [campaignProgressQuery, detailCampaignData, detailCampaignQuery]);
+
   const brandOptions = useMemo(() => {
     return Array.from(new Set(campaigns.map((campaign) => campaign.brand.trim()).filter(Boolean)))
       .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
@@ -454,6 +473,12 @@ function RouteComponent() {
   const syncContent = useMutation({
     mutationFn: ({ id }: { id: number }) => client.campaign.syncContent({ id }),
     onSuccess: (content) => {
+      setPendingContentSyncIds((current) => {
+        const next = new Set(current);
+        next.delete(content.id);
+        return next;
+      });
+
       if (content.syncStatus === "failed") {
         toast.error(content.syncMessage || "Konten gagal di-scrap");
       } else {
@@ -464,7 +489,12 @@ function RouteComponent() {
         detailCampaignQuery.refetch();
       }
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      setPendingContentSyncIds((current) => {
+        const next = new Set(current);
+        next.delete(variables.id);
+        return next;
+      });
       toast.error(error instanceof Error ? error.message : "Gagal melakukan sync konten");
     },
   });
@@ -828,11 +858,7 @@ function RouteComponent() {
       >
         <DialogContent className="max-h-[92vh] max-w-5xl overflow-hidden text-[#2b1418]">
           <DialogHeader>
-            <div className="border-b border-[#982E41]/30 bg-white px-4 py-4 sm:px-6">
-              <DialogTitle className="!text-[22px] !font-bold tracking-tight text-[#2b1418]">
-                {editingId ? "Edit campaign" : "Tambah campaign"}
-              </DialogTitle>
-            </div>
+            <DialogTitle>{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
           </DialogHeader>
 
           <form
@@ -1008,13 +1034,14 @@ function RouteComponent() {
             </section>
             </div>
 
-            <DialogFooter className="shrink-0 border-t border-[#982E41]/40 bg-white px-4 pb-6 pt-3 sm:px-6">
+            <DialogFooter className="shrink-0">
               {editingId && (
                 <Button type="button" variant="outline" className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]" onClick={resetForm}>
                   Batal edit
                 </Button>
               )}
               <Button type="submit" disabled={createCampaign.isPending || updateCampaign.isPending} className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]">
+                {(editingId ? updateCampaign.isPending : createCampaign.isPending) && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {editingId
                   ? updateCampaign.isPending
                     ? "Menyimpan perubahan..."
@@ -1041,10 +1068,9 @@ function RouteComponent() {
       >
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto text-[#2b1418]">
           <DialogHeader>
-            <div className="border-b border-[#982E41]/30 px-4 py-4 sm:px-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-3 pr-10 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <DialogTitle className="!text-[22px] !font-bold tracking-tight text-foreground">
+                  <DialogTitle>
                     Detail campaign
                   </DialogTitle>
                 </div>
@@ -1092,7 +1118,6 @@ function RouteComponent() {
                   </div>
                 )}
               </div>
-            </div>
           </DialogHeader>
 
           {!detailCampaignSummary ? (
@@ -1159,7 +1184,10 @@ function RouteComponent() {
                               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                 <div className="min-w-0 space-y-1">
                                         {(() => {
-                                          const isSyncingThisContent = syncingContentId === content.id;
+                                          const isSyncingThisContent =
+                                            syncingContentId === content.id ||
+                                            pendingContentSyncIds.has(content.id) ||
+                                            content.syncStatus === "pending";
 
                                           return (
                                             <div className="flex flex-wrap items-center gap-2">
@@ -1177,6 +1205,7 @@ function RouteComponent() {
                                                         : "border-amber-500/40 bg-amber-500/10 text-amber-300"
                                                 }`}
                                               >
+                                                {isSyncingThisContent && <Loader2 className="mr-1 inline size-3 animate-spin" />}
                                                 {isSyncingThisContent ? "sedang sync..." : content.syncStatus}
                                               </span>
                                             </div>
@@ -1197,19 +1226,26 @@ function RouteComponent() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={syncContent.isPending || syncingContentId !== null}
+                                    disabled={syncContent.isPending || syncingContentId !== null || content.syncStatus === "pending"}
                                     onClick={async () => {
+                                      const toastId = toast.loading("Sinkronisasi konten berjalan...");
                                       setSyncingContentId(content.id);
+                                      setPendingContentSyncIds((current) => new Set(current).add(content.id));
 
                                       try {
                                         await syncContent.mutateAsync({ id: content.id });
                                       } finally {
+                                        toast.dismiss(toastId);
                                         setSyncingContentId((current) => (current === content.id ? null : current));
                                       }
                                     }}
                                   >
-                                    <RefreshCcw className="mr-1 size-4" />
-                                    {syncingContentId === content.id ? "Sedang sync..." : "Sync sekarang"}
+                                    {syncingContentId === content.id || content.syncStatus === "pending" ? (
+                                      <Loader2 className="mr-1 size-4 animate-spin" />
+                                    ) : (
+                                      <RefreshCcw className="mr-1 size-4" />
+                                    )}
+                                    {syncingContentId === content.id || content.syncStatus === "pending" ? "Sedang sync..." : "Sync sekarang"}
                                   </Button>
                                   <Button
                                     variant="outline"
@@ -1381,14 +1417,12 @@ function RouteComponent() {
           setIsAddContentDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto text-[#2b1418]">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden text-[#2b1418]">
           <DialogHeader>
-            <div className="border-border border-b px-4 py-4 sm:px-6">
-              <DialogTitle>Tambahkan konten</DialogTitle>
-              <DialogDescription>
-                Masukkan link konten per baris, lalu simpan untuk mengambil metriknya.
-              </DialogDescription>
-            </div>
+            <DialogTitle>Tambahkan konten</DialogTitle>
+            <DialogDescription>
+              Masukkan link konten per baris, lalu simpan untuk mengambil metriknya.
+            </DialogDescription>
           </DialogHeader>
 
           {!addContentCampaign ? (
@@ -1401,20 +1435,21 @@ function RouteComponent() {
             </div>
           ) : (
             <form
-              className="grid gap-5 px-4 pb-4 sm:px-6 sm:pb-6"
+              className="flex max-h-[calc(90vh-88px)] flex-col bg-white"
               onSubmit={(event) => {
                 event.preventDefault();
                 submitAddContent();
               }}
             >
-              <div className="grid gap-3 md:grid-cols-2">
-                <DetailStat label="Campaign" value={addContentCampaign.name} />
-                <DetailStat label="Brand" value={addContentCampaign.brand} />
-                <DetailStat label="Periode" value={`${formatHumanDate(addContentCampaign.periodStart)} → ${formatHumanDate(addContentCampaign.periodEnd)}`} />
-                <DetailStat label="KOL terpilih" value={String(addContentCampaign.kols.length)} />
-              </div>
+              <div className="grid gap-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <DetailStat label="Campaign" value={addContentCampaign.name} />
+                  <DetailStat label="Brand" value={addContentCampaign.brand} />
+                  <DetailStat label="Periode" value={`${formatHumanDate(addContentCampaign.periodStart)} → ${formatHumanDate(addContentCampaign.periodEnd)}`} />
+                  <DetailStat label="KOL terpilih" value={String(addContentCampaign.kols.length)} />
+                </div>
 
-              <div className="space-y-3">
+                <div className="space-y-3">
                 {contentRows.map((row, index) => (
                   <div key={row.id} className="grid gap-3 rounded-none border border-border p-3 md:grid-cols-[240px_minmax(0,1fr)_auto] md:items-end">
                     <Label className="grid gap-2">
@@ -1459,20 +1494,22 @@ function RouteComponent() {
                     </div>
                   </div>
                 ))}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={addContentRow}>
+                    <Plus className="mr-1 size-4" />
+                    Tambah link
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={addContentRow}>
-                  <Plus className="mr-1 size-4" />
-                  Tambah link
-                </Button>
-              </div>
-
-              <DialogFooter className="border-t border-[#982E41]/40 bg-white pt-4">
+              <DialogFooter>
                 <Button type="button" variant="outline" className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]" onClick={closeAddContentDialog}>
                   Batal
                 </Button>
                 <Button type="submit" disabled={addContent.isPending} className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]">
+                  {addContent.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                   {addContent.isPending ? "Mengambil data..." : "Tambahkan konten"}
                 </Button>
               </DialogFooter>

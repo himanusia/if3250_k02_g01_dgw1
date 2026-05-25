@@ -64,7 +64,7 @@ function normalizeAccountKey(account: z.infer<typeof kolAccountInputSchema>) {
   return `${account.platform}:${account.handle.trim().toLowerCase()}`;
 }
 
-async function assertAccountsAreUnique(accounts: Array<z.infer<typeof kolAccountInputSchema>>) {
+async function assertAccountsAreUnique(accounts: Array<z.infer<typeof kolAccountInputSchema>>, currentKolId?: number) {
   const seen = new Set<string>();
 
   for (const account of accounts) {
@@ -80,12 +80,12 @@ async function assertAccountsAreUnique(accounts: Array<z.infer<typeof kolAccount
     seen.add(accountKey);
 
     const existing = await db
-      .select({ id: kolAccount.id })
+      .select({ id: kolAccount.id, kolId: kolAccount.kolId })
       .from(kolAccount)
       .where(sql`LOWER(${kolAccount.handle}) = LOWER(${account.handle}) AND ${kolAccount.platform} = ${account.platform}`)
       .limit(1);
 
-    if (existing.length > 0) {
+    if (existing.some((row) => row.kolId !== currentKolId)) {
       throw new ORPCError("BAD_REQUEST", {
         data: { reason: "DUPLICATE_ACCOUNT" },
         message: `Akun ${account.platform} @${account.handle} sudah ada. Pakai edit/sync KOL yang sudah ada, bukan create baru.`,
@@ -159,6 +159,26 @@ async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSc
 
 async function syncKolProfile(kolId: number) {
   const accounts = await db.select().from(kolAccount).where(eq(kolAccount.kolId, kolId));
+
+  await db
+    .update(kolProfile)
+    .set({
+      syncMessage: "Sinkronisasi sedang berjalan.",
+      syncStatus: "pending",
+      updatedAt: new Date(),
+    })
+    .where(eq(kolProfile.id, kolId));
+
+  for (const account of accounts) {
+    await db
+      .update(kolAccount)
+      .set({
+        syncMessage: "Sinkronisasi sedang berjalan.",
+        syncStatus: "pending",
+        updatedAt: new Date(),
+      })
+      .where(eq(kolAccount.id, account.id));
+  }
   const campaignHistoryRows = await db
     .select({ id: kolCampaignHistory.id })
     .from(kolCampaignHistory)
@@ -618,6 +638,7 @@ export const kolRouter = {
       }),
     )
     .handler(async ({ input }) => {
+      await assertAccountsAreUnique(input.accounts, input.id);
       await validateAccounts(input.accounts);
 
       await db
