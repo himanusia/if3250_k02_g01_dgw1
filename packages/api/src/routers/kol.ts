@@ -18,6 +18,7 @@ const kolAccountInputSchema = z.object({
 
 const kolInputSchema = z.object({
   accounts: z.array(kolAccountInputSchema).min(1, "Minimal 1 akun sosial media harus ditambahkan"),
+  actualRateCard: z.lazy(() => rateCardValueInputSchema).nullable().optional(),
   displayName: z.string().trim().min(1, "Nama display KOL tidak boleh kosong"),
   keywords: z.string().trim().default(""),
 });
@@ -427,6 +428,7 @@ export const kolRouter = {
       const [createdProfile] = await tx
         .insert(kolProfile)
         .values({
+          actualRateCard: input.actualRateCard ?? null,
           displayName: input.displayName,
           keywords: input.keywords,
         })
@@ -644,6 +646,7 @@ export const kolRouter = {
       await db
         .update(kolProfile)
         .set({
+          actualRateCard: input.actualRateCard ?? null,
           displayName: input.displayName,
           keywords: input.keywords,
           updatedAt: new Date(),

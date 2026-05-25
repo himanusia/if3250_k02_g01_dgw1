@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Instagram, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronDown, Instagram, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
@@ -29,21 +29,15 @@ type KolAccountFormState = {
 
 type KolFormState = {
   accounts: KolAccountFormState[];
+  actualPostRate: string;
+  actualReelRate: string;
+  actualStoryRate: string;
   displayName: string;
   keywords: string;
 };
 
-type RateCardFormState = {
-  postMax: string;
-  postMin: string;
-  postSuggested: string;
-  reason: string;
-  reelMax: string;
-  reelMin: string;
-  reelSuggested: string;
-  storyMax: string;
-  storyMin: string;
-  storySuggested: string;
+type KolMutationInput = KolFormState & {
+  actualRateCard?: RateCardValue | null;
 };
 
 type RawExcelRow = {
@@ -74,6 +68,9 @@ function getDefaultAccount(platform: SocialPlatform = "instagram"): KolAccountFo
 function getDefaultForm(): KolFormState {
   return {
     accounts: [getDefaultAccount("instagram")],
+    actualPostRate: "",
+    actualReelRate: "",
+    actualStoryRate: "",
     displayName: "",
     keywords: "",
   };
@@ -83,65 +80,37 @@ function toRateInput(value: number | null | undefined) {
   return value && Number.isFinite(value) ? String(Math.round(value)) : "";
 }
 
-function getDefaultRateCardForm(kol: KolRecord | null | undefined): RateCardFormState {
-  const rateCard = kol?.actualRateCard ?? kol?.estimatedRateCard;
+function parseOptionalPositiveRate(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
 
-  return {
-    postMax: toRateInput(rateCard?.post.max),
-    postMin: toRateInput(rateCard?.post.min),
-    postSuggested: toRateInput(rateCard?.post.suggested),
-    reason: "",
-    reelMax: toRateInput(rateCard?.reel.max),
-    reelMin: toRateInput(rateCard?.reel.min),
-    reelSuggested: toRateInput(rateCard?.reel.suggested),
-    storyMax: toRateInput(rateCard?.story.max),
-    storyMin: toRateInput(rateCard?.story.min),
-    storySuggested: toRateInput(rateCard?.story.suggested),
-  };
-}
-
-function parsePositiveInt(value: string) {
   const parsed = Number(value);
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return Math.round(parsed);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : undefined;
 }
 
-function buildRateCardValue(form: RateCardFormState): RateCardValue | null {
-  const postMin = parsePositiveInt(form.postMin);
-  const postSuggested = parsePositiveInt(form.postSuggested);
-  const postMax = parsePositiveInt(form.postMax);
-  const storyMin = parsePositiveInt(form.storyMin);
-  const storySuggested = parsePositiveInt(form.storySuggested);
-  const storyMax = parsePositiveInt(form.storyMax);
-  const reelMin = parsePositiveInt(form.reelMin);
-  const reelSuggested = parsePositiveInt(form.reelSuggested);
-  const reelMax = parsePositiveInt(form.reelMax);
+function buildActualRateCard(form: KolFormState): RateCardValue | null | undefined {
+  const post = parseOptionalPositiveRate(form.actualPostRate);
+  const story = parseOptionalPositiveRate(form.actualStoryRate);
+  const reel = parseOptionalPositiveRate(form.actualReelRate);
 
-  if (!postMin || !postSuggested || !postMax || !storyMin || !storySuggested || !storyMax || !reelMin || !reelSuggested || !reelMax) {
+  if (post === undefined || story === undefined || reel === undefined) {
+    return undefined;
+  }
+
+  if (post === null && story === null && reel === null) {
     return null;
   }
 
-  const isRangeValid =
-    postMin <= postSuggested &&
-    postSuggested <= postMax &&
-    storyMin <= storySuggested &&
-    storySuggested <= storyMax &&
-    reelMin <= reelSuggested &&
-    reelSuggested <= reelMax;
-
-  if (!isRangeValid) {
-    return null;
+  if (post === null || story === null || reel === null) {
+    return undefined;
   }
 
   return {
     currency: "IDR",
-    post: { max: postMax, min: postMin, suggested: postSuggested },
-    reel: { max: reelMax, min: reelMin, suggested: reelSuggested },
-    story: { max: storyMax, min: storyMin, suggested: storySuggested },
+    post: { max: post, min: post, suggested: post },
+    reel: { max: reel, min: reel, suggested: reel },
+    story: { max: story, min: story, suggested: story },
   };
 }
 
@@ -202,6 +171,7 @@ const KOLS_COLORS = {
 
 const KOL_ACTION_BUTTON_CLASS =
   "h-8 rounded-none !border !border-[#982E41] !bg-white px-3 !text-[12px] !font-semibold !text-[#982E41] shadow-[3px_3px_0_rgba(152,46,65,0.12)] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
+const KOL_PAGE_SIZE = 8;
 
 function getSocialUrl(platform: SocialPlatform, handle: string) {
   const cleanHandle = handle.replace(/^@/, "").trim();
@@ -310,11 +280,10 @@ function RouteComponent() {
   const [syncingKolId, setSyncingKolId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [keywordFilter, setKeywordFilter] = useState("all");
+  const [kolPage, setKolPage] = useState(1);
   const [platformFilter, setPlatformFilter] = useState<"all" | SocialPlatform>("all");
   const [tierFilter, setTierFilter] = useState("all");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
-  const [rateEditingKolId, setRateEditingKolId] = useState<number | null>(null);
-  const [rateCardForm, setRateCardForm] = useState<RateCardFormState>(getDefaultRateCardForm(null));
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
 
@@ -364,13 +333,24 @@ function RouteComponent() {
     });
   }, [keywordFilter, kols, platformFilter, search, tierFilter]);
 
-  const rateEditingKol = useMemo(
-    () => kols.find((kol) => kol.id === rateEditingKolId) ?? null,
-    [kols, rateEditingKolId],
+  const totalKolPages = Math.max(1, Math.ceil(filteredKols.length / KOL_PAGE_SIZE));
+  const paginatedKols = useMemo(
+    () => filteredKols.slice((kolPage - 1) * KOL_PAGE_SIZE, kolPage * KOL_PAGE_SIZE),
+    [filteredKols, kolPage],
   );
 
+  useEffect(() => {
+    setKolPage(1);
+  }, [keywordFilter, platformFilter, search, tierFilter]);
+
+  useEffect(() => {
+    if (kolPage > totalKolPages) {
+      setKolPage(totalKolPages);
+    }
+  }, [kolPage, totalKolPages]);
+
   const createKol = useMutation({
-    mutationFn: (input: KolFormState) => client.kol.create(input),
+    mutationFn: (input: KolMutationInput) => client.kol.create(input),
     onSuccess: () => {
       toast.success("KOL berhasil ditambahkan ke database");
       kolQuery.refetch();
@@ -382,7 +362,7 @@ function RouteComponent() {
   });
 
   const updateKol = useMutation({
-    mutationFn: (input: KolFormState & { id: number }) => client.kol.update(input),
+    mutationFn: (input: KolMutationInput & { id: number }) => client.kol.update(input),
     onSuccess: () => {
       toast.success("KOL berhasil diperbarui");
       kolQuery.refetch();
@@ -426,20 +406,6 @@ function RouteComponent() {
     },
   });
 
-  const updateActualRateCard = useMutation({
-    mutationFn: (input: { actualRateCard: RateCardValue; kolId: number; reason: string }) =>
-      client.kol.updateActualRateCard(input),
-    onSuccess: () => {
-      toast.success("Rate aktual KOL berhasil diperbarui");
-      kolQuery.refetch();
-      setRateEditingKolId(null);
-      setRateCardForm(getDefaultRateCardForm(null));
-    },
-    onError: (error) => {
-      toast.error(getKolErrorMessage(error, "Gagal memperbarui rate aktual"));
-    },
-  });
-
   function resetForm() {
     setEditingId(null);
     setIsDialogOpen(false);
@@ -459,34 +425,13 @@ function RouteComponent() {
         handle: account.handle,
         platform: account.platform,
       })),
+      actualPostRate: toRateInput(kol.actualRateCard?.post.suggested),
+      actualReelRate: toRateInput(kol.actualRateCard?.reel.suggested),
+      actualStoryRate: toRateInput(kol.actualRateCard?.story.suggested),
       displayName: kol.displayName,
       keywords: kol.keywords,
     });
     setIsDialogOpen(true);
-  }
-
-  function editRateCard(kol: KolRecord) {
-    setRateEditingKolId(kol.id);
-    setRateCardForm(getDefaultRateCardForm(kol));
-  }
-
-  function submitRateCard() {
-    if (!rateEditingKol) {
-      toast.error("KOL belum dipilih");
-      return;
-    }
-
-    const nextRateCard = buildRateCardValue(rateCardForm);
-    if (!nextRateCard) {
-      toast.error("Rate harus angka positif dan urutannya min <= suggested <= max.");
-      return;
-    }
-
-    updateActualRateCard.mutate({
-      actualRateCard: nextRateCard,
-      kolId: rateEditingKol.id,
-      reason: rateCardForm.reason.trim(),
-    });
   }
 
   const displayNames = useMemo(() => {
@@ -510,6 +455,12 @@ function RouteComponent() {
 
 
   function submit() {
+    const actualRateCard = buildActualRateCard(form);
+    if (actualRateCard === undefined) {
+      toast.error("Actual rate harus angka positif. Isi Post, Story, dan Reels sekaligus atau kosongkan semuanya.");
+      return;
+    }
+
     const duplicateMessage = getDuplicateAccountMessage(form.accounts);
     if (duplicateMessage) {
       toast.error(duplicateMessage);
@@ -531,13 +482,14 @@ function RouteComponent() {
 
     if (editingId) {
       updateKol.mutate({
+        actualRateCard,
         id: editingId,
         ...form,
       });
       return;
     }
 
-    createKol.mutate(form);
+    createKol.mutate({ ...form, actualRateCard });
   }
 
   // spreadsheet import
@@ -822,7 +774,7 @@ function mergeKeywords(
             />
           </div>
 
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_220px]">
             <FormInput label="Cari" value={search} onChange={setSearch} placeholder="Cari nama, handle, atau keyword" />
             <Label className="grid gap-2 text-sm">
               <span>Platform</span>
@@ -849,40 +801,27 @@ function mergeKeywords(
                 ))}
               </Select>
             </Label>
-          </div>
-
-          {keywordOptions.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="xs"
-                variant={keywordFilter === "all" ? "default" : "outline"}
-                className={keywordFilter === "all" ? "rounded-none bg-[#B43C39] text-white hover:bg-[#8f2e2c]" : "rounded-none border-[#982E41]/25 bg-white text-[#982E41] hover:bg-[#982E41]/10"}
-                onClick={() => setKeywordFilter("all")}
+            <Label className="grid gap-2 text-sm">
+              <span>Keyword</span>
+              <Select
+                className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                value={keywordFilter}
+                onChange={(event) => setKeywordFilter(event.target.value)}
               >
-                Semua keyword
-              </Button>
-              {keywordOptions.map((keyword) => (
-                <Button
-                  key={keyword}
-                  type="button"
-                  size="xs"
-                  variant={keywordFilter === keyword ? "default" : "outline"}
-                  className={keywordFilter === keyword ? "rounded-none bg-[#B43C39] text-white hover:bg-[#8f2e2c]" : "rounded-none border-[#982E41]/25 bg-white text-[#982E41] hover:bg-[#982E41]/10"}
-                  onClick={() => setKeywordFilter(keyword)}
-                >
-                  {keyword}
-                </Button>
-              ))}
-            </div>
-          )}
+                <option value="all">Semua keyword</option>
+                {keywordOptions.map((keyword) => (
+                  <option key={keyword} value={keyword}>{keyword}</option>
+                ))}
+              </Select>
+            </Label>
+          </div>
 
           <div className="border border-dashed border-[#b43c39]/15" />
 
           <div className="space-y-5">
             {kolQuery.isLoading ? (
               <KolListSkeleton />
-            ) : filteredKols.map((kol) => (
+            ) : paginatedKols.map((kol) => (
               <div
                 key={kol.id}
                 className="space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-4 shadow-[6px_6px_0_rgba(152,46,65,0.08)]"
@@ -966,15 +905,6 @@ function mergeKeywords(
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => editRateCard(kol)}
-                        className={KOL_ACTION_BUTTON_CLASS}
-                      >
-                        <PencilLine className="mr-1 size-3.5" />
-                        Edit rate
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => setDeleteTargetId(kol.id)}
                         className={KOL_ACTION_BUTTON_CLASS}
                       >
@@ -1002,12 +932,10 @@ function mergeKeywords(
                   <p><span className="font-bold uppercase">Tier:</span> {formatFollowerTier(kol.followerTier)}</p>
                   <p className="inline-flex items-center gap-1"><span className="font-medium">Status sync:</span> {(syncingKolId === kol.id || kol.syncStatus === "pending") && <Loader2 className="size-3 animate-spin" />} {kol.syncStatus}</p>
                   <p><span className="font-bold">Last Sync:</span> {formatDateTime(kol.lastSyncedAt)}</p>
-                </div>
-
-                <div className="grid gap-2 border border-[#982E41]/15 bg-[#FFF8F9] p-3 sm:grid-cols-3" style={{ color: KOLS_COLORS.text }}>
-                  <RateSummary label="Rate endorse post" estimated={kol.estimatedRateCard?.post.suggested} actual={kol.actualRateCard?.post.suggested} />
-                  <RateSummary label="Story" estimated={kol.estimatedRateCard?.story.suggested} actual={kol.actualRateCard?.story.suggested} />
-                  <RateSummary label="Reels" estimated={kol.estimatedRateCard?.reel.suggested} actual={kol.actualRateCard?.reel.suggested} />
+                  <p><span className="font-medium">Est. post:</span> {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
+                  <p><span className="font-medium">Post:</span> {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
+                  <p><span className="font-medium">Est. story:</span> {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}</p>
+                  <p><span className="font-medium">Story:</span> {formatCurrencyIdr(kol.actualRateCard?.story.suggested)}</p>
                 </div>
 
                 {kol.syncMessage && (
@@ -1022,9 +950,12 @@ function mergeKeywords(
                   </p>
                 )}
 
-                <details className="border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+                <details className="group border border-[#b43c39]/15 bg-[#fff6f8] p-3">
                   <summary className="flex cursor-pointer items-center justify-between gap-3 text-[13px] font-semibold text-[#2b1418]">
-                    <span>Akun sosial</span>
+                    <span className="inline-flex items-center gap-2">
+                      <ChevronDown className="size-4 -rotate-90 text-[#982E41] transition-transform group-open:rotate-0" />
+                      Akun sosial
+                    </span>
                     <span className="inline-flex items-center gap-1 text-xs font-normal text-[#722331]">
                       {kol.accounts.length} akun
                     </span>
@@ -1138,29 +1069,42 @@ function mergeKeywords(
                   </div>
                 </details>
 
-                <details className="border border-[#b43c39]/15 bg-white p-3">
+                <details className="group border border-[#b43c39]/15 bg-white p-3">
                   <summary className="flex cursor-pointer items-center justify-between gap-3 text-[13px] font-semibold text-[#2b1418]">
-                    <span>Post tersimpan</span>
+                    <span className="inline-flex items-center gap-2">
+                      <ChevronDown className="size-4 -rotate-90 text-[#982E41] transition-transform group-open:rotate-0" />
+                      Post tersimpan
+                    </span>
                     <span className="text-xs font-normal text-[#722331]">{kol.contents.length} post</span>
                   </summary>
-                  <div className="mt-3 grid gap-3">
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
                     {kol.contents.length ? kol.contents.map((content) => (
                       <a
                         key={content.id}
                         href={content.contentUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="grid gap-2 border border-[#b43c39]/15 bg-[#fff6f8] p-3 text-[13px] text-[#2b1418] underline-offset-2 hover:underline md:grid-cols-[120px_minmax(0,1fr)]"
+                        className="grid gap-3 border border-[#b43c39]/15 bg-[#fff6f8] p-3 text-[13px] text-[#2b1418] underline-offset-2 hover:bg-white"
                       >
-                        <div className="flex items-center gap-2 font-semibold uppercase tracking-[0.14em] text-[#982E41]">
-                          <SocialPlatformIcon platform={content.platform} className="size-4" />
-                          {content.platform}
-                        </div>
+                        {content.thumbnailUrl ? (
+                          <img src={getAvatarSrc(content.thumbnailUrl)} alt={content.title || "Post"} className="aspect-video w-full border border-[#982E41]/15 object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="flex aspect-video w-full items-center justify-center border border-dashed border-[#982E41]/25 bg-white text-xs uppercase tracking-[0.14em] text-[#982E41]">
+                            Post
+                          </div>
+                        )}
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{content.title || content.campaignName || content.contentUrl}</p>
-                          <p className="text-muted-foreground">
-                            {content.campaignName ? `${content.campaignName} • ` : ""}
-                            {formatDateTime(content.postedAt)} • {formatNumber(content.viewCount)} views • {formatNumber(content.likeCount)} likes
+                          <div className="mb-2 flex items-center gap-2 font-semibold uppercase tracking-[0.14em] text-[#982E41]">
+                            <SocialPlatformIcon platform={content.platform} className="size-4" />
+                            {content.platform}
+                          </div>
+                          <p className="line-clamp-2 font-semibold">{content.title || content.campaignName || content.contentUrl}</p>
+                          <p className="mt-1 text-muted-foreground">
+                            {content.campaignName ? `${content.campaignName} · ` : ""}
+                            {formatDateTime(content.postedAt)}
+                          </p>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {formatNumber(content.viewCount)} views · {formatNumber(content.likeCount)} likes · {formatNumber(content.commentCount)} komentar
                           </p>
                         </div>
                       </a>
@@ -1176,6 +1120,16 @@ function mergeKeywords(
               <p className="text-[13px]" style={{ color: KOLS_COLORS.mutedText }}>
                 Belum ada KOL yang tersimpan.
               </p>
+            )}
+
+            {!kolQuery.isLoading && filteredKols.length > 0 && (
+              <PaginationControls
+                page={kolPage}
+                pageSize={KOL_PAGE_SIZE}
+                totalItems={filteredKols.length}
+                totalPages={totalKolPages}
+                onPageChange={setKolPage}
+              />
             )}
           </div>
         </section>
@@ -1193,7 +1147,7 @@ function mergeKeywords(
           setIsDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[92vh] max-w-6xl text-[#2b1418]">
+        <DialogContent className="max-h-[92vh] max-w-6xl text-[#2b1418]" initialFocus={false}>
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit KOL" : "Tambah KOL"}</DialogTitle>
           </DialogHeader>
@@ -1292,6 +1246,35 @@ function mergeKeywords(
                 </div>
               ))}
             </section>
+
+              <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
+                <div>
+                  <h2 className="text-[15px] font-medium">Actual rate</h2>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <FormInput
+                    label="Post"
+                    placeholder="0"
+                    type="number"
+                    value={form.actualPostRate}
+                    onChange={(actualPostRate) => setForm((current) => ({ ...current, actualPostRate }))}
+                  />
+                  <FormInput
+                    label="Story"
+                    placeholder="0"
+                    type="number"
+                    value={form.actualStoryRate}
+                    onChange={(actualStoryRate) => setForm((current) => ({ ...current, actualStoryRate }))}
+                  />
+                  <FormInput
+                    label="Reels"
+                    placeholder="0"
+                    type="number"
+                    value={form.actualReelRate}
+                    onChange={(actualReelRate) => setForm((current) => ({ ...current, actualReelRate }))}
+                  />
+                </div>
+              </section>
             </div>
 
             <DialogFooter>
@@ -1318,105 +1301,6 @@ function mergeKeywords(
                   : createKol.isPending
                     ? "Menyimpan..."
                     : "Simpan KOL"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={rateEditingKolId !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRateEditingKolId(null);
-            setRateCardForm(getDefaultRateCardForm(null));
-          }
-        }}
-      >
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden text-[#2b1418]">
-          <DialogHeader>
-            <DialogTitle>Edit rate aktual</DialogTitle>
-          </DialogHeader>
-
-          <form
-            className="flex max-h-[calc(90vh-88px)] flex-col bg-white"
-            onSubmit={(event) => {
-              event.preventDefault();
-              submitRateCard();
-            }}
-          >
-            <div className="grid gap-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
-              <div className="grid gap-2 border border-[#982E41]/20 bg-[#FFF8F9] p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">KOL</p>
-                <p className="text-lg font-semibold text-[#2b1418]">{rateEditingKol?.displayName ?? "-"}</p>
-              </div>
-
-              <div className="grid gap-4">
-                <RateCardInputGroup
-                  label="Post"
-                  max={rateCardForm.postMax}
-                  min={rateCardForm.postMin}
-                  suggested={rateCardForm.postSuggested}
-                  onChange={(patch) => setRateCardForm((current) => ({
-                    ...current,
-                    postMax: patch.max ?? current.postMax,
-                    postMin: patch.min ?? current.postMin,
-                    postSuggested: patch.suggested ?? current.postSuggested,
-                  }))}
-                />
-                <RateCardInputGroup
-                  label="Story"
-                  max={rateCardForm.storyMax}
-                  min={rateCardForm.storyMin}
-                  suggested={rateCardForm.storySuggested}
-                  onChange={(patch) => setRateCardForm((current) => ({
-                    ...current,
-                    storyMax: patch.max ?? current.storyMax,
-                    storyMin: patch.min ?? current.storyMin,
-                    storySuggested: patch.suggested ?? current.storySuggested,
-                  }))}
-                />
-                <RateCardInputGroup
-                  label="Reels"
-                  max={rateCardForm.reelMax}
-                  min={rateCardForm.reelMin}
-                  suggested={rateCardForm.reelSuggested}
-                  onChange={(patch) => setRateCardForm((current) => ({
-                    ...current,
-                    reelMax: patch.max ?? current.reelMax,
-                    reelMin: patch.min ?? current.reelMin,
-                    reelSuggested: patch.suggested ?? current.reelSuggested,
-                  }))}
-                />
-              </div>
-
-              <FormInput
-                label="Catatan perubahan"
-                placeholder="Konfirmasi rate resmi dari KOL"
-                value={rateCardForm.reason}
-                onChange={(reason) => setRateCardForm((current) => ({ ...current, reason }))}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]"
-                onClick={() => {
-                  setRateEditingKolId(null);
-                  setRateCardForm(getDefaultRateCardForm(null));
-                }}
-              >
-                Batal
-              </Button>
-              <Button
-                type="submit"
-                disabled={updateActualRateCard.isPending}
-                className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]"
-              >
-                {updateActualRateCard.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {updateActualRateCard.isPending ? "Menyimpan..." : "Update rate aktual"}
               </Button>
             </DialogFooter>
           </form>
@@ -1904,6 +1788,7 @@ function FormInput({
   label,
   onChange,
   placeholder,
+  type = "text",
   value,
   onKeyDown,
   ghost,
@@ -1911,6 +1796,7 @@ function FormInput({
   label: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  type?: string;
   value: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   ghost?: string;
@@ -1930,6 +1816,7 @@ function FormInput({
         )}
 
         <Input
+          type={type}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={onKeyDown}
@@ -2023,55 +1910,53 @@ function KeywordTokenInput({ label, onChange, value }: { label: string; onChange
   );
 }
 
-function RateSummary({ actual, estimated, label }: { actual: number | null | undefined; estimated: number | null | undefined; label: string }) {
-  return (
-    <div className="grid gap-1 border border-[#982E41]/15 bg-white p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">{label}</p>
-      <p className="text-[12px] text-muted-foreground">Estimasi: {formatCurrencyIdr(estimated)}</p>
-      <p className="text-[14px] font-semibold text-[#2b1418]">Aktual: {formatCurrencyIdr(actual)}</p>
-    </div>
-  );
-}
-
-function RateCardInputGroup({
-  label,
-  max,
-  min,
-  onChange,
-  suggested,
+function PaginationControls({
+  onPageChange,
+  page,
+  pageSize,
+  totalItems,
+  totalPages,
 }: {
-  label: string;
-  max: string;
-  min: string;
-  onChange: (patch: { max?: string; min?: string; suggested?: string }) => void;
-  suggested: string;
+  onPageChange: (page: number) => void;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 }) {
-  return (
-    <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">{label}</p>
-      <div className="grid gap-3 md:grid-cols-3">
-        <RateInput label="Min" value={min} onChange={(value) => onChange({ min: value })} />
-        <RateInput label="Suggested" value={suggested} onChange={(value) => onChange({ suggested: value })} />
-        <RateInput label="Max" value={max} onChange={(value) => onChange({ max: value })} />
-      </div>
-    </section>
-  );
-}
+  const start = totalItems ? (page - 1) * pageSize + 1 : 0;
+  const end = Math.min(page * pageSize, totalItems);
 
-function RateInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
   return (
-    <Label className="grid gap-2">
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#982E41]">{label}</span>
-      <Input
-        inputMode="numeric"
-        min="1"
-        placeholder="0"
-        type="number"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
-      />
-    </Label>
+    <div className="flex flex-col gap-3 border border-[#982E41]/15 bg-white px-4 py-3 text-sm text-[#2b1418] sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-xs text-muted-foreground">
+        {start}-{end} dari {totalItems}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={KOL_ACTION_BUTTON_CLASS}
+          disabled={page <= 1}
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+        >
+          Sebelumnya
+        </Button>
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#982E41]">
+          {page}/{totalPages}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={KOL_ACTION_BUTTON_CLASS}
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+        >
+          Berikutnya
+        </Button>
+      </div>
+    </div>
   );
 }
 
