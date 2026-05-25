@@ -1249,7 +1249,7 @@ function mergeKeywords(
 
               <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
                 <div>
-                  <h2 className="text-[15px] font-medium">Actual rate</h2>
+                  <h2 className="text-[15px] font-medium">Rate</h2>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <FormInput
@@ -1277,7 +1277,7 @@ function mergeKeywords(
               </section>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="static shadow-none">
               {editingId && (
                 <Button
                   type="button"

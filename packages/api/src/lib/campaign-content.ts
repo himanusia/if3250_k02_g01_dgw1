@@ -2,7 +2,7 @@ import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile, type SocialPlatform } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { syncContentWithApify } from "./apify";
 
@@ -385,6 +385,8 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
   const current = await loadCampaignContentRow(contentId);
 
   if (metrics.syncStatus === "success") {
+    const authorHandle = metrics.authorHandle.replace(/^@/, "").trim();
+
     await db
       .update(campaignContent)
       .set({
@@ -408,6 +410,33 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
         viewCount: metrics.viewCount,
       })
       .where(eq(campaignContent.id, contentId));
+
+    if (authorHandle) {
+      const [existingAccount] = await db
+        .select({ id: kolAccount.id })
+        .from(kolAccount)
+        .where(
+          and(
+            eq(kolAccount.kolId, current.kolId),
+            eq(kolAccount.platform, metrics.platform),
+            eq(kolAccount.handle, authorHandle),
+          ),
+        )
+        .limit(1);
+
+      if (!existingAccount) {
+        try {
+          await db.insert(kolAccount).values({
+            handle: authorHandle,
+            kolId: current.kolId,
+            platform: metrics.platform,
+            profileUrl: null,
+          });
+        } catch {
+          // Another KOL may already own this handle. Keep content sync successful.
+        }
+      }
+    }
   } else {
     await db
       .update(campaignContent)

@@ -62,7 +62,27 @@ function formatDate(value: Date | null) {
 }
 
 function normalizeAccountKey(account: z.infer<typeof kolAccountInputSchema>) {
-  return `${account.platform}:${account.handle.trim().toLowerCase()}`;
+  return `${account.platform}:${account.handle.trim().replace(/^@/, "").toLowerCase()}`;
+}
+
+function normalizeHandle(value: string) {
+  return value.trim().replace(/^@/, "");
+}
+
+function toKolSaveError(error: unknown) {
+  if (error instanceof ORPCError) {
+    return error;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  const isDuplicate = /duplicate|unique/i.test(message);
+
+  return new ORPCError("BAD_REQUEST", {
+    data: { reason: isDuplicate ? "DUPLICATE_ACCOUNT" : "KOL_SAVE_FAILED" },
+    message: isDuplicate
+      ? "Akun sosial sudah ada di database. Pilih akun lain atau edit KOL yang memiliki akun tersebut."
+      : "Gagal menyimpan KOL. Periksa data akun sosial lalu coba lagi.",
+  });
 }
 
 async function assertAccountsAreUnique(accounts: Array<z.infer<typeof kolAccountInputSchema>>, currentKolId?: number) {
@@ -83,7 +103,7 @@ async function assertAccountsAreUnique(accounts: Array<z.infer<typeof kolAccount
     const existing = await db
       .select({ id: kolAccount.id, kolId: kolAccount.kolId })
       .from(kolAccount)
-      .where(sql`LOWER(${kolAccount.handle}) = LOWER(${account.handle}) AND ${kolAccount.platform} = ${account.platform}`)
+      .where(sql`LOWER(${kolAccount.handle}) = LOWER(${normalizeHandle(account.handle)}) AND ${kolAccount.platform} = ${account.platform}`)
       .limit(1);
 
     if (existing.some((row) => row.kolId !== currentKolId)) {
@@ -114,7 +134,7 @@ function getFollowerTier(totalFollowers: number) {
 async function validateAccounts(accounts: Array<z.infer<typeof kolAccountInputSchema>>) {
   for (const account of accounts) {
     const metrics = await syncAccountWithApify({
-      handle: account.handle,
+      handle: normalizeHandle(account.handle),
       platform: account.platform,
       profileUrl: account.profileUrl,
     });
@@ -298,7 +318,7 @@ async function mapKolRecord(kolId: number) {
     return null;
   }
 
-  const accounts = await db
+  let accounts = await db
     .select()
     .from(kolAccount)
     .where(eq(kolAccount.kolId, kolId))
@@ -348,6 +368,36 @@ async function mapKolRecord(kolId: number) {
     .innerJoin(kolProfile, eq(campaignContent.kolId, kolProfile.id))
     .where(eq(campaignContent.kolId, kolId))
     .orderBy(desc(campaignContent.postedAt), desc(campaignContent.updatedAt));
+
+  const existingAccountKeys = new Set(accounts.map((account) => `${account.platform}:${account.handle.toLowerCase()}`));
+  const missingContentAccounts = contents
+    .map((content) => ({
+      handle: normalizeHandle(content.authorHandle),
+      platform: content.platform,
+    }))
+    .filter((account) => account.handle && !existingAccountKeys.has(`${account.platform}:${account.handle.toLowerCase()}`));
+
+  if (missingContentAccounts.length) {
+    for (const account of missingContentAccounts) {
+      try {
+        await db.insert(kolAccount).values({
+          handle: account.handle,
+          kolId,
+          platform: account.platform,
+          profileUrl: null,
+        });
+        existingAccountKeys.add(`${account.platform}:${account.handle.toLowerCase()}`);
+      } catch {
+        // Ignore cross-KOL duplicate constraints; explicit edit will show a clear error.
+      }
+    }
+
+    accounts = await db
+      .select()
+      .from(kolAccount)
+      .where(eq(kolAccount.kolId, kolId))
+      .orderBy(desc(kolAccount.createdAt));
+  }
 
   return {
     ...profile,
@@ -421,33 +471,37 @@ export const kolRouter = {
     };
   }),
   create: protectedProcedure.input(kolInputSchema).handler(async ({ input }) => {
-    await assertAccountsAreUnique(input.accounts);
-    await validateAccounts(input.accounts);
+    try {
+      await assertAccountsAreUnique(input.accounts);
+      await validateAccounts(input.accounts);
 
-    const created = await db.transaction(async (tx) => {
-      const [createdProfile] = await tx
-        .insert(kolProfile)
-        .values({
-          actualRateCard: input.actualRateCard ?? null,
-          displayName: input.displayName,
-          keywords: input.keywords,
-        })
-        .returning({ id: kolProfile.id });
+      const created = await db.transaction(async (tx) => {
+        const [createdProfile] = await tx
+          .insert(kolProfile)
+          .values({
+            actualRateCard: input.actualRateCard ?? null,
+            displayName: input.displayName,
+            keywords: input.keywords,
+          })
+          .returning({ id: kolProfile.id });
 
-      await tx.insert(kolAccount).values(
-        input.accounts.map((account) => ({
-          handle: account.handle,
-          kolId: createdProfile!.id,
-          platform: account.platform,
-          profileUrl: account.profileUrl || null,
-        })),
-      );
+        await tx.insert(kolAccount).values(
+          input.accounts.map((account) => ({
+            handle: normalizeHandle(account.handle),
+            kolId: createdProfile!.id,
+            platform: account.platform,
+            profileUrl: account.profileUrl || null,
+          })),
+        );
 
-      return createdProfile!;
-    });
+        return createdProfile!;
+      });
 
-    await syncKolProfile(created.id);
-    return await mapKolRecord(created.id);
+      await syncKolProfile(created.id);
+      return await mapKolRecord(created.id);
+    } catch (error) {
+      throw toKolSaveError(error);
+    }
   }),
   bulkImport: protectedProcedure
   .input(z.array(kolInputSchema))
@@ -640,36 +694,40 @@ export const kolRouter = {
       }),
     )
     .handler(async ({ input }) => {
-      await assertAccountsAreUnique(input.accounts, input.id);
-      await validateAccounts(input.accounts);
+      try {
+        await assertAccountsAreUnique(input.accounts, input.id);
+        await validateAccounts(input.accounts);
 
-      await db
-        .update(kolProfile)
-        .set({
-          actualRateCard: input.actualRateCard ?? null,
-          displayName: input.displayName,
-          keywords: input.keywords,
-          updatedAt: new Date(),
-        })
-        .where(eq(kolProfile.id, input.id));
+        await db
+          .update(kolProfile)
+          .set({
+            actualRateCard: input.actualRateCard ?? null,
+            displayName: input.displayName,
+            keywords: input.keywords,
+            updatedAt: new Date(),
+          })
+          .where(eq(kolProfile.id, input.id));
 
-      const existingAccounts = await db.select().from(kolAccount).where(eq(kolAccount.kolId, input.id));
+        const existingAccounts = await db.select().from(kolAccount).where(eq(kolAccount.kolId, input.id));
 
-      for (const account of existingAccounts) {
-        await db.delete(kolAccount).where(eq(kolAccount.id, account.id));
+        for (const account of existingAccounts) {
+          await db.delete(kolAccount).where(eq(kolAccount.id, account.id));
+        }
+
+        await db.insert(kolAccount).values(
+          input.accounts.map((account) => ({
+            handle: normalizeHandle(account.handle),
+            kolId: input.id,
+            platform: account.platform,
+            profileUrl: account.profileUrl || null,
+          })),
+        );
+
+        await syncKolProfile(input.id);
+        return await mapKolRecord(input.id);
+      } catch (error) {
+        throw toKolSaveError(error);
       }
-
-      await db.insert(kolAccount).values(
-        input.accounts.map((account) => ({
-          handle: account.handle,
-          kolId: input.id,
-          platform: account.platform,
-          profileUrl: account.profileUrl || null,
-        })),
-      );
-
-      await syncKolProfile(input.id);
-      return await mapKolRecord(input.id);
     }),
 };
 

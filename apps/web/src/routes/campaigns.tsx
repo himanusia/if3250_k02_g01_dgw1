@@ -1298,7 +1298,7 @@ function RouteComponent() {
                   <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-[#2b1418]">
                     <span className="inline-flex items-center gap-2">
                       <ChevronDown className="size-4 -rotate-90 text-[#982E41] transition-transform group-open:rotate-0" />
-                      KOL campaign
+                      KOL
                     </span>
                     <span className="text-xs font-normal text-muted-foreground">{detailCampaignData.kols.length} KOL</span>
                   </summary>
@@ -1452,12 +1452,8 @@ function RouteComponent() {
                                   </div>
                                 )}
                                 <div className="min-w-0 space-y-2">
-                                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">Preview post</p>
-                                  <p className="line-clamp-2 text-sm font-semibold text-[#2b1418]">
-                                    {content.title || content.caption || "Judul/caption akan muncul setelah sync berhasil."}
-                                  </p>
-                                  {content.caption && content.title && (
-                                    <p className="line-clamp-3 text-sm text-muted-foreground">{content.caption}</p>
+                                  {content.caption && (
+                                    <p className="line-clamp-3 text-sm text-[#2b1418]">{content.caption}</p>
                                   )}
                                   <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                                     <span>Author: {content.authorDisplayName || content.authorHandle || "-"}</span>

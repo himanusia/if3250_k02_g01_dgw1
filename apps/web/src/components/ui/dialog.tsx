@@ -53,7 +53,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] -translate-x-1/2 -translate-y-1/2 gap-0 overflow-hidden rounded-none border border-[var(--digi-dialog-border)] bg-[var(--digi-dialog-surface)] p-0 text-xs/relaxed text-[var(--digi-dialog-title)] shadow-[0_24px_80px_rgba(43,20,24,0.18)] ring-1 ring-[#b43c39]/10 duration-100 outline-none sm:w-[min(96vw,52rem)] sm:max-w-[min(96vw,52rem)] lg:w-[min(94vw,72rem)] lg:max-w-[min(94vw,72rem)] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] -translate-x-1/2 -translate-y-1/2 gap-0 overflow-hidden rounded-none border border-[var(--digi-dialog-border)] bg-[var(--digi-dialog-surface)] p-0 text-xs/relaxed text-[var(--digi-dialog-title)] shadow-[0_24px_80px_rgba(43,20,24,0.18)] ring-1 ring-[#b43c39]/10 outline-none sm:w-[min(96vw,52rem)] sm:max-w-[min(96vw,52rem)] lg:w-[min(94vw,72rem)] lg:max-w-[min(94vw,72rem)]",
           className
         )}
         {...props}
