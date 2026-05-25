@@ -49,9 +49,6 @@ function RouteComponent() {
             <div className="max-w-3xl space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#B43C39]">Campaign management</p>
               <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Dashboard progress</h1>
-              <p className="text-sm text-muted-foreground">
-                Ringkasan campaign aktif, progress target, dan item yang perlu ditindaklanjuti.
-              </p>
             </div>
             <Button render={<Link to="/campaigns" />} className="rounded-none bg-[#B43C39] font-semibold text-white hover:bg-[#8f2e2c]">
               Kelola campaign

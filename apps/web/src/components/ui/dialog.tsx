@@ -84,7 +84,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("border-b border-[var(--digi-dialog-border)] bg-[var(--digi-dialog-header-bg)] px-5 py-4 text-left sm:px-6", className)}
+      className={cn("sticky top-0 z-20 border-b border-[var(--digi-dialog-border)] bg-[var(--digi-dialog-header-bg)] px-5 py-4 text-left sm:px-6", className)}
       {...props}
     />
   )
