@@ -1556,7 +1556,7 @@ function MetricTargetBadge({ actual, label, percent, target }: MetricTarget) {
 function parseKeywordTokens(value: string) {
   return value
     .split(/[\s,]+/)
-    .map((keyword) => keyword.trim())
+    .map((keyword) => keyword.trim().replace(/^#+/, ""))
     .filter(Boolean);
 }
 
@@ -1575,7 +1575,7 @@ function KeywordChips({ value }: { value: string | null | undefined }) {
     <span className="flex flex-wrap gap-2">
       {tokens.map((token) => (
         <span key={token} className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#982E41]">
-          #{token}
+          {token}
         </span>
       ))}
     </span>
@@ -1613,7 +1613,7 @@ function KeywordTokenInput({ label, onChange, value }: { label: string; onChange
             onClick={() => removeToken(token)}
             aria-label={`Hapus keyword ${token}`}
           >
-            #{token} ×
+            {token} x
           </button>
         ))}
         <input

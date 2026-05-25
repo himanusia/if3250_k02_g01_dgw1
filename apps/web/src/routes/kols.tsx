@@ -92,7 +92,7 @@ function parseKeywordSegments(keywords: string | null | undefined): string[] {
   if (!raw) return [];
   return raw
     .split(/[\s,]+/)
-    .map((k) => k.trim())
+    .map((k) => k.trim().replace(/^#+/, ""))
     .filter(Boolean);
 }
 
@@ -797,7 +797,7 @@ function mergeKeywords(
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {parseKeywordSegments(kol.keywords).map((keyword) => (
                             <span key={keyword} className="border border-[#982E41]/20 bg-white px-2 py-0.5 text-[12px] text-[#722331]">
-                              #{keyword}
+                              {keyword}
                             </span>
                           ))}
                         </div>
@@ -1126,6 +1126,7 @@ function mergeKeywords(
 
                   <FormInput
                     label="Handle"
+                    placeholder="digi.wonder"
                     value={account.handle}
                     onChange={(value) => {
                       setForm((current) => ({
@@ -1762,7 +1763,7 @@ function KeywordTokenInput({ label, onChange, value }: { label: string; onChange
             onClick={() => onChange(encodeKeywordSegments(tokens.filter((item) => item !== token)))}
             aria-label={`Hapus keyword ${token}`}
           >
-            #{token} x
+            {token} x
           </button>
         ))}
         <input
