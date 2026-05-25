@@ -88,6 +88,47 @@ function getDefaultContentRows() {
   return [createEmptyContentRow()];
 }
 
+function normalizeContentUrl(rawUrl: string) {
+  const value = rawUrl.trim();
+
+  if (!value) {
+    return null;
+  }
+
+  const candidate = value.startsWith("http://") || value.startsWith("https://")
+    ? value
+    : `https://${value.replace(/^\/+/, "")}`;
+
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function detectContentPlatformFromUrl(url: string) {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./i, "");
+
+    if (/^(?:m\.)?instagram\.com$/i.test(hostname) || /^instagr\.am$/i.test(hostname)) {
+      return "instagram";
+    }
+
+    if (/^(?:vm\.)?tiktok\.com$/i.test(hostname)) {
+      return "tiktok";
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function getDefaultForm(): CampaignFormState {
   return {
     brand: "",
@@ -462,6 +503,9 @@ function RouteComponent() {
       setIsAddContentDialogOpen(false);
       setAddContentCampaignId(null);
       setContentRows(getDefaultContentRows());
+      campaignsQuery.refetch();
+      campaignProgressQuery.refetch();
+      kolsQuery.refetch();
       setDetailCampaignId(variables.campaignId);
       setIsDetailDialogOpen(true);
     },
@@ -646,12 +690,41 @@ function RouteComponent() {
       return;
     }
 
+    const normalizedRows = contentRows.map((row, index) => {
+      const normalizedUrl = normalizeContentUrl(row.contentUrl);
+      const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
+
+      if (!normalizedUrl || !platform) {
+        toast.error(`Baris ${index + 1}: link harus berasal dari Instagram atau TikTok.`);
+        return null;
+      }
+
+      return {
+        contentUrl: normalizedUrl,
+        kolId: Number(row.kolId),
+      };
+    });
+
+    if (normalizedRows.some((row) => row === null)) {
+      return;
+    }
+
+    const seenUrls = new Set<string>();
+    const duplicateRowIndex = normalizedRows.findIndex((row) => {
+      if (!row) return false;
+      if (seenUrls.has(row.contentUrl)) return true;
+      seenUrls.add(row.contentUrl);
+      return false;
+    });
+
+    if (duplicateRowIndex >= 0) {
+      toast.error(`Baris ${duplicateRowIndex + 1}: link konten duplikat di form.`);
+      return;
+    }
+
     addContent.mutate({
       campaignId: addContentCampaignId,
-      contents: contentRows.map((row) => ({
-        contentUrl: row.contentUrl.trim(),
-        kolId: Number(row.kolId),
-      })),
+      contents: normalizedRows as Array<{ contentUrl: string; kolId: number }>,
     });
   }
 
@@ -1144,11 +1217,16 @@ function RouteComponent() {
                   <DetailStat boxed label="Follower tier" value={formatTargetKolTiers(detailCampaignSummary?.targetFollowerTier ?? detailCampaignData?.targetFollowerTier)} />
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <DetailStat boxed label="Objective" value={formatObjectiveDetails(detailCampaignData?.objective ?? detailCampaignSummary?.objective)} />
+                <div className="grid gap-3">
+                  <ObjectiveProgressPanel
+                    campaign={detailCampaignData}
+                    progress={campaignProgressById.get(detailCampaignData.id)}
+                  />
                   <DetailStat boxed label="Keywords" value={<KeywordChips value={detailCampaignData?.keywords ?? detailCampaignSummary?.keywords} />} />
-                  <DetailStat boxed label="Created at" value={formatHumanDateTime(detailCampaignSummary?.createdAt ?? detailCampaignData?.createdAt)} />
-                  <DetailStat boxed label="Updated at" value={formatHumanDateTime(detailCampaignSummary?.updatedAt ?? detailCampaignData?.updatedAt)} />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <DetailStat boxed label="Created at" value={formatHumanDateTime(detailCampaignSummary?.createdAt ?? detailCampaignData?.createdAt)} />
+                    <DetailStat boxed label="Updated at" value={formatHumanDateTime(detailCampaignSummary?.updatedAt ?? detailCampaignData?.updatedAt)} />
+                  </div>
                 </div>
 
                 <div className="grid gap-3">
@@ -1280,6 +1358,34 @@ function RouteComponent() {
                                 </div>
                               </div>
 
+                              <div className="grid gap-3 border border-[#982E41]/15 bg-white p-3 md:grid-cols-[104px_minmax(0,1fr)]">
+                                {content.thumbnailUrl ? (
+                                  <img
+                                    src={content.thumbnailUrl}
+                                    alt={content.title || "Preview post"}
+                                    className="aspect-square w-full border border-[#982E41]/15 object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <div className="flex aspect-square w-full items-center justify-center border border-dashed border-[#982E41]/25 bg-[#FFF8F9] text-[11px] uppercase tracking-[0.14em] text-[#982E41]">
+                                    Preview
+                                  </div>
+                                )}
+                                <div className="min-w-0 space-y-2">
+                                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">Preview post</p>
+                                  <p className="line-clamp-2 text-sm font-semibold text-[#2b1418]">
+                                    {content.title || content.caption || "Judul/caption akan muncul setelah sync berhasil."}
+                                  </p>
+                                  {content.caption && content.title && (
+                                    <p className="line-clamp-3 text-sm text-muted-foreground">{content.caption}</p>
+                                  )}
+                                  <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                                    <span>Author: {content.authorDisplayName || content.authorHandle || "-"}</span>
+                                    <span>Posted: {formatDateTime(content.postedAt)}</span>
+                                  </div>
+                                </div>
+                              </div>
+
                               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4 text-[6px]">
                                 <DetailStat boxed compact label="Likes" value={formatNumber(content.likeCount)} />
                                 <DetailStat boxed compact label="Views" value={formatNumber(content.viewCount)} />
@@ -1294,7 +1400,6 @@ function RouteComponent() {
                                 <DetailStat label="Engagement rate" value={content.engagementRate || "-"} compact />
                               </div>
 
-                              {content.caption && <p className="text-sm text-foreground/90">{content.caption}</p>}
                               {content.syncMessage && (
                                 <p className={`text-sm ${content.syncStatus === "failed" ? "text-destructive" : "text-muted-foreground"}`}>
                                   {content.syncMessage}
@@ -1491,6 +1596,27 @@ function RouteComponent() {
 
                     <div className="md:col-span-3">
                       <p className="text-muted-foreground text-[11px] uppercase tracking-[0.2em]">Baris {index + 1}</p>
+                      {(() => {
+                        const normalizedUrl = normalizeContentUrl(row.contentUrl);
+                        const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
+                        const selectedKol = addContentCampaign.kols.find((kol) => kol.id === row.kolId);
+
+                        if (!row.contentUrl.trim()) {
+                          return null;
+                        }
+
+                        return (
+                          <div className="mt-2 grid gap-2 border border-[#982E41]/15 bg-[#FFF8F9] p-3 text-xs text-[#2b1418] sm:grid-cols-[110px_minmax(0,1fr)]">
+                            <span className="border border-[#982E41]/25 bg-white px-2 py-1 text-center font-semibold uppercase tracking-[0.14em] text-[#982E41]">
+                              {platform ?? "tidak valid"}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{selectedKol?.displayName ?? "KOL belum dipilih"}</p>
+                              <p className="truncate text-muted-foreground">{normalizedUrl ?? "Link harus Instagram atau TikTok"}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
@@ -1534,6 +1660,44 @@ function ProgressBlock({ label, meta, percent }: { label: string; meta: string; 
       </div>
       <div className="mt-2 h-2 overflow-hidden bg-[#F2DDE2]">
         <div className="h-full bg-[#982E41]" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function ObjectiveProgressPanel({ campaign, progress }: { campaign: CampaignDetailRecord | CampaignRecord; progress?: CampaignDashboardRecord }) {
+  const display = getCampaignProgressDisplay(campaign as CampaignRecord, progress);
+  const primaryMetric = display.metrics[0];
+
+  return (
+    <div className="space-y-4 border-[1.6px] border-[#982E41]/20 bg-[#FFF8F9] p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Objective</p>
+          <p className="mt-1 text-sm text-[#2b1418]">{formatObjectiveDetails(campaign.objective)}</p>
+        </div>
+        <div className="border border-[#982E41]/25 bg-white px-3 py-2 text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">Progress utama</p>
+          <p className="text-2xl font-semibold text-[#2b1418]">{primaryMetric?.percent ?? 0}%</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {display.metrics.map((metric) => (
+          <div key={metric.label} className="border border-[#982E41]/20 bg-white p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">{metric.label}</p>
+              <span className="text-sm font-semibold text-[#2b1418]">{metric.percent}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden bg-[#F2DDE2]">
+              <div className="h-full bg-[#982E41]" style={{ width: `${metric.percent}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {formatNumber(metric.actual)} / {formatNumber(metric.target)}
+            </p>
+            {metric.isFallback && <p className="mt-1 text-[11px] text-muted-foreground">Target belum diisi.</p>}
+          </div>
+        ))}
       </div>
     </div>
   );
