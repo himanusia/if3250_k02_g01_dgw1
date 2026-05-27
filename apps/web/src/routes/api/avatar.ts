@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createContext } from "@if3250_k02_g01_dgw1/api/context";
 
 const ALLOWED_HOST_PATTERNS = [/\.cdninstagram\.com$/i, /(^|\.)fbcdn\.net$/i, /(^|\.)tiktokcdn\.com$/i, /(^|\.)muscdn\.com$/i];
 
@@ -7,6 +8,12 @@ function isAllowedAvatarHost(hostname: string) {
 }
 
 async function handleAvatarRequest(request: Request) {
+  const context = await createContext({ req: request });
+
+  if (!context.session?.user || !context.whitelist) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const requestUrl = new URL(request.url);
   const targetUrl = requestUrl.searchParams.get("url")?.trim();
 

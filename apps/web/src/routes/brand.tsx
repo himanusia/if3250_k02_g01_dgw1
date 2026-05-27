@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { CampaignRecord } from "@/lib/app-types";
@@ -9,6 +10,7 @@ import { getBrandSummaries } from "@/lib/brand-summary";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { orpc } from "@/utils/orpc";
 
 const BRAND_PAGE_SIZE = 10;
@@ -77,9 +79,15 @@ function RouteComponent() {
       <div className="container mx-auto grid max-w-6xl gap-5 px-4 py-6 lg:py-8">
         <section className="grid gap-2">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#B43C39]">Brand</p>
-          <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">
-            Daftar Brand
-          </h1>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">
+              Daftar Brand
+            </h1>
+            <Button render={<Link to="/campaigns" />} className="w-fit rounded-none bg-[#B43C39] font-semibold text-white hover:bg-[#8f2e2c]">
+              <Plus className="mr-2 size-4" />
+              Buat brand dari campaign
+            </Button>
+          </div>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">

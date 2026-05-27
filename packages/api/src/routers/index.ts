@@ -1,6 +1,6 @@
 import type { RouterClient } from "@orpc/server";
 
-import { protectedProcedure, publicProcedure } from "../index";
+import { protectedProcedure } from "../index";
 import { whitelistRouter } from "./whitelist.js";
 import { campaignRouter } from "./campaign.js";
 import { kolRouter } from "./kol.js";
@@ -8,7 +8,7 @@ import { kolRouter } from "./kol.js";
 export const appRouter = {
   whitelist: whitelistRouter,
   campaign: campaignRouter,
-  healthCheck: publicProcedure.handler(() => {
+  healthCheck: protectedProcedure.handler(() => {
     return "OK";
   }),
   kol: kolRouter,

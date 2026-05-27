@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
 import { encodeCampaignObjective, formatObjectiveDetails, formatObjectiveSummary, getProgressPercent, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
+import { downloadCampaignReportPdf } from "@/lib/campaign-report-pdf";
 import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
@@ -154,9 +155,37 @@ const TARGET_KOL_TIERS = [
   { key: "mega", label: "Mega" },
 ] as const;
 const CAMPAIGN_PAGE_SIZE = 8;
+const CAMPAIGN_FORM_DRAFT_KEY = "digiwonder:campaigns:form-draft";
 
 type TargetKolTier = { count: number; tier: string };
 type MetricTarget = { actual: number; isFallback: boolean; label: string; percent: number; target: number };
+type CampaignFormDraft = {
+  editingId: number | null;
+  form: CampaignFormState;
+};
+
+function loadCampaignFormDraft() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(CAMPAIGN_FORM_DRAFT_KEY) ?? "null") as CampaignFormDraft | null;
+    return parsed?.form ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCampaignFormDraft(draft: CampaignFormDraft) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(CAMPAIGN_FORM_DRAFT_KEY, JSON.stringify(draft));
+  }
+}
+
+function clearCampaignFormDraft() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(CAMPAIGN_FORM_DRAFT_KEY);
+  }
+}
 
 function clampPercent(value: number) {
   return Math.min(100, Math.max(0, Math.round(value)));
@@ -404,8 +433,6 @@ function RouteComponent() {
     return Array.from(new Set(campaigns.map((campaign) => campaign.brand.trim()).filter(Boolean)))
       .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
   }, [campaigns]);
-
-  const campaignReportUrl = detailCampaignId !== null ? `/api/rpc/campaign-report?campaignId=${detailCampaignId}` : "";
 
   const addContentCampaign = useMemo(() => {
     if (addContentCampaignId === null) {
@@ -674,11 +701,14 @@ function RouteComponent() {
     setForm(getDefaultForm());
     setKolSearch("");
     setSelectedKeywordFilter([]);
+    clearCampaignFormDraft();
   }
 
   function openCreateDialog() {
-    setEditingId(null);
-    setForm(getDefaultForm());
+    const draft = loadCampaignFormDraft();
+
+    setEditingId(draft?.editingId ?? null);
+    setForm(draft?.form ?? getDefaultForm());
     setIsDialogOpen(true);
   }
 
@@ -703,6 +733,14 @@ function RouteComponent() {
     setAddContentCampaignId(null);
     setContentRows(getDefaultContentRows());
   }
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      return;
+    }
+
+    saveCampaignFormDraft({ editingId, form });
+  }, [editingId, form, isDialogOpen]);
 
   function updateContentRow(rowId: string, patch: Partial<ContentFormRow>) {
     setContentRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
@@ -982,7 +1020,7 @@ function RouteComponent() {
         open={isDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
-            resetForm();
+            setIsDialogOpen(false);
             return;
           }
 
@@ -1243,10 +1281,15 @@ function RouteComponent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      render={<a href={campaignReportUrl} download={`campaign-${detailCampaignId}-report.pdf`} />}
+                      disabled={!detailCampaignData}
+                      onClick={() => {
+                        if (detailCampaignData) {
+                          downloadCampaignReportPdf(detailCampaignData, campaignProgressById.get(detailCampaignData.id));
+                        }
+                      }}
                     >
                       <Download className="mr-1 size-4" />
-                      Buat laporan PDF
+                      Download PDF
                     </Button>
                   </div>
                 )}
@@ -1304,11 +1347,25 @@ function RouteComponent() {
                   </summary>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
                     {detailCampaignData.kols.map((kol) => (
-                      <div key={kol.id} className="border border-[#982E41]/15 bg-white p-3">
-                        <p className="font-semibold text-[#2b1418]">{kol.displayName}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {kol.handles.length ? kol.handles.join(" / ") : "Belum ada akun sosial tersimpan."}
-                        </p>
+                      <div key={kol.id} className="flex items-center gap-3 border border-[#982E41]/15 bg-white p-3">
+                        {kol.avatarUrl ? (
+                          <img
+                            src={getAvatarSrc(kol.avatarUrl)}
+                            alt={kol.displayName}
+                            className="size-11 shrink-0 rounded-full border border-[#982E41]/15 object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="flex size-11 shrink-0 items-center justify-center rounded-full border border-dashed border-[#982E41]/25 bg-[#FFF8F9] text-xs font-semibold text-[#982E41]">
+                            {kol.displayName.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-[#2b1418]">{kol.displayName}</p>
+                          <p className="mt-1 break-words text-xs text-muted-foreground">
+                            {kol.handles.length ? kol.handles.join(" / ") : "Belum ada akun sosial tersimpan."}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1324,12 +1381,26 @@ function RouteComponent() {
                   <div className="space-y-4">
                     {activeContentGroups.map((group) => (
                       <article key={group.kolId} className="border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
-                        <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
-                          <div>
-                            <p className="text-[18px] font-semibold leading-none text-foreground">{group.displayName}</p>
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div className="flex min-w-0 items-center gap-3">
+                            {group.avatarUrl ? (
+                              <img
+                                src={getAvatarSrc(group.avatarUrl)}
+                                alt={group.displayName}
+                                className="size-12 shrink-0 rounded-full border border-[#982E41]/15 object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-dashed border-[#982E41]/25 bg-[#FFF8F9] text-sm font-semibold text-[#982E41]">
+                                {group.displayName.slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                          <div className="min-w-0">
+                            <p className="truncate text-[18px] font-semibold leading-none text-foreground">{group.displayName}</p>
                             <p className="text-[13px] text-muted-foreground">
                               {group.handles.length ? group.handles.join(" / ") : "Tidak ada handle yang tersimpan."}
                             </p>
+                          </div>
                           </div>
                           <span className="border border-border bg-[#fff3d8] px-2 py-1 text-xs text-muted-foreground">
                             {group.contents.length} konten
@@ -1748,19 +1819,12 @@ function ProgressBlock({ label, meta, percent }: { label: string; meta: string; 
 
 function ObjectiveProgressPanel({ campaign, progress }: { campaign: CampaignDetailRecord | CampaignRecord; progress?: CampaignDashboardRecord }) {
   const display = getCampaignProgressDisplay(campaign as CampaignRecord, progress);
-  const primaryMetric = display.metrics[0];
 
   return (
     <div className="space-y-4 border-[1.6px] border-[#982E41]/20 bg-[#FFF8F9] p-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Objective</p>
-          <p className="mt-1 text-sm text-[#2b1418]">{formatObjectiveDetails(campaign.objective)}</p>
-        </div>
-        <div className="border border-[#982E41]/25 bg-white px-3 py-2 text-right">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">Progress utama</p>
-          <p className="text-2xl font-semibold text-[#2b1418]">{primaryMetric?.percent ?? 0}%</p>
-        </div>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Objective</p>
+        <p className="mt-1 text-sm text-[#2b1418]">{formatObjectiveDetails(campaign.objective)}</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -2039,11 +2103,29 @@ function BrandInput({ onChange, options, value }: { onChange: (value: string) =>
   return (
     <label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
       <span>Brand</span>
+      {options.length ? (
+        <Select
+          className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+          value={options.includes(value) ? value : ""}
+          onChange={(event) => {
+            if (event.target.value) {
+              onChange(event.target.value);
+            }
+          }}
+        >
+          <option value="">Pilih brand existing</option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </Select>
+      ) : null}
       <Input
         className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         list="campaign-brand-options"
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Pilih brand existing atau ketik brand baru"
+        placeholder={options.length ? "Atau ketik brand baru" : "Ketik brand baru"}
         value={value}
       />
       <datalist id="campaign-brand-options">
@@ -2052,7 +2134,11 @@ function BrandInput({ onChange, options, value }: { onChange: (value: string) =>
         ))}
       </datalist>
       <span className="text-[11px] font-normal normal-case tracking-normal text-muted-foreground">
-        {isNewBrand ? `Brand baru “${value.trim()}” akan dipakai otomatis saat campaign disimpan.` : "Suggestion diambil dari brand campaign existing."}
+        {isNewBrand
+          ? `Brand baru "${value.trim()}" akan dibuat otomatis saat campaign disimpan.`
+          : options.length
+            ? `${options.length} brand existing tersedia.`
+            : "Belum ada brand existing. Brand dibuat dari campaign pertama."}
       </span>
     </label>
   );

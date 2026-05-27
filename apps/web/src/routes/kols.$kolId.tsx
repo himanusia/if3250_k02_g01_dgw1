@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { KolRecord, RateCardValue, SocialPlatform } from "@/lib/app-types";
-import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
+import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc, getPostDisplayTitle, getRecentAccountPosts } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -219,8 +219,9 @@ function RouteComponent() {
     );
   }
 
-  const primaryAccount = kol.accounts[0];
-  const primaryMetadata = primaryAccount ? getAccountMetadata(primaryAccount.metadata) : null;
+  const avatarUrl = kol.accounts
+    .map((account) => getAccountMetadata(account.metadata)?.avatarUrl)
+    .find((url): url is string => Boolean(url));
   const initials =
     kol.displayName
       .split(" ")
@@ -240,9 +241,9 @@ function RouteComponent() {
         <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex min-w-0 items-start gap-4">
-              {primaryMetadata?.avatarUrl ? (
+              {avatarUrl ? (
                 <img
-                  src={getAvatarSrc(primaryMetadata.avatarUrl)}
+                  src={getAvatarSrc(avatarUrl)}
                   alt={kol.displayName}
                   className="border-border size-16 shrink-0 border object-cover"
                   referrerPolicy="no-referrer"
@@ -482,9 +483,52 @@ function RouteComponent() {
                       {account.syncMessage}
                     </p>
                   )}
+
+                  <RecentAccountPosts metadata={account.metadata} />
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        <section className="bg-card ring-foreground/10 space-y-4 p-4 ring-1">
+          <h2 className="text-lg font-medium">Post tersimpan</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {kol.contents.length ? kol.contents.map((content) => (
+              <a
+                key={content.id}
+                href={content.contentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="grid gap-3 border-border bg-muted/20 border p-3 text-sm underline-offset-2 hover:bg-muted/30"
+              >
+                {content.thumbnailUrl ? (
+                  <img
+                    src={getAvatarSrc(content.thumbnailUrl)}
+                    alt={getPostDisplayTitle(content)}
+                    className="aspect-video w-full border-border border object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="bg-muted text-muted-foreground flex aspect-video w-full items-center justify-center border border-dashed text-xs uppercase tracking-[0.14em]">
+                    Post
+                  </div>
+                )}
+                <div className="min-w-0 space-y-1">
+                  <p className="line-clamp-2 font-semibold">{getPostDisplayTitle(content)}</p>
+                  <p className="text-muted-foreground">
+                    {content.campaignName ? `${content.campaignName} · ` : ""}
+                    {formatDateTime(content.postedAt)}
+                  </p>
+                  <p className="text-muted-foreground text-xs">Last sync: {formatDateTime(content.syncedAt)}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {formatNumber(content.viewCount)} views · {formatNumber(content.likeCount)} likes · {formatNumber(content.commentCount)} komentar · {formatNumber(content.shareCount)} shares
+                  </p>
+                </div>
+              </a>
+            )) : (
+              <p className="text-muted-foreground text-sm">Belum ada post KOL ini yang tersimpan di database.</p>
+            )}
           </div>
         </section>
 
@@ -738,6 +782,64 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 
 function MetaBadge({ children }: { children: string }) {
   return <span className="bg-muted border-border border px-2 py-1">{children}</span>;
+}
+
+function RecentAccountPosts({ metadata }: { metadata: Record<string, unknown> | null }) {
+  const posts = getRecentAccountPosts(metadata, 3);
+
+  if (!posts.length) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.18em]">
+        Recent post dari sosmed
+      </p>
+      <div className="grid gap-2 md:grid-cols-3">
+        {posts.map((post, index) => {
+          const body = (
+            <>
+              {post.thumbnailUrl ? (
+                <img
+                  src={getAvatarSrc(post.thumbnailUrl)}
+                  alt={post.title}
+                  className="aspect-video w-full border-border border object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="bg-muted text-muted-foreground flex aspect-video w-full items-center justify-center border border-dashed text-xs uppercase tracking-[0.14em]">
+                  Post
+                </div>
+              )}
+              <div className="min-w-0 space-y-1">
+                <p className="line-clamp-2 text-sm font-medium">{post.title}</p>
+                <p className="text-muted-foreground text-xs">
+                  {formatNumber(post.viewCount)} views · {formatNumber(post.likeCount)} likes · {formatNumber(post.commentCount)} komentar · {formatNumber(post.shareCount)} shares
+                </p>
+              </div>
+            </>
+          );
+
+          return post.contentUrl ? (
+            <a
+              key={`${post.contentUrl}-${index}`}
+              href={post.contentUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="grid gap-2 border-border bg-muted/20 border p-2 underline-offset-2 hover:bg-muted/30"
+            >
+              {body}
+            </a>
+          ) : (
+            <div key={index} className="grid gap-2 border-border bg-muted/20 border p-2">
+              {body}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function RateCardInputs<T extends string>({

@@ -20,7 +20,7 @@ export type RateCardMetadata = {
   confidence: number;
   lastComputedAt: string;
   modelVersion: string;
-  source: "formula";
+  source: "formula" | "ml";
 };
 
 export type WhitelistEntry = {
@@ -106,7 +106,7 @@ export type CampaignRecord = {
   id: number;
   keywords: string;
   selectedKolIds: number[];
-  kols: Array<{ displayName: string; handles: string[]; id: number }>;
+  kols: Array<{ avatarUrl: string | null; displayName: string; handles: string[]; id: number }>;
   name: string;
   objective: string;
   periodEnd: string;
@@ -150,6 +150,7 @@ export type CampaignContentRecord = {
 };
 
 export type CampaignContentGroupRecord = {
+  avatarUrl: string | null;
   contents: CampaignContentRecord[];
   displayName: string;
   handles: string[];

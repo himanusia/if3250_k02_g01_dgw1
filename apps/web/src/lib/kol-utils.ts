@@ -143,6 +143,94 @@ export function getAccountMetadata(metadata: Record<string, unknown> | null) {
   };
 }
 
+function looksLikeOpaquePostCode(value: string) {
+  return /^[A-Za-z0-9_-]{8,16}$/.test(value.trim());
+}
+
+export function getPostDisplayTitle(content: {
+  campaignName?: string;
+  caption?: string;
+  contentUrl: string;
+  platform: string;
+  title?: string;
+}) {
+  const title = asText(content.title);
+  const caption = asText(content.caption);
+
+  if (title && !looksLikeOpaquePostCode(title)) {
+    return title;
+  }
+
+  if (caption) {
+    return caption;
+  }
+
+  if (content.campaignName) {
+    return `${content.platform} post untuk ${content.campaignName}`;
+  }
+
+  return `${content.platform} post`;
+}
+
+export type RecentAccountPost = {
+  caption: string;
+  commentCount: number;
+  contentUrl: string | null;
+  likeCount: number;
+  postedAt: string | null;
+  shareCount: number;
+  thumbnailUrl: string | null;
+  title: string;
+  viewCount: number;
+};
+
+export function getRecentAccountPosts(metadata: Record<string, unknown> | null, limit = 3): RecentAccountPost[] {
+  if (!isRecord(metadata)) {
+    return [];
+  }
+
+  const posts = getValue(metadata, "latestPosts", "posts", "latestVideos");
+
+  if (!Array.isArray(posts)) {
+    return [];
+  }
+
+  return posts
+    .filter(isRecord)
+    .slice(0, limit)
+    .map((post) => {
+      const caption = asText(
+        getValue(
+          post,
+          "caption",
+          "text",
+          "description",
+          "desc",
+          "videoDescription",
+          "content",
+        ),
+      );
+      const rawTitle = asText(getValue(post, "title", "shortCode", "shortcode", "desc", "videoDescription"));
+      const title = rawTitle && !looksLikeOpaquePostCode(rawTitle) ? rawTitle : caption || "Recent post";
+      const contentUrl =
+        asUrlText(getValue(post, "url", "inputUrl", "webVideoUrl", "videoUrl", "postUrl", "link")) || null;
+      const thumbnailUrl =
+        asUrlText(getValue(post, "displayUrl", "display_url", "thumbnailUrl", "thumbnail_url", "cover", "coverUrl", "videoThumbnail", "thumbnail", "imageUrl")) || null;
+
+      return {
+        caption,
+        commentCount: asNumber(getValue(post, "commentsCount", "commentCount", "comments", "comment_count")),
+        contentUrl,
+        likeCount: asNumber(getValue(post, "likesCount", "likeCount", "likes", "diggCount")),
+        postedAt: asText(getValue(post, "timestamp", "createdAt", "createTime", "takenAtTimestamp", "takenAt", "date")) || null,
+        shareCount: asNumber(getValue(post, "shareCount", "sharesCount", "shares", "share_count")),
+        thumbnailUrl,
+        title,
+        viewCount: asNumber(getValue(post, "videoViewCount", "playCount", "viewsCount", "viewCount", "views")),
+      };
+    });
+}
+
 export function formatNumber(value: number) {
   return value.toLocaleString("id-ID");
 }

@@ -1,12 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, Instagram, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronDown, Download, Instagram, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
 
 import type { KolRecord, RateCardValue, SocialPlatform } from "@/lib/app-types";
-import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc } from "@/lib/kol-utils";
+import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, getAvatarSrc, getPostDisplayTitle, getRecentAccountPosts } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -172,6 +172,41 @@ const KOLS_COLORS = {
 const KOL_ACTION_BUTTON_CLASS =
   "h-8 rounded-none !border !border-[#982E41] !bg-white px-3 !text-[12px] !font-semibold !text-[#982E41] shadow-[3px_3px_0_rgba(152,46,65,0.12)] transition-colors hover:!bg-[#982E41] hover:!text-[#ffffff]";
 const KOL_PAGE_SIZE = 8;
+const KOL_FORM_DRAFT_KEY = "digiwonder:kols:form-draft";
+
+type KolFormDraft = {
+  editingId: number | null;
+  form: KolFormState;
+};
+
+function loadKolFormDraft() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(KOL_FORM_DRAFT_KEY) ?? "null") as KolFormDraft | null;
+    return parsed?.form ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveKolFormDraft(draft: KolFormDraft) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(KOL_FORM_DRAFT_KEY, JSON.stringify(draft));
+}
+
+function clearKolFormDraft() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(KOL_FORM_DRAFT_KEY);
+}
 
 function getSocialUrl(platform: SocialPlatform, handle: string) {
   const cleanHandle = handle.replace(/^@/, "").trim();
@@ -406,15 +441,29 @@ function RouteComponent() {
     },
   });
 
+  const syncDueKols = useMutation({
+    mutationFn: () => client.kol.syncDueKols(),
+    onSuccess: (result) => {
+      toast.success(`Manual sync batch selesai: ${result.synced} dari ${result.total} KOL diproses.`);
+      kolQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(getKolErrorMessage(error, "Manual sync batch gagal"));
+    },
+  });
+
   function resetForm() {
     setEditingId(null);
     setIsDialogOpen(false);
     setForm(getDefaultForm());
+    clearKolFormDraft();
   }
 
   function openCreateDialog() {
-    setEditingId(null);
-    setForm(getDefaultForm());
+    const draft = loadKolFormDraft();
+
+    setEditingId(draft?.editingId ?? null);
+    setForm(draft?.form ?? getDefaultForm());
     setIsDialogOpen(true);
   }
 
@@ -433,6 +482,14 @@ function RouteComponent() {
     });
     setIsDialogOpen(true);
   }
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      return;
+    }
+
+    saveKolFormDraft({ editingId, form });
+  }, [editingId, form, isDialogOpen]);
 
   const displayNames = useMemo(() => {
     return Array.from(
@@ -722,6 +779,21 @@ function mergeKeywords(
     }
   }
 
+  function downloadImportTemplate() {
+    const rows: RawExcelRow[] = [
+      {
+        Nama: "Contoh Nama KOL",
+        username: "@contohhandle",
+        "Persona kreator": "beauty, lifestyle",
+      },
+    ];
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template KOL");
+    XLSX.writeFile(workbook, "template-import-kol.xlsx");
+  }
+
 
   return (
     <>
@@ -742,6 +814,27 @@ function mergeKeywords(
               <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Daftar KOL</h1>
             </div>
             <div className="flex flex-wrap gap-2 md:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 rounded-none border border-[#B43C39] bg-white px-4 text-[13px] font-medium text-[#B43C39] hover:bg-[#fff3d8] hover:text-[#8f2e2c]"
+                onClick={downloadImportTemplate}
+              >
+                <Download className="mr-2 size-4" />
+                Download Template
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 rounded-none border border-[#B43C39] bg-white px-4 text-[13px] font-medium text-[#B43C39] hover:bg-[#fff3d8] hover:text-[#8f2e2c]"
+                disabled={syncDueKols.isPending}
+                onClick={() => syncDueKols.mutate()}
+              >
+                {syncDueKols.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCcw className="mr-2 size-4" />}
+                Trigger Cron Sync
+              </Button>
+
               <Button
                 type="button"
                 onClick={openCreateDialog}
@@ -833,13 +926,25 @@ function mergeKeywords(
                       .slice(0, 2)
                       .map((part) => part[0]?.toUpperCase() ?? "")
                       .join("") || "K";
+                  const avatarUrl = kol.accounts
+                    .map((account) => getAccountMetadata(account.metadata)?.avatarUrl)
+                    .find((url): url is string => Boolean(url));
 
                   return (
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex size-12 shrink-0 items-center justify-center border border-[#b43c39]/15 bg-[#fff3d8] text-[14px] font-medium">
-                      {initials}
-                    </div>
+                    {avatarUrl ? (
+                      <img
+                        src={getAvatarSrc(avatarUrl)}
+                        alt={kol.displayName}
+                        className="size-12 shrink-0 border border-[#b43c39]/15 object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="flex size-12 shrink-0 items-center justify-center border border-[#b43c39]/15 bg-[#fff3d8] text-[14px] font-medium">
+                        {initials}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <Link
                         to="/kols/$kolId"
@@ -1050,6 +1155,8 @@ function mergeKeywords(
                               <MetricInline label="ER" value={account.engagementRate || "-"} />
                             </div>
 
+                            <RecentAccountPosts metadata={account.metadata} />
+
                             {account.syncMessage && (
                               <p
                                 className="wrap-break-word border px-3 py-2 text-[13px]"
@@ -1098,13 +1205,14 @@ function mergeKeywords(
                             <SocialPlatformIcon platform={content.platform} className="size-4" />
                             {content.platform}
                           </div>
-                          <p className="line-clamp-2 font-semibold">{content.title || content.campaignName || content.contentUrl}</p>
+                          <p className="line-clamp-2 font-semibold">{getPostDisplayTitle(content)}</p>
                           <p className="mt-1 text-muted-foreground">
                             {content.campaignName ? `${content.campaignName} · ` : ""}
                             {formatDateTime(content.postedAt)}
                           </p>
+                          <p className="mt-1 text-xs text-muted-foreground">Last sync: {formatDateTime(content.syncedAt)}</p>
                           <p className="mt-2 text-xs text-muted-foreground">
-                            {formatNumber(content.viewCount)} views · {formatNumber(content.likeCount)} likes · {formatNumber(content.commentCount)} komentar
+                            {formatNumber(content.viewCount)} views · {formatNumber(content.likeCount)} likes · {formatNumber(content.commentCount)} komentar · {formatNumber(content.shareCount)} shares
                           </p>
                         </div>
                       </a>
@@ -1140,7 +1248,7 @@ function mergeKeywords(
         open={isDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
-            resetForm();
+            setIsDialogOpen(false);
             return;
           }
 
@@ -1981,6 +2089,64 @@ function MetricInline({ label, value }: { label: string; value: string }) {
 function MetaBadge({ children }: { children: string }) {
   //badge metadata (Verified/Business/dll).
   return <span className="border border-[#982E41] bg-[#B33C39] px-2 py-1 text-[12px] leading-none text-white">{children}</span>;
+}
+
+function RecentAccountPosts({ metadata }: { metadata: Record<string, unknown> | null }) {
+  const posts = getRecentAccountPosts(metadata, 3);
+
+  if (!posts.length) {
+    return null;
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: KOLS_COLORS.stroke }}>
+        Recent post dari sosmed
+      </p>
+      <div className="grid gap-2 md:grid-cols-3">
+        {posts.map((post, index) => {
+          const body = (
+            <>
+              {post.thumbnailUrl ? (
+                <img
+                  src={getAvatarSrc(post.thumbnailUrl)}
+                  alt={post.title}
+                  className="aspect-video w-full border border-[#982E41]/15 object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="flex aspect-video w-full items-center justify-center border border-dashed border-[#982E41]/25 bg-white text-xs uppercase tracking-[0.14em] text-[#982E41]">
+                  Post
+                </div>
+              )}
+              <div className="min-w-0 space-y-1">
+                <p className="line-clamp-2 text-[12px] font-semibold text-[#2b1418]">{post.title}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {formatNumber(post.viewCount)} views · {formatNumber(post.likeCount)} likes · {formatNumber(post.commentCount)} komentar · {formatNumber(post.shareCount)} shares
+                </p>
+              </div>
+            </>
+          );
+
+          return post.contentUrl ? (
+            <a
+              key={`${post.contentUrl}-${index}`}
+              href={post.contentUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="grid gap-2 border border-[#b43c39]/15 bg-white p-2 underline-offset-2 hover:bg-[#fff6f8]"
+            >
+              {body}
+            </a>
+          ) : (
+            <div key={index} className="grid gap-2 border border-[#b43c39]/15 bg-white p-2">
+              {body}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 

@@ -64,6 +64,7 @@ async function getCampaignKolLinks() {
       displayName: kolProfile.displayName,
       handle: kolAccount.handle,
       kolId: kolProfile.id,
+      metadata: kolAccount.metadata,
       platform: kolAccount.platform,
     })
     .from(campaignKol)
@@ -72,17 +73,20 @@ async function getCampaignKolLinks() {
 
   const grouped = new Map<
     string,
-    { campaignId: number; displayName: string; handles: string[]; id: number }
+    { avatarUrl: string | null; campaignId: number; displayName: string; handles: string[]; id: number }
   >();
 
   for (const row of rows) {
     const key = `${row.campaignId}:${row.kolId}`;
     const current = grouped.get(key) ?? {
+      avatarUrl: null,
       campaignId: row.campaignId,
       displayName: row.displayName,
       handles: [],
       id: row.kolId,
     };
+
+    current.avatarUrl ??= getAccountAvatarUrl((row.metadata ?? null) as Record<string, unknown> | null);
 
     if (row.handle && !current.handles.includes(`${row.platform}:${row.handle}`)) {
       current.handles.push(`${row.platform}:${row.handle}`);
@@ -92,6 +96,53 @@ async function getCampaignKolLinks() {
   }
 
   return Array.from(grouped.values());
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getNestedValue(record: Record<string, unknown>, key: string) {
+  return key.split(".").reduce<unknown>((current, part) => {
+    if (isRecord(current) && part in current) {
+      return current[part];
+    }
+
+    return undefined;
+  }, record);
+}
+
+function getMetadataText(metadata: Record<string, unknown> | null, ...keys: string[]) {
+  if (!metadata) {
+    return "";
+  }
+
+  for (const key of keys) {
+    const value = key.includes(".") ? getNestedValue(metadata, key) : metadata[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+}
+
+function getAccountAvatarUrl(metadata: Record<string, unknown> | null) {
+  return (
+    getMetadataText(
+      metadata,
+      "profilePicUrlHD",
+      "profilePicUrlHd",
+      "profilePicUrl",
+      "avatarUrl",
+      "avatarUrlHD",
+      "profile_pic_url_hd",
+      "profile_pic_url",
+      "authorMeta.avatar",
+      "authorMeta.originalAvatarUrl",
+    ) || null
+  );
 }
 
 export const campaignRouter = {
@@ -254,6 +305,7 @@ export const campaignRouter = {
       kols: links
         .filter((link) => link.campaignId === item.id)
         .map((link) => ({
+          avatarUrl: link.avatarUrl,
           displayName: link.displayName,
           handles: link.handles,
           id: link.id,

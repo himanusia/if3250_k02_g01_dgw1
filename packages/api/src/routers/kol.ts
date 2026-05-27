@@ -649,6 +649,14 @@ export const kolRouter = {
       await syncKolProfile(input.id);
       return await mapKolRecord(input.id);
     }),
+  syncDueKols: protectedProcedure.handler(async () => {
+    const synced = await runGlobalSyncBatch(5);
+
+    return {
+      synced,
+      total: synced,
+    };
+  }),
   updateActualRateCard: protectedProcedure
     .input(
       z.object({

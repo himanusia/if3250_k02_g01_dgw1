@@ -28,7 +28,7 @@ export default function Header() {
     { to: "/brand", label: "Brand" },
     { to: "/campaigns", label: "Campaigns" },
     { to: "/kols", label: "KOL" },
-    { to: "/compare-kols", label: "CompareKOL" },
+    { to: "/compare-kols", label: "Compare KOL" },
   ] as const;
   const adminLinks = isAdmin ? ([{ to: "/settings", label: "Settings" }] as const) : [];
   const visibleLinks = [...links, ...adminLinks];
