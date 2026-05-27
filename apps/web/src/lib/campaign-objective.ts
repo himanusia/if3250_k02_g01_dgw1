@@ -86,6 +86,12 @@ export function parseCampaignObjective(rawObjective: string | null | undefined):
 
 export function formatObjectiveSummary(rawObjective: string | null | undefined) {
   const objective = parseCampaignObjective(rawObjective);
+  const note = objective.legacyText.trim();
+
+  if (note) {
+    return note;
+  }
+
   const targetInteractions = getTargetInteractions(objective);
   const parts: string[] = [];
 
@@ -105,7 +111,7 @@ export function formatObjectiveSummary(rawObjective: string | null | undefined) 
     return parts.join(" • ");
   }
 
-  return objective.legacyText || "Target belum diisi";
+  return "-";
 }
 
 export function formatObjectiveDetails(rawObjective: string | null | undefined) {
@@ -141,7 +147,11 @@ export function formatObjectiveDetails(rawObjective: string | null | undefined) 
     lines.push(`Total interaksi: ${targetInteractions.toLocaleString("id-ID")}`);
   }
 
-  return lines.length ? lines.join("\n") : "Target belum diisi";
+  return lines.length ? lines.join("\n") : "-";
+}
+
+export function getObjectiveText(rawObjective: string | null | undefined) {
+  return parseCampaignObjective(rawObjective).legacyText.trim();
 }
 
 export function getProgressPercent(actual: number, target: number) {

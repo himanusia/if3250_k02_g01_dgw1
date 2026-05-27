@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Eye, Heart, Info, Loader2, MessageCircle, PencilLine, Plus, RefreshCcw, Search, Share2, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Eye, Heart, Loader2, MessageCircle, PencilLine, Plus, RefreshCcw, Search, Share2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { DateRange } from "react-day-picker";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
-import { formatObjectiveSummary } from "@/lib/campaign-objective";
+import { formatObjectiveSummary, getObjectiveText } from "@/lib/campaign-objective";
 import { downloadCampaignReportPdf } from "@/lib/campaign-report-pdf";
 import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
 
@@ -23,7 +23,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -77,7 +76,7 @@ type ContentFormRow = {
   estimatedShareCount: string;
   estimatedViewCount: string;
   id: string;
-  isFyp: "unknown" | "yes" | "no";
+  isFyp: "yes" | "no";
   kolDisplayName: string;
   kolHandle: string;
   kolId: number | "";
@@ -105,6 +104,8 @@ type AddContentPayloadRow = {
   viewCount: number;
 };
 
+type ContentRowErrors = Partial<Record<"contentUrl" | "kol" | "platform", string>>;
+
 function createEmptyContentRow(): ContentFormRow {
   const randomId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
@@ -120,7 +121,7 @@ function createEmptyContentRow(): ContentFormRow {
     estimatedShareCount: "",
     estimatedViewCount: "",
     id: randomId,
-    isFyp: "unknown",
+    isFyp: "no",
     kolDisplayName: "",
     kolHandle: "",
     kolId: "",
@@ -246,7 +247,7 @@ function useDebouncedValue<T>(value: T, delay = 350) {
 }
 
 function parseOptionalNumber(value: string) {
-  const parsed = Number(value);
+  const parsed = Number(value.replace(/[^\d]/g, ""));
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : 0;
 }
 
@@ -297,6 +298,31 @@ function formatCurrencyIdr(value: number | null | undefined) {
     maximumFractionDigits: 0,
     style: "currency",
   }).format(value);
+}
+
+function formatRupiahInput(value: string) {
+  const numeric = parseOptionalNumber(value);
+  return numeric ? formatCurrencyIdr(numeric) : "";
+}
+
+function getOldestContentSyncAt(groups: CampaignDetailRecord["contentsByKol"]) {
+  const syncedDates = groups
+    .flatMap((group) => group.contents)
+    .filter((content) => !content.archivedAt)
+    .map((content) => content.syncedAt)
+    .filter(Boolean)
+    .map((value) => new Date(value as string))
+    .filter((date) => !Number.isNaN(date.getTime()));
+
+  if (!syncedDates.length) {
+    return null;
+  }
+
+  return new Date(Math.min(...syncedDates.map((date) => date.getTime()))).toISOString();
+}
+
+function getContentAuthorLabel(content: CampaignContentRecord) {
+  return content.authorDisplayName || content.authorHandle || content.kolDisplayName || "-";
 }
 
 function getCampaignTemporalStatus(periodStart: string, periodEnd: string): CampaignRecord["status"] {
@@ -468,6 +494,7 @@ function RouteComponent() {
   const [campaignPage, setCampaignPage] = useState(1);
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignRecord["status"]>("active");
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
+  const [contentRowErrors, setContentRowErrors] = useState<Record<string, ContentRowErrors>>({});
   const [kolSearch, setKolSearch] = useState("");
   const [selectedKeywordFilter, setSelectedKeywordFilter] = useState<string[]>([]);
   const debouncedCampaignSearch = useDebouncedValue(campaignSearch);
@@ -607,6 +634,7 @@ function RouteComponent() {
         setIsAddContentDialogOpen(false);
         setAddContentCampaignId(null);
         setContentRows(getDefaultContentRows());
+        setContentRowErrors({});
         return;
       }
 
@@ -623,6 +651,7 @@ function RouteComponent() {
       setIsAddContentDialogOpen(false);
       setAddContentCampaignId(null);
       setContentRows(getDefaultContentRows());
+      setContentRowErrors({});
       campaignsQuery.refetch();
       campaignProgressQuery.refetch();
       kolsQuery.refetch();
@@ -808,6 +837,7 @@ function RouteComponent() {
     setIsAddContentDialogOpen(false);
     setAddContentCampaignId(null);
     setContentRows(getDefaultContentRows());
+    setContentRowErrors({});
   }
 
   useEffect(() => {
@@ -820,6 +850,12 @@ function RouteComponent() {
 
   function updateContentRow(rowId: string, patch: Partial<ContentFormRow>) {
     setContentRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
+    setContentRowErrors((current) => {
+      if (!current[rowId]) return current;
+      const next = { ...current };
+      delete next[rowId];
+      return next;
+    });
   }
 
   function applyKolEstimate(row: ContentFormRow, kolId: number | "", contentType = row.contentType) {
@@ -836,6 +872,11 @@ function RouteComponent() {
 
   function removeContentRow(rowId: string) {
     setContentRows((current) => (current.length === 1 ? current : current.filter((row) => row.id !== rowId)));
+    setContentRowErrors((current) => {
+      const next = { ...current };
+      delete next[rowId];
+      return next;
+    });
   }
 
   function submitAddContent() {
@@ -844,42 +885,56 @@ function RouteComponent() {
       return;
     }
 
-    const invalidRowIndex = contentRows.findIndex((row) => !row.kolId && !row.kolDisplayName.trim() && !row.kolHandle.trim());
-
-    if (invalidRowIndex >= 0) {
-      toast.error(`Baris ${invalidRowIndex + 1}: pilih KOL atau isi nama/handle KOL.`);
-      return;
-    }
-
+    const nextErrors: Record<string, ContentRowErrors> = {};
     const normalizedRows = contentRows.map((row, index) => {
       const normalizedUrl = row.contentUrl.trim() ? normalizeContentUrl(row.contentUrl) : "";
       const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
+      const errors: ContentRowErrors = {};
 
-      if (row.contentUrl.trim() && (!normalizedUrl || !platform)) {
-        toast.error(`Baris ${index + 1}: link harus berasal dari Instagram atau TikTok.`);
-        return null;
+      if (row.contentType !== "story" && !normalizedUrl) {
+        errors.contentUrl = "Link wajib untuk post dan reels.";
       }
 
-      return {
-        budgetIdr: row.budgetIdr ? parseOptionalNumber(row.budgetIdr) : null,
-        caption: row.caption,
-        contentType: row.contentType,
-        contentUrl: normalizedUrl,
-        estimatedCommentCount: parseOptionalNumber(row.estimatedCommentCount),
-        estimatedLikeCount: parseOptionalNumber(row.estimatedLikeCount),
-        estimatedShareCount: parseOptionalNumber(row.estimatedShareCount),
-        estimatedViewCount: parseOptionalNumber(row.estimatedViewCount),
-        isFyp: row.isFyp === "unknown" ? null : row.isFyp === "yes",
-        kolDisplayName: row.kolDisplayName,
-        kolHandle: row.kolHandle,
-        kolId: row.kolId ? Number(row.kolId) : null,
-        likeCount: parseOptionalNumber(row.estimatedLikeCount),
-        platform: platform ?? row.platform,
-        shareCount: parseOptionalNumber(row.estimatedShareCount),
-        title: row.title,
-        viewCount: parseOptionalNumber(row.estimatedViewCount),
-      };
+      if (row.contentUrl.trim() && (!normalizedUrl || !platform)) {
+        errors.contentUrl = "Link harus berasal dari Instagram atau TikTok.";
+      }
+
+      if (row.contentType === "story" && !normalizedUrl && !row.kolId && !row.kolDisplayName.trim() && !row.kolHandle.trim()) {
+        errors.kol = "Pilih KOL atau isi username untuk story tanpa link.";
+      }
+
+      if (!platform && !row.platform) {
+        errors.platform = "Pilih platform.";
+      }
+
+      if (Object.keys(errors).length) {
+        nextErrors[row.id] = errors;
+      }
+
+      return Object.keys(errors).length
+        ? null
+        : {
+            budgetIdr: row.budgetIdr ? parseOptionalNumber(row.budgetIdr) : null,
+            caption: row.caption,
+            contentType: row.contentType,
+            contentUrl: normalizedUrl,
+            estimatedCommentCount: parseOptionalNumber(row.estimatedCommentCount),
+            estimatedLikeCount: parseOptionalNumber(row.estimatedLikeCount),
+            estimatedShareCount: parseOptionalNumber(row.estimatedShareCount),
+            estimatedViewCount: parseOptionalNumber(row.estimatedViewCount),
+            isFyp: row.isFyp === "yes",
+            kolDisplayName: row.kolDisplayName,
+            kolHandle: row.kolHandle,
+            kolId: row.kolId ? Number(row.kolId) : null,
+            likeCount: parseOptionalNumber(row.estimatedLikeCount),
+            platform: platform ?? row.platform,
+            shareCount: parseOptionalNumber(row.estimatedShareCount),
+            title: row.title,
+            viewCount: parseOptionalNumber(row.estimatedViewCount),
+          };
     });
+
+    setContentRowErrors(nextErrors);
 
     if (normalizedRows.some((row) => row === null)) {
       return;
@@ -888,6 +943,7 @@ function RouteComponent() {
     const seenUrls = new Set<string>();
     const duplicateRowIndex = normalizedRows.findIndex((row) => {
       if (!row) return false;
+      if (!row.contentUrl) return false;
       if (seenUrls.has(row.contentUrl)) return true;
       seenUrls.add(row.contentUrl);
       return false;
@@ -912,7 +968,7 @@ function RouteComponent() {
       description: campaign.description,
       keywords: campaign.keywords,
       name: campaign.name,
-      objective: campaign.objective,
+      objective: getObjectiveText(campaign.objective),
       periodEnd: campaign.periodEnd,
       periodStart: campaign.periodStart,
       postBriefs: campaign.postBriefs,
@@ -938,6 +994,33 @@ function RouteComponent() {
     }
 
     createCampaign.mutate(payload);
+  }
+
+  async function syncDetailCampaignContents() {
+    if (!detailCampaignData) return;
+
+    const activeContents = detailCampaignData.contentsByKol
+      .flatMap((group) => group.contents)
+      .filter((content) => !content.archivedAt && !content.contentUrl.startsWith("manual://"));
+
+    if (!activeContents.length) {
+      toast.info("Tidak ada konten aktif yang bisa disinkronkan.");
+      return;
+    }
+
+    const toastId = toast.loading("Sinkronisasi campaign berjalan...");
+
+    try {
+      await Promise.all(activeContents.map((content) => syncContent.mutateAsync({ id: content.id })));
+      toast.success("Konten campaign berhasil disinkronkan.");
+      campaignsQuery.refetch();
+      campaignProgressQuery.refetch();
+      detailCampaignQuery.refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menyinkronkan campaign.");
+    } finally {
+      toast.dismiss(toastId);
+    }
   }
 
   return (
@@ -1181,11 +1264,6 @@ function RouteComponent() {
                   }))
                 }
               />
-              <div className="grid gap-2 border border-[#982E41]/20 bg-[#FFF8F9] px-3 py-2 text-sm text-[#2b1418] md:col-span-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Status otomatis</span>
-                <span>{formatCampaignStatus(getCampaignTemporalStatus(form.periodStart, form.periodEnd))}</span>
-                <span className="text-xs text-muted-foreground">Status dihitung dari periode campaign, bukan input manual.</span>
-              </div>
             </section>
 
             <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4 md:grid-cols-2">
@@ -1363,6 +1441,17 @@ function RouteComponent() {
                         <Button
                           variant="outline"
                           size="sm"
+                          disabled={!detailCampaignData || syncContent.isPending}
+                          onClick={() => {
+                            syncDetailCampaignContents();
+                          }}
+                        >
+                          {syncContent.isPending ? <Loader2 className="mr-1 size-4 animate-spin" /> : <RefreshCcw className="mr-1 size-4" />}
+                          Sync
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="border-[#982E41] bg-[#FFF8F9] text-[#982E41] hover:bg-[#982E41] hover:text-white"
                           onClick={() => {
                             closeDetailDialog();
@@ -1428,6 +1517,8 @@ function RouteComponent() {
                   />
                   <DetailStat boxed label="Target KOL total" value={String(detailCampaignSummary?.targetKolCount ?? detailCampaignData?.targetKolCount ?? 0)} />
                   <DetailStat boxed label="Follower tier" value={formatTargetKolTiers(detailCampaignSummary?.targetFollowerTier ?? detailCampaignData?.targetFollowerTier)} />
+                  <DetailStat boxed label="Budget digunakan" value={formatCurrencyIdr(campaignProgressById.get(detailCampaignData.id)?.budgetUsedIdr)} />
+                  <DetailStat boxed label="Last sync" value={formatHumanDateTime(getOldestContentSyncAt(detailCampaignData.contentsByKol))} />
                 </div>
 
                 <div className="grid gap-3">
@@ -1640,7 +1731,7 @@ function RouteComponent() {
                                     <p className="line-clamp-3 text-sm text-[#2b1418]">{content.caption}</p>
                                   )}
                                   <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                                    <span>Author: {content.authorDisplayName || content.authorHandle || "-"}</span>
+                                    <span>Author: {getContentAuthorLabel(content)}</span>
                                     <span>Posted: {formatDateTime(content.postedAt)}</span>
                                   </div>
                                 </div>
@@ -1662,10 +1753,10 @@ function RouteComponent() {
 
                               <div className="grid gap-2 text-sm md:grid-cols-2">
                                 <DetailStat label="Budget" value={formatCurrencyIdr(content.budgetIdr)} compact />
-                                <DetailStat label="FYP" value={content.isFyp === null ? "-" : content.isFyp ? "Ya" : "Tidak"} compact />
+                                <DetailStat label="FYP" value={content.isFyp ? "Ya" : "Tidak"} compact />
                                 <DetailStat label="Posted at" value={formatDateTime(content.postedAt)} compact />
                                 <DetailStat label="Synced at" value={formatDateTime(content.syncedAt)} compact />
-                                <DetailStat label="Author" value={content.authorDisplayName || content.authorHandle || "-"} compact />
+                                <DetailStat label="Author" value={getContentAuthorLabel(content)} compact />
                                 <DetailStat label="Engagement rate" value={content.engagementRate || "-"} compact />
                               </div>
 
@@ -1800,9 +1891,6 @@ function RouteComponent() {
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden text-[#2b1418]">
           <DialogHeader>
             <DialogTitle>Tambahkan konten</DialogTitle>
-            <DialogDescription>
-              Masukkan link konten per baris, lalu simpan untuk mengambil metriknya.
-            </DialogDescription>
           </DialogHeader>
 
           {!addContentCampaign ? (
@@ -1828,7 +1916,7 @@ function RouteComponent() {
                 <div className="space-y-3">
                   {contentRows.map((row) => (
                     <div key={row.id} className="grid gap-3 rounded-none border border-border p-3">
-                      <div className="grid gap-3 md:grid-cols-3">
+                      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
                         <Label className="grid gap-2">
                           <span>Jenis</span>
                           <Select
@@ -1847,102 +1935,120 @@ function RouteComponent() {
                           </Select>
                         </Label>
                         <Label className="grid gap-2">
-                          <span>Platform</span>
-                          <Select
-                            value={row.platform}
-                            onChange={(event) => updateContentRow(row.id, { platform: event.target.value as ContentFormRow["platform"] })}
-                          >
-                            <option value="instagram">Instagram</option>
-                            <option value="tiktok">TikTok</option>
-                          </Select>
-                        </Label>
-                        <Label className="grid gap-2">
-                          <span>Budget</span>
-                          <Input
-                            inputMode="numeric"
-                            placeholder="46000000"
-                            value={row.budgetIdr}
-                            onChange={(event) => updateContentRow(row.id, { budgetIdr: event.target.value })}
-                          />
-                        </Label>
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <Label className="grid gap-2">
-                          <span>KOL</span>
-                          <Select
-                            value={row.kolId}
-                            onChange={(event) => {
-                              const selected = addContentCampaign.kols.find((kol) => kol.id === Number(event.target.value));
-                              const kolId = event.target.value ? Number(event.target.value) : "";
-                              updateContentRow(row.id, {
-                                ...applyKolEstimate(row, kolId),
-                                kolDisplayName: selected?.displayName ?? row.kolDisplayName,
-                                kolId,
-                              });
-                            }}
-                          >
-                            <option value="">KOL baru/manual</option>
-                            {addContentCampaign.kols.map((kol) => (
-                              <option key={kol.id} value={kol.id}>
-                                {kol.displayName}
-                              </option>
-                            ))}
-                          </Select>
-                        </Label>
-                        <Label className="grid gap-2">
                           <span>Link</span>
                           <Input
+                            aria-invalid={Boolean(contentRowErrors[row.id]?.contentUrl)}
                             placeholder="https://www.instagram.com/reel/DYyTFReyo3D/"
                             value={row.contentUrl}
                             onChange={(event) => updateContentRow(row.id, { contentUrl: event.target.value })}
                           />
+                          {contentRowErrors[row.id]?.contentUrl && (
+                            <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.contentUrl}</span>
+                          )}
                         </Label>
                       </div>
 
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <FormInput
-                          label="Nama KOL manual"
-                          placeholder="ITB Official"
-                          value={row.kolDisplayName}
-                          onChange={(kolDisplayName) => updateContentRow(row.id, { kolDisplayName })}
-                        />
-                        <FormInput
-                          label="Username manual"
-                          placeholder="@itb1920"
-                          value={row.kolHandle}
-                          onChange={(kolHandle) => updateContentRow(row.id, { kolHandle })}
-                        />
-                      </div>
+                      <details className="group border border-[#982E41]/15 bg-[#FFF8F9] p-3">
+                        <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-[#2b1418]">
+                          <span className="inline-flex items-center gap-2">
+                            <ChevronDown className="size-4 -rotate-90 text-[#982E41] transition-transform group-open:rotate-0" />
+                            Detail opsional
+                          </span>
+                        </summary>
+                        <div className="mt-3 grid gap-3">
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <Label className="grid gap-2">
+                              <span>Platform</span>
+                              <Select
+                                value={row.platform}
+                                onChange={(event) => updateContentRow(row.id, { platform: event.target.value as ContentFormRow["platform"] })}
+                              >
+                                <option value="instagram">Instagram</option>
+                                <option value="tiktok">TikTok</option>
+                              </Select>
+                              {contentRowErrors[row.id]?.platform && (
+                                <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.platform}</span>
+                              )}
+                            </Label>
+                            <Label className="grid gap-2">
+                              <span>Budget</span>
+                              <Input
+                                inputMode="numeric"
+                                placeholder="Rp46.000.000"
+                                value={formatRupiahInput(row.budgetIdr)}
+                                onChange={(event) => updateContentRow(row.id, { budgetIdr: event.target.value.replace(/[^\d]/g, "") })}
+                              />
+                            </Label>
+                            <Label className="grid gap-2">
+                              <span>FYP</span>
+                              <Select
+                                value={row.isFyp}
+                                onChange={(event) => updateContentRow(row.id, { isFyp: event.target.value as ContentFormRow["isFyp"] })}
+                              >
+                                <option value="no">Tidak</option>
+                                <option value="yes">Ya</option>
+                              </Select>
+                            </Label>
+                          </div>
 
-                      <div className="grid gap-3 md:grid-cols-4">
-                        <FormInput label="Est. views" placeholder="75000" value={row.estimatedViewCount} onChange={(estimatedViewCount) => updateContentRow(row.id, { estimatedViewCount })} />
-                        <FormInput label="Est. likes" placeholder="4200" value={row.estimatedLikeCount} onChange={(estimatedLikeCount) => updateContentRow(row.id, { estimatedLikeCount })} />
-                        <FormInput label="Est. comments" placeholder="650" value={row.estimatedCommentCount} onChange={(estimatedCommentCount) => updateContentRow(row.id, { estimatedCommentCount })} />
-                        <FormInput label="Est. shares" placeholder="320" value={row.estimatedShareCount} onChange={(estimatedShareCount) => updateContentRow(row.id, { estimatedShareCount })} />
-                      </div>
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <Label className="grid gap-2 md:col-span-1">
+                              <span>KOL</span>
+                              <Select
+                                value={row.kolId}
+                                onChange={(event) => {
+                                  const selected = addContentCampaign.kols.find((kol) => kol.id === Number(event.target.value));
+                                  const kolId = event.target.value ? Number(event.target.value) : "";
+                                  updateContentRow(row.id, {
+                                    ...applyKolEstimate(row, kolId),
+                                    kolDisplayName: selected?.displayName ?? row.kolDisplayName,
+                                    kolId,
+                                  });
+                                }}
+                              >
+                                <option value="">Otomatis dari link</option>
+                                {addContentCampaign.kols.map((kol) => (
+                                  <option key={kol.id} value={kol.id}>
+                                    {kol.displayName}
+                                  </option>
+                                ))}
+                              </Select>
+                              {contentRowErrors[row.id]?.kol && (
+                                <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.kol}</span>
+                              )}
+                            </Label>
+                            <FormInput
+                              label="Nama KOL manual"
+                              placeholder="ITB Official"
+                              value={row.kolDisplayName}
+                              onChange={(kolDisplayName) => updateContentRow(row.id, { kolDisplayName })}
+                            />
+                            <FormInput
+                              label="Username manual"
+                              placeholder="@itb1920"
+                              value={row.kolHandle}
+                              onChange={(kolHandle) => updateContentRow(row.id, { kolHandle })}
+                            />
+                          </div>
 
-                      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
-                        <Label className="grid gap-2">
-                          <span>FYP</span>
-                          <Select
-                            value={row.isFyp}
-                            onChange={(event) => updateContentRow(row.id, { isFyp: event.target.value as ContentFormRow["isFyp"] })}
-                          >
-                            <option value="unknown">Belum tahu</option>
-                            <option value="yes">Ya</option>
-                            <option value="no">Tidak</option>
-                          </Select>
-                        </Label>
-                        <FormInput label="Judul/catatan" placeholder="Story mention produk" value={row.title} onChange={(title) => updateContentRow(row.id, { title })} />
-                      </div>
+                          <div className="grid gap-3 md:grid-cols-4">
+                            <FormInput label="Est. views" placeholder="75000" value={row.estimatedViewCount} onChange={(estimatedViewCount) => updateContentRow(row.id, { estimatedViewCount })} />
+                            <FormInput label="Est. likes" placeholder="4200" value={row.estimatedLikeCount} onChange={(estimatedLikeCount) => updateContentRow(row.id, { estimatedLikeCount })} />
+                            <FormInput label="Est. comments" placeholder="650" value={row.estimatedCommentCount} onChange={(estimatedCommentCount) => updateContentRow(row.id, { estimatedCommentCount })} />
+                            <FormInput label="Est. shares" placeholder="320" value={row.estimatedShareCount} onChange={(estimatedShareCount) => updateContentRow(row.id, { estimatedShareCount })} />
+                          </div>
 
-                      <FormTextarea
-                        label="Caption/manual note"
-                        placeholder="Konten story manual karena metadata tidak bisa di-scrap"
-                        value={row.caption}
-                        onChange={(caption) => updateContentRow(row.id, { caption })}
-                      />
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <FormInput label="Judul/catatan" placeholder="Story mention produk" value={row.title} onChange={(title) => updateContentRow(row.id, { title })} />
+                            <FormTextarea
+                              label="Caption/manual note"
+                              placeholder="Caption singkat"
+                              value={row.caption}
+                              onChange={(caption) => updateContentRow(row.id, { caption })}
+                            />
+                          </div>
+                        </div>
+                      </details>
 
                       <div className="flex justify-end">
                         <Button
@@ -2210,7 +2316,6 @@ function TargetKolTierInputs({ onChange, value }: { onChange: (value: string) =>
     <div className="space-y-3 md:col-span-2">
       <div>
         <Label>Target KOL total per tier</Label>
-        <p className="text-xs text-muted-foreground">Deterministik: simpan sebagai list seperti “micro 5, nano 15”.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {TARGET_KOL_TIERS.map(({ key, label }) => (
@@ -2249,35 +2354,14 @@ function DateRangePicker({ label, onChange, value }: { label: string; onChange: 
 }
 
 function BrandInput({ onChange, options, value }: { onChange: (value: string) => void; options: string[]; value: string }) {
-  const normalizedValue = value.trim().toLowerCase();
-  const isNewBrand = value.trim().length > 0 && !options.some((option) => option.toLowerCase() === normalizedValue);
-
   return (
     <label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
       <span>Brand</span>
-      {options.length ? (
-        <Select
-          className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
-          value={options.includes(value) ? value : ""}
-          onChange={(event) => {
-            if (event.target.value) {
-              onChange(event.target.value);
-            }
-          }}
-        >
-          <option value="">Pilih brand existing</option>
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </Select>
-      ) : null}
       <Input
         className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
         list="campaign-brand-options"
         onChange={(event) => onChange(event.target.value)}
-        placeholder={options.length ? "Atau ketik brand baru" : "Ketik brand baru"}
+        placeholder="DigiWonder"
         value={value}
       />
       <datalist id="campaign-brand-options">
@@ -2285,13 +2369,6 @@ function BrandInput({ onChange, options, value }: { onChange: (value: string) =>
           <option key={option} value={option} />
         ))}
       </datalist>
-      <span className="text-[11px] font-normal normal-case tracking-normal text-muted-foreground">
-        {isNewBrand
-          ? `Brand baru "${value.trim()}" akan dibuat otomatis saat campaign disimpan.`
-          : options.length
-            ? `${options.length} brand existing tersedia.`
-            : "Belum ada brand existing. Brand dibuat dari campaign pertama."}
-      </span>
     </label>
   );
 }

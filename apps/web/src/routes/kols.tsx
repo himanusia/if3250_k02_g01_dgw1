@@ -1031,15 +1031,16 @@ function mergeKeywords(
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={async () => {
                           setSyncingKolId(kol.id);
-                          toast.loading(`Sinkronisasi ${kol.displayName} berjalan...`, { id: `sync-kol-${kol.id}` });
-                          syncKol.mutate(
-                            { id: kol.id },
-                            {
-                              onSettled: () => toast.dismiss(`sync-kol-${kol.id}`),
-                            },
-                          );
+                          const toastId = toast.loading(`Sinkronisasi ${kol.displayName} berjalan...`);
+
+                          try {
+                            await syncKol.mutateAsync({ id: kol.id });
+                          } finally {
+                            toast.dismiss(toastId);
+                            setSyncingKolId((current) => (current === kol.id ? null : current));
+                          }
                         }}
                         disabled={syncKol.isPending || kol.syncStatus === "pending"}
                         className={KOL_ACTION_BUTTON_CLASS}

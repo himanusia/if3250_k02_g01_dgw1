@@ -1,4 +1,5 @@
 import type { CampaignDashboardRecord, CampaignDetailRecord } from "./app-types";
+import { formatObjectiveDetails } from "./campaign-objective";
 
 type PdfLine = {
   size?: number;
@@ -100,7 +101,7 @@ function buildLines(campaign: CampaignDetailRecord, progress?: CampaignDashboard
     { size: 13, text: "Objective" },
   ];
 
-  lines.push(...wrapText(campaign.objective).map((text) => ({ text })));
+  lines.push(...wrapText(formatObjectiveDetails(campaign.objective)).map((text) => ({ text })));
   lines.push({ text: "" }, { size: 13, text: "Deskripsi" });
   lines.push(...wrapText(campaign.description).map((text) => ({ text })));
 
@@ -112,7 +113,7 @@ function buildLines(campaign: CampaignDetailRecord, progress?: CampaignDashboard
       lines.push({ text: `- ${content.contentType.toUpperCase()} ${content.platform.toUpperCase()} | ${content.syncStatus} | ${formatDate(content.postedAt)}` });
       lines.push({ text: `  Actual: ${formatNumber(content.viewCount)} views, ${formatNumber(content.likeCount)} likes, ${formatNumber(content.commentCount)} comments, ${formatNumber(content.shareCount)} shares` });
       lines.push({ text: `  Estimasi: ${formatNumber(content.estimatedViewCount)} views, ${formatNumber(content.estimatedLikeCount)} likes, ${formatNumber(content.estimatedCommentCount)} comments, ${formatNumber(content.estimatedShareCount)} shares` });
-      lines.push({ text: `  Budget: Rp${formatNumber(content.budgetIdr ?? 0)} | FYP: ${content.isFyp === null ? "-" : content.isFyp ? "Ya" : "Tidak"}` });
+      lines.push({ text: `  Budget: Rp${formatNumber(content.budgetIdr ?? 0)} | FYP: ${content.isFyp ? "Ya" : "Tidak"}` });
       if (!content.contentUrl.startsWith("manual://")) {
         lines.push(...wrapText(content.contentUrl, 96).map((text) => ({ text: `  ${text}` })));
       }

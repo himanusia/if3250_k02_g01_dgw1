@@ -193,12 +193,12 @@ export const campaignRouter = {
     return campaigns.map((item) => {
       const campaignContents = contentRows.filter((row) => row.campaignId === item.id);
       const successfulSyncs = campaignContents.filter((row) => row.syncStatus === "success");
-      const lastSyncedAt = successfulSyncs.reduce<Date | null>((latest, row) => {
+      const lastSyncedAt = successfulSyncs.reduce<Date | null>((oldest, row) => {
         if (!row.syncedAt) {
-          return latest;
+          return oldest;
         }
 
-        return !latest || row.syncedAt > latest ? row.syncedAt : latest;
+        return !oldest || row.syncedAt < oldest ? row.syncedAt : oldest;
       }, null);
       const lastScrapedAt = campaignContents.reduce<Date | null>((latest, row) => {
         const candidate = row.syncedAt ?? row.updatedAt;

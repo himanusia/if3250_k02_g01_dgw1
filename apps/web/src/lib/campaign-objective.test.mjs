@@ -30,7 +30,7 @@ describe("campaign objective", () => {
       targetViews: 50000,
     });
     expect(getTargetInteractions(parsed)).toBe(3000);
-    expect(formatObjectiveSummary(encoded)).toBe("50.000 views • 12 post • 3.000 interaksi");
+    expect(formatObjectiveSummary(encoded)).toBe("Launch awareness");
   });
 
   test("keeps legacy objective text readable without inventing numeric targets", () => {
