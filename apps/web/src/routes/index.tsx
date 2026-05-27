@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarClock, CheckCircle2, ClipboardList, Target } from "lucide-react";
+import { CalendarClock, ClipboardList, Eye, Heart, MessageCircle, Share2, Target } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
 
 import type { CampaignDashboardRecord } from "@/lib/app-types";
-import { formatObjectiveSummary, getProgressPercent } from "@/lib/campaign-objective";
 import { sortCampaignsByManagementPriority } from "@/lib/campaign-progress";
 import { formatNumber } from "@/lib/kol-utils";
 import { Button } from "@/components/ui/button";
@@ -31,9 +30,6 @@ function RouteComponent() {
   const campaigns = sortCampaignsByManagementPriority((dashboardQuery.data as CampaignDashboardRecord[] | undefined) ?? []);
   const activeCampaigns = campaigns.filter((campaign) => campaign.status === "active");
   const activeContentCount = activeCampaigns.reduce((sum, campaign) => sum + campaign.contentCount, 0);
-  const activeTargetProgress = activeCampaigns.length
-    ? Math.round(activeCampaigns.reduce((sum, campaign) => sum + Math.max(campaign.viewProgressPercent, campaign.interactionProgressPercent), 0) / activeCampaigns.length)
-    : 0;
   const campaignsEndingSoon = activeCampaigns.filter((campaign) => campaign.daysLeft !== null && campaign.daysLeft <= 7).length;
   const campaignsWithoutContent = activeCampaigns.filter((campaign) => campaign.contentCount === 0).length;
 
@@ -58,8 +54,8 @@ function RouteComponent() {
           <>
             <section className="grid gap-3 md:grid-cols-4">
               <MetricCard icon={<Target className="size-4" />} label="Campaign aktif" value={activeCampaigns.length.toLocaleString("id-ID")} detail={`${campaigns.length.toLocaleString("id-ID")} total campaign`} />
-              <MetricCard icon={<ClipboardList className="size-4" />} label="Konten aktif" value={formatNumber(activeContentCount)} detail={`${campaignsWithoutContent.toLocaleString("id-ID")} campaign belum punya post`} />
-              <MetricCard icon={<CheckCircle2 className="size-4" />} label="Progress target" value={`${activeTargetProgress}%`} detail="Rata-rata target campaign aktif" />
+              <MetricCard icon={<ClipboardList className="size-4" />} label="Konten aktif" value={formatNumber(activeContentCount)} detail={`${campaignsWithoutContent.toLocaleString("id-ID")} campaign belum punya konten`} />
+              <MetricCard icon={<Eye className="size-4" />} label="Views aktif" value={formatNumber(activeCampaigns.reduce((sum, campaign) => sum + campaign.viewCount, 0))} detail="Akumulasi konten aktif" />
               <MetricCard icon={<CalendarClock className="size-4" />} label="Deadline dekat" value={campaignsEndingSoon.toLocaleString("id-ID")} detail="Campaign aktif selesai dalam 7 hari" />
             </section>
 
@@ -137,7 +133,6 @@ function MetricCard({ detail, icon, label, value }: { detail: string; icon: Reac
 
 function CampaignProgressCard({ campaign }: { campaign: ReturnType<typeof sortCampaignsByManagementPriority>[number] }) {
   const syncLabel = campaign.syncHealth === "fresh" ? "Fresh" : campaign.syncHealth === "stale" ? "Stale" : "Belum";
-  const achievedPercent = Math.max(campaign.viewProgressPercent, campaign.interactionProgressPercent);
 
   return (
     <Link
@@ -149,18 +144,24 @@ function CampaignProgressCard({ campaign }: { campaign: ReturnType<typeof sortCa
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B43C39]">{campaign.brand}</p>
             <h3 className="text-lg font-semibold text-[#2b1418]">{campaign.name}</h3>
-            <p className="text-sm text-muted-foreground">{formatObjectiveSummary(campaign.objective)}</p>
+            <p className="text-sm text-muted-foreground">{campaign.contentCount} konten • {formatNumber(campaign.viewCount)} views</p>
           </div>
           <span className="w-fit border border-[#b43c39]/20 bg-[#fff3d8] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#7B204C]">{formatCampaignStatus(campaign.status)}</span>
         </div>
         <div>
           <div className="flex items-end justify-between gap-3">
-            <span className="text-sm font-medium text-[#2b1418]">Target tercapai</span>
-            <span className="text-2xl font-semibold text-[#2b1418]">{achievedPercent}%</span>
+            <span className="text-sm font-medium text-[#2b1418]">Progress waktu</span>
+            <span className="text-2xl font-semibold text-[#2b1418]">{campaign.periodProgressPercent}%</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden bg-[#f7e7eb]">
-            <div className="h-full bg-[#B43C39]" style={{ width: `${achievedPercent}%` }} />
+            <div className="h-full bg-[#B43C39]" style={{ width: `${campaign.periodProgressPercent}%` }} />
           </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <MiniMetric icon={<Eye className="size-3.5" />} label="Views" value={campaign.viewCount} />
+          <MiniMetric icon={<Heart className="size-3.5" />} label="Likes" value={campaign.likeCount} />
+          <MiniMetric icon={<MessageCircle className="size-3.5" />} label="Comments" value={campaign.commentCount} />
+          <MiniMetric icon={<Share2 className="size-3.5" />} label="Shares" value={campaign.shareCount} />
         </div>
         <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
           <span>{campaign.daysLeft === null ? "Tanggal belum valid" : `${campaign.daysLeft} hari tersisa`}</span>
@@ -168,6 +169,15 @@ function CampaignProgressCard({ campaign }: { campaign: ReturnType<typeof sortCa
         </div>
       </article>
     </Link>
+  );
+}
+
+function MiniMetric({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+  return (
+    <div className="border border-[#b43c39]/15 bg-[#fff8f9] px-3 py-2 text-xs text-[#2b1418]">
+      <span className="inline-flex items-center gap-1 text-muted-foreground">{icon}{label}</span>
+      <p className="mt-1 font-semibold">{formatNumber(value)}</p>
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, Download, Instagram, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronDown, Download, Instagram, Loader2, PencilLine, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -158,6 +159,22 @@ function formatFollowerTier(tier: string | null | undefined) {
   };
 
   return tier ? labels[tier] ?? tier : "-";
+}
+
+function useDebouncedValue<T>(value: T, delay = 350) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timeout);
+  }, [delay, value]);
+
+  return debounced;
+}
+
+function formatRateWithEstimate(actual: number | null | undefined, estimated: number | null | undefined) {
+  const actualLabel = actual ? formatCurrencyIdr(actual) : "-";
+  return estimated ? `${actualLabel} (est. ${formatCurrencyIdr(estimated)})` : actualLabel;
 }
 
 const KOLS_COLORS = {
@@ -315,6 +332,7 @@ function RouteComponent() {
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [syncingKolId, setSyncingKolId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [keywordFilter, setKeywordFilter] = useState("all");
   const [kolPage, setKolPage] = useState(1);
   const [platformFilter, setPlatformFilter] = useState<"all" | SocialPlatform>("all");
@@ -346,7 +364,7 @@ function RouteComponent() {
   }, [kols]);
 
   const filteredKols = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+    const normalizedSearch = debouncedSearch.trim().toLowerCase();
 
     return kols.filter((kol) => {
       const haystack = [
@@ -367,7 +385,7 @@ function RouteComponent() {
 
       return matchesSearch && matchesKeyword && matchesPlatform && matchesTier;
     });
-  }, [keywordFilter, kols, platformFilter, search, tierFilter]);
+  }, [keywordFilter, kols, platformFilter, debouncedSearch, tierFilter]);
 
   const totalKolPages = Math.max(1, Math.ceil(filteredKols.length / KOL_PAGE_SIZE));
   const paginatedKols = useMemo(
@@ -377,7 +395,7 @@ function RouteComponent() {
 
   useEffect(() => {
     setKolPage(1);
-  }, [keywordFilter, platformFilter, search, tierFilter]);
+  }, [keywordFilter, platformFilter, debouncedSearch, tierFilter]);
 
   useEffect(() => {
     if (kolPage > totalKolPages) {
@@ -892,7 +910,18 @@ function mergeKeywords(
           </div>
 
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_220px]">
-            <FormInput label="Cari" value={search} onChange={setSearch} placeholder="Cari nama, handle, atau keyword" />
+            <Label className="grid gap-2 text-sm">
+              <span>Cari</span>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#982E41]" />
+                <Input
+                  className="pl-9"
+                  placeholder="itb1920"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </div>
+            </Label>
             <Label className="grid gap-2 text-sm">
               <span>Platform</span>
               <Select
@@ -1043,7 +1072,8 @@ function mergeKeywords(
                     </div>
 
                     <p className="text-[13px]" style={{ color: KOLS_COLORS.darkText }}>
-                      Auto Sinkron: -
+                      Sync: {(syncingKolId === kol.id || kol.syncStatus === "pending") && <Loader2 className="mr-1 inline size-3 animate-spin" />}
+                      {kol.syncStatus} • {formatDateTime(kol.lastSyncedAt)}
                     </p>
                   </div>
                 </div>
@@ -1059,12 +1089,9 @@ function mergeKeywords(
 
                 <div className="grid gap-1 text-[13px] md:grid-cols-2" style={{ color: KOLS_COLORS.text }}>
                   <p><span className="font-bold uppercase">Tier:</span> {formatFollowerTier(kol.followerTier)}</p>
-                  <p className="inline-flex items-center gap-1"><span className="font-medium">Status sync:</span> {(syncingKolId === kol.id || kol.syncStatus === "pending") && <Loader2 className="size-3 animate-spin" />} {kol.syncStatus}</p>
-                  <p><span className="font-bold">Last Sync:</span> {formatDateTime(kol.lastSyncedAt)}</p>
-                  <p><span className="font-medium">Est. post:</span> {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}</p>
-                  <p><span className="font-medium">Post:</span> {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}</p>
-                  <p><span className="font-medium">Est. story:</span> {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}</p>
-                  <p><span className="font-medium">Story:</span> {formatCurrencyIdr(kol.actualRateCard?.story.suggested)}</p>
+                  <p><span className="font-medium">Post:</span> {formatRateWithEstimate(kol.actualRateCard?.post.suggested, kol.estimatedRateCard?.post.suggested)}</p>
+                  <p><span className="font-medium">Story:</span> {formatRateWithEstimate(kol.actualRateCard?.story.suggested, kol.estimatedRateCard?.story.suggested)}</p>
+                  <p><span className="font-medium">Reels:</span> {formatRateWithEstimate(kol.actualRateCard?.reel.suggested, kol.estimatedRateCard?.reel.suggested)}</p>
                 </div>
 
                 {kol.syncMessage && (
@@ -1346,7 +1373,7 @@ function mergeKeywords(
                   />
 
                   <FormInput
-                    label="Handle"
+                    label=""
                     placeholder="digi.wonder"
                     value={account.handle}
                     onChange={(value) => {
@@ -1517,39 +1544,39 @@ function mergeKeywords(
                 borderColor: `${KOLS_COLORS.stroke}66`,
               }}
             >
-              <table className="w-full border-collapse text-[13px]">
-                <thead
+              <Table className="text-[13px]">
+                <TableHeader
                   className="sticky top-0"
                   style={{
                     backgroundColor: "#F8EAED",
                   }}
                 >
-                  <tr>
-                    <th className="border-b px-3 py-2 text-left">
+                  <TableRow>
+                    <TableHead>
                       Display Name
-                    </th>
+                    </TableHead>
 
-                    <th className="border-b px-3 py-2 text-left">
+                    <TableHead>
                       Accounts
-                    </th>
+                    </TableHead>
 
-                    <th className="border-b px-3 py-2 text-left">
+                    <TableHead>
                       Keywords
-                    </th>
-                  </tr>
-                </thead>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
 
-                <tbody>
+                <TableBody>
                   {importPreview.map((kol, index) => (
-                    <tr
+                    <TableRow
                       key={`${kol.displayName}-${index}`}
                       className="align-top"
                     >
-                      <td className="border-b px-3 py-2 font-medium">
+                      <TableCell className="font-medium">
                         {kol.displayName}
-                      </td>
+                      </TableCell>
 
-                      <td className="border-b px-3 py-2">
+                      <TableCell>
                         <div className="flex flex-col gap-1">
                           {kol.accounts.map((account) => (
                             <div
@@ -1563,15 +1590,15 @@ function mergeKeywords(
                             </div>
                           ))}
                         </div>
-                      </td>
+                      </TableCell>
 
-                      <td className="border-b px-3 py-2">
+                      <TableCell>
                         {kol.keywords || "-"}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
             <DialogFooter className="mt-4">
@@ -1935,7 +1962,7 @@ function FormInput({
 }) {
   return (
     <Label className="grid min-w-0 gap-2">
-      <span>{label}</span>
+      {label ? <span>{label}</span> : <span aria-hidden="true" className="hidden md:block">&nbsp;</span>}
 
       <div className="relative">
         {ghost && (
@@ -2074,9 +2101,21 @@ function PaginationControls({
         >
           Sebelumnya
         </Button>
-        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#982E41]">
-          {page}/{totalPages}
-        </span>
+        <Input
+          aria-label="Halaman KOL"
+          className="h-8 w-16 text-center"
+          min={1}
+          max={totalPages}
+          type="number"
+          value={page}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (Number.isFinite(next)) {
+              onPageChange(Math.min(totalPages, Math.max(1, next)));
+            }
+          }}
+        />
+        <span className="text-xs text-muted-foreground">/ {totalPages}</span>
         <Button
           type="button"
           variant="outline"

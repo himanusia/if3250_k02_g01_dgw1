@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Loader2, PencilLine, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Eye, Heart, Info, Loader2, MessageCircle, PencilLine, Plus, RefreshCcw, Search, Share2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { DateRange } from "react-day-picker";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
-import { encodeCampaignObjective, formatObjectiveDetails, formatObjectiveSummary, getProgressPercent, getTargetInteractions, parseCampaignObjective } from "@/lib/campaign-objective";
+import { formatObjectiveSummary } from "@/lib/campaign-objective";
 import { downloadCampaignReportPdf } from "@/lib/campaign-report-pdf";
 import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
 
@@ -68,9 +68,41 @@ function formatShortDate(value: string) {
 
 
 type ContentFormRow = {
+  budgetIdr: string;
+  caption: string;
+  contentType: "post" | "reel" | "story";
   contentUrl: string;
+  estimatedCommentCount: string;
+  estimatedLikeCount: string;
+  estimatedShareCount: string;
+  estimatedViewCount: string;
   id: string;
+  isFyp: "unknown" | "yes" | "no";
+  kolDisplayName: string;
+  kolHandle: string;
   kolId: number | "";
+  platform: "instagram" | "tiktok";
+  title: string;
+};
+
+type AddContentPayloadRow = {
+  budgetIdr: number | null;
+  caption: string;
+  contentType: "post" | "reel" | "story";
+  contentUrl: string;
+  estimatedCommentCount: number;
+  estimatedLikeCount: number;
+  estimatedShareCount: number;
+  estimatedViewCount: number;
+  isFyp: boolean | null;
+  kolDisplayName: string;
+  kolHandle: string;
+  kolId: number | null;
+  likeCount: number;
+  platform: "instagram" | "tiktok";
+  shareCount: number;
+  title: string;
+  viewCount: number;
 };
 
 function createEmptyContentRow(): ContentFormRow {
@@ -79,9 +111,21 @@ function createEmptyContentRow(): ContentFormRow {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   return {
+    budgetIdr: "",
+    caption: "",
+    contentType: "post",
     contentUrl: "",
+    estimatedCommentCount: "",
+    estimatedLikeCount: "",
+    estimatedShareCount: "",
+    estimatedViewCount: "",
     id: randomId,
+    isFyp: "unknown",
+    kolDisplayName: "",
+    kolHandle: "",
     kolId: "",
+    platform: "instagram",
+    title: "",
   };
 }
 
@@ -158,7 +202,6 @@ const CAMPAIGN_PAGE_SIZE = 8;
 const CAMPAIGN_FORM_DRAFT_KEY = "digiwonder:campaigns:form-draft";
 
 type TargetKolTier = { count: number; tier: string };
-type MetricTarget = { actual: number; isFallback: boolean; label: string; percent: number; target: number };
 type CampaignFormDraft = {
   editingId: number | null;
   form: CampaignFormState;
@@ -191,6 +234,22 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
+function useDebouncedValue<T>(value: T, delay = 350) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timeout);
+  }, [delay, value]);
+
+  return debounced;
+}
+
+function parseOptionalNumber(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : 0;
+}
+
 function formatHumanDate(value: string | null | undefined) {
   if (!value) return "-";
   const date = new Date(value.includes("T") ? value : `${value}T00:00:00`);
@@ -203,6 +262,15 @@ function formatHumanDateTime(value: string | null | undefined) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function formatCurrencyIdr(value: number | null | undefined) {
+  if (!value) return "-";
+  return new Intl.NumberFormat("id-ID", {
+    currency: "IDR",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(value);
 }
 
 function getCampaignTemporalStatus(periodStart: string, periodEnd: string): CampaignRecord["status"] {
@@ -292,41 +360,21 @@ function getTimeProgress(periodStart: string, periodEnd: string, now = new Date(
   return { daysLeftLabel: "periode selesai", percent };
 }
 
-function getFallbackTarget(actual: number, seed: number, multiplier: number) {
-  return Math.max(100, actual > 0 ? Math.ceil((actual * multiplier) / 100) * 100 : seed);
-}
-
 function getCampaignProgressDisplay(campaign: CampaignRecord, progress?: CampaignDashboardRecord) {
-  const objective = parseCampaignObjective(campaign.objective);
   const actual = {
     comments: progress?.commentCount ?? 0,
+    content: progress?.contentCount ?? 0,
     likes: progress?.likeCount ?? 0,
-    posts: progress?.contentCount ?? 0,
+    posts: progress?.postCount ?? 0,
+    reels: progress?.reelCount ?? 0,
     shares: progress?.shareCount ?? 0,
+    stories: progress?.storyCount ?? 0,
     views: progress?.viewCount ?? 0,
   };
-  const targets = {
-    comments: objective.targetComments || getFallbackTarget(actual.comments, 500 + campaign.id * 11, 1.7),
-    likes: objective.targetLikes || getFallbackTarget(actual.likes, 3_000 + campaign.id * 101, 1.6),
-    posts: objective.targetPosts || getFallbackTarget(actual.posts, Math.max(campaign.targetKolCount, 1), 1),
-    shares: objective.targetShares || getFallbackTarget(actual.shares, 250 + campaign.id * 7, 1.8),
-    views: objective.targetViews || getFallbackTarget(actual.views, 50_000 + campaign.id * 1_000, 1.5),
-  };
-  const metrics: MetricTarget[] = [
-    { actual: actual.posts, isFallback: objective.targetPosts <= 0, label: "Post", percent: getProgressPercent(actual.posts, targets.posts), target: targets.posts },
-    { actual: actual.views, isFallback: objective.targetViews <= 0, label: "Views", percent: getProgressPercent(actual.views, targets.views), target: targets.views },
-    { actual: actual.likes, isFallback: objective.targetLikes <= 0, label: "Likes", percent: getProgressPercent(actual.likes, targets.likes), target: targets.likes },
-    { actual: actual.comments, isFallback: objective.targetComments <= 0, label: "Comments", percent: getProgressPercent(actual.comments, targets.comments), target: targets.comments },
-    { actual: actual.shares, isFallback: objective.targetShares <= 0, label: "Shares", percent: getProgressPercent(actual.shares, targets.shares), target: targets.shares },
-  ];
   const time = getTimeProgress(campaign.periodStart, campaign.periodEnd);
-  const explicitTargets = metrics.filter((metric) => !metric.isFallback).length;
-  const bestMetricPercent = metrics.reduce((max, metric) => Math.max(max, metric.percent), 0);
-  const metricSummary = explicitTargets
-    ? `${explicitTargets} target asli • terbaik ${bestMetricPercent}%`
-    : `Target dummy sementara • terbaik ${bestMetricPercent}%`;
+  const estimatedBudget = progress?.budgetUsedIdr ?? 0;
 
-  return { bestMetricPercent, daysLeftLabel: time.daysLeftLabel, metricSummary, metrics, timePercent: time.percent };
+  return { actual, budgetUsedIdr: estimatedBudget, daysLeftLabel: time.daysLeftLabel, timePercent: time.percent };
 }
 
 export const Route = createFileRoute("/campaigns")({
@@ -396,6 +444,8 @@ function RouteComponent() {
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
   const [kolSearch, setKolSearch] = useState("");
   const [selectedKeywordFilter, setSelectedKeywordFilter] = useState<string[]>([]);
+  const debouncedCampaignSearch = useDebouncedValue(campaignSearch);
+  const debouncedKolSearch = useDebouncedValue(kolSearch);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
   const campaignProgressQuery = useQuery(orpc.campaign.dashboard.queryOptions());
   const kolsQuery = useQuery(orpc.kol.list.queryOptions());
@@ -455,7 +505,7 @@ function RouteComponent() {
   }, [campaigns, detailCampaignId]);
 
   const filteredCampaigns = useMemo(() => {
-    const normalizedSearch = campaignSearch.trim().toLowerCase();
+    const normalizedSearch = debouncedCampaignSearch.trim().toLowerCase();
 
     return campaigns.filter((campaign) => {
       const derivedStatus = getCampaignTemporalStatus(campaign.periodStart, campaign.periodEnd);
@@ -469,7 +519,7 @@ function RouteComponent() {
 
       return matchesStatus && matchesSearch;
     });
-  }, [campaignSearch, campaignStatusFilter, campaigns]);
+  }, [debouncedCampaignSearch, campaignStatusFilter, campaigns]);
   const totalCampaignPages = Math.max(1, Math.ceil(filteredCampaigns.length / CAMPAIGN_PAGE_SIZE));
   const paginatedCampaigns = useMemo(
     () => filteredCampaigns.slice((campaignPage - 1) * CAMPAIGN_PAGE_SIZE, campaignPage * CAMPAIGN_PAGE_SIZE),
@@ -478,7 +528,7 @@ function RouteComponent() {
 
   useEffect(() => {
     setCampaignPage(1);
-  }, [campaignSearch, campaignStatusFilter]);
+  }, [debouncedCampaignSearch, campaignStatusFilter]);
 
   useEffect(() => {
     if (campaignPage > totalCampaignPages) {
@@ -507,7 +557,7 @@ function RouteComponent() {
 
   const filteredKols = useMemo(() => {
   return kols.filter((kol) => {
-    const normalizedSearch = kolSearch.trim().toLowerCase();
+    const normalizedSearch = debouncedKolSearch.trim().toLowerCase();
     const matchesSearch =
       !normalizedSearch ||
       kol.displayName.toLowerCase().includes(normalizedSearch);
@@ -520,10 +570,10 @@ function RouteComponent() {
 
     return matchesSearch && matchesKeywords;
   });
-}, [kols, kolSearch, selectedKeywordFilter]);
+}, [kols, debouncedKolSearch, selectedKeywordFilter]);
 
   const addContent = useMutation({
-    mutationFn: (input: { campaignId: number; contents: Array<{ contentUrl: string; kolId: number }> }) =>
+    mutationFn: (input: { campaignId: number; contents: AddContentPayloadRow[] }) =>
       client.campaign.addContent(input),
     onSuccess: (campaignDetail, variables) => {
       if (!campaignDetail) {
@@ -541,7 +591,7 @@ function RouteComponent() {
       if (failedCount > 0) {
         toast.error(`Konten tersimpan, tetapi ${failedCount} post gagal di-scrap`);
       } else {
-        toast.success("Konten berhasil disimpan dan di-scrap");
+        toast.success("Konten berhasil disimpan");
       }
 
       setIsAddContentDialogOpen(false);
@@ -760,25 +810,40 @@ function RouteComponent() {
       return;
     }
 
-    const invalidRowIndex = contentRows.findIndex((row) => !row.kolId || !row.contentUrl.trim());
+    const invalidRowIndex = contentRows.findIndex((row) => !row.kolId && !row.kolDisplayName.trim() && !row.kolHandle.trim());
 
     if (invalidRowIndex >= 0) {
-      toast.error(`Baris ${invalidRowIndex + 1}: pilih KOL dan isi link konten.`);
+      toast.error(`Baris ${invalidRowIndex + 1}: pilih KOL atau isi nama/handle KOL.`);
       return;
     }
 
     const normalizedRows = contentRows.map((row, index) => {
-      const normalizedUrl = normalizeContentUrl(row.contentUrl);
+      const normalizedUrl = row.contentUrl.trim() ? normalizeContentUrl(row.contentUrl) : "";
       const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
 
-      if (!normalizedUrl || !platform) {
+      if (row.contentUrl.trim() && (!normalizedUrl || !platform)) {
         toast.error(`Baris ${index + 1}: link harus berasal dari Instagram atau TikTok.`);
         return null;
       }
 
       return {
+        budgetIdr: row.budgetIdr ? parseOptionalNumber(row.budgetIdr) : null,
+        caption: row.caption,
+        contentType: row.contentType,
         contentUrl: normalizedUrl,
-        kolId: Number(row.kolId),
+        estimatedCommentCount: parseOptionalNumber(row.estimatedCommentCount),
+        estimatedLikeCount: parseOptionalNumber(row.estimatedLikeCount),
+        estimatedShareCount: parseOptionalNumber(row.estimatedShareCount),
+        estimatedViewCount: parseOptionalNumber(row.estimatedViewCount),
+        isFyp: row.isFyp === "unknown" ? null : row.isFyp === "yes",
+        kolDisplayName: row.kolDisplayName,
+        kolHandle: row.kolHandle,
+        kolId: row.kolId ? Number(row.kolId) : null,
+        likeCount: parseOptionalNumber(row.estimatedLikeCount),
+        platform: platform ?? row.platform,
+        shareCount: parseOptionalNumber(row.estimatedShareCount),
+        title: row.title,
+        viewCount: parseOptionalNumber(row.estimatedViewCount),
       };
     });
 
@@ -799,9 +864,10 @@ function RouteComponent() {
       return;
     }
 
+    setIsAddContentDialogOpen(false);
     addContent.mutate({
       campaignId: addContentCampaignId,
-      contents: normalizedRows as Array<{ contentUrl: string; kolId: number }>,
+      contents: normalizedRows as AddContentPayloadRow[],
     });
   }
 
@@ -871,11 +937,15 @@ function RouteComponent() {
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
               <Label className="grid gap-2 text-sm text-[#2b1418]">
                 <span>Cari campaign</span>
-                <Input
-                  placeholder="Nama, brand, keyword, objective"
-                  value={campaignSearch}
-                  onChange={(event) => setCampaignSearch(event.target.value)}
-                />
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#982E41]" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Kucing Mukbang"
+                    value={campaignSearch}
+                    onChange={(event) => setCampaignSearch(event.target.value)}
+                  />
+                </div>
               </Label>
               <Label className="grid gap-2 text-sm text-[#2b1418]">
                 <span>Filter status</span>
@@ -930,16 +1000,18 @@ function RouteComponent() {
                         meta={`${formatHumanDate(campaign.periodStart)} → ${formatHumanDate(campaign.periodEnd)} • ${progressSummary.daysLeftLabel}`}
                       />
                       <ProgressBlock
-                        label="Target KPI"
-                        percent={progressSummary.bestMetricPercent}
-                        meta={progressSummary.metricSummary}
+                        label="Konten"
+                        percent={0}
+                        meta={`${progressSummary.actual.content} konten • ${progressSummary.actual.posts} post • ${progressSummary.actual.reels} reels • ${progressSummary.actual.stories} story • budget ${formatCurrencyIdr(progressSummary.budgetUsedIdr)}`}
+                        hideBar
                       />
                     </div>
 
                     <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                      {progressSummary.metrics.map((metric) => (
-                        <MetricTargetBadge key={metric.label} {...metric} />
-                      ))}
+                      <MetricStatBadge icon={<Eye className="size-3.5" />} label="Views" value={progressSummary.actual.views} estimated={progress?.estimatedViewCount} />
+                      <MetricStatBadge icon={<Heart className="size-3.5" />} label="Likes" value={progressSummary.actual.likes} estimated={progress?.estimatedLikeCount} />
+                      <MetricStatBadge icon={<MessageCircle className="size-3.5" />} label="Comments" value={progressSummary.actual.comments} estimated={progress?.estimatedCommentCount} />
+                      <MetricStatBadge icon={<Share2 className="size-3.5" />} label="Shares" value={progressSummary.actual.shares} estimated={progress?.estimatedShareCount} />
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -1084,7 +1156,7 @@ function RouteComponent() {
 
             <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4 md:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Brief & target</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Brief</p>
               </div>
 
             <div className="md:col-span-2">
@@ -1094,10 +1166,14 @@ function RouteComponent() {
                 onChange={(value) => setForm((current) => ({ ...current, description: value }))}
               />
             </div>
-            <CampaignObjectiveFields
-              value={form.objective}
-              onChange={(value) => setForm((current) => ({ ...current, objective: value }))}
-            />
+            <div className="md:col-span-2">
+              <FormTextarea
+                label="Catatan campaign"
+                value={form.objective}
+                onChange={(objective) => setForm((current) => ({ ...current, objective }))}
+                placeholder="Awareness produk baru untuk audiens Gen Z"
+              />
+            </div>
             <KeywordTokenInput
               label="Keyword"
               value={form.keywords}
@@ -1421,7 +1497,7 @@ function RouteComponent() {
                                           return (
                                             <div className="flex flex-wrap items-center gap-2">
                                               <span className="border-border text-muted-foreground border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em]">
-                                                {content.platform}
+                                                {content.contentType} · {content.platform}
                                               </span>
                                               <span
                                                 className={`border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] ${
@@ -1441,14 +1517,16 @@ function RouteComponent() {
                                           );
                                         })()}
 
-                                  <a
-                                    className="text-primary break-all text-xs underline-offset-4 hover:underline"
-                                    href={content.contentUrl}
-                                    rel="noreferrer"
-                                    target="_blank"
-                                  >
-                                    {content.contentUrl}
-                                  </a>
+                                  {!content.contentUrl.startsWith("manual://") && (
+                                    <a
+                                      className="text-primary break-all text-xs underline-offset-4 hover:underline"
+                                      href={content.contentUrl}
+                                      rel="noreferrer"
+                                      target="_blank"
+                                    >
+                                      {content.contentUrl}
+                                    </a>
+                                  )}
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2">
@@ -1533,14 +1611,23 @@ function RouteComponent() {
                                 </div>
                               </div>
 
-                              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4 text-[6px]">
+                              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                                 <DetailStat boxed compact label="Likes" value={formatNumber(content.likeCount)} />
                                 <DetailStat boxed compact label="Views" value={formatNumber(content.viewCount)} />
                                 <DetailStat boxed compact label="Comments" value={formatNumber(content.commentCount)} />
                                 <DetailStat boxed compact label="Shares" value={formatNumber(content.shareCount)} />
                               </div>
 
+                              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                                <DetailStat boxed compact label="Est. views" value={formatNumber(content.estimatedViewCount)} />
+                                <DetailStat boxed compact label="Est. likes" value={formatNumber(content.estimatedLikeCount)} />
+                                <DetailStat boxed compact label="Est. comments" value={formatNumber(content.estimatedCommentCount)} />
+                                <DetailStat boxed compact label="Est. shares" value={formatNumber(content.estimatedShareCount)} />
+                              </div>
+
                               <div className="grid gap-2 text-sm md:grid-cols-2">
+                                <DetailStat label="Budget" value={formatCurrencyIdr(content.budgetIdr)} compact />
+                                <DetailStat label="FYP" value={content.isFyp === null ? "-" : content.isFyp ? "Ya" : "Tidak"} compact />
                                 <DetailStat label="Posted at" value={formatDateTime(content.postedAt)} compact />
                                 <DetailStat label="Synced at" value={formatDateTime(content.syncedAt)} compact />
                                 <DetailStat label="Author" value={content.authorDisplayName || content.authorHandle || "-"} compact />
@@ -1686,10 +1773,6 @@ function RouteComponent() {
             <div className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">
               Campaign tidak ditemukan.
             </div>
-          ) : !addContentCampaign.kols.length ? (
-            <div className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">
-              Campaign ini belum punya KOL. Tambahkan KOL terlebih dahulu sebelum menambah konten.
-            </div>
           ) : (
             <form
               className="flex max-h-[calc(90vh-88px)] flex-col bg-white"
@@ -1707,71 +1790,130 @@ function RouteComponent() {
                 </div>
 
                 <div className="space-y-3">
-                {contentRows.map((row, index) => (
-                  <div key={row.id} className="grid gap-3 rounded-none border border-border p-3 md:grid-cols-[240px_minmax(0,1fr)_auto] md:items-end">
-                    <Label className="grid gap-2">
-                      <span>KOL</span>
-                      <Select
-                        className="text-xs"
-                        value={row.kolId}
-                        onChange={(event) =>
-                          updateContentRow(row.id, { kolId: event.target.value ? Number(event.target.value) : "" })
-                        }
-                      >
-                        <option value="">Pilih KOL</option>
-                        {addContentCampaign.kols.map((kol) => (
-                          <option key={kol.id} value={kol.id}>
-                            {kol.displayName}
-                          </option>
-                        ))}
-                      </Select>
-                    </Label>
+                  {contentRows.map((row) => (
+                    <div key={row.id} className="grid gap-3 rounded-none border border-border p-3">
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <Label className="grid gap-2">
+                          <span>Jenis</span>
+                          <Select
+                            value={row.contentType}
+                            onChange={(event) => updateContentRow(row.id, { contentType: event.target.value as ContentFormRow["contentType"] })}
+                          >
+                            <option value="post">Post</option>
+                            <option value="reel">Reels</option>
+                            <option value="story">Story</option>
+                          </Select>
+                        </Label>
+                        <Label className="grid gap-2">
+                          <span>Platform</span>
+                          <Select
+                            value={row.platform}
+                            onChange={(event) => updateContentRow(row.id, { platform: event.target.value as ContentFormRow["platform"] })}
+                          >
+                            <option value="instagram">Instagram</option>
+                            <option value="tiktok">TikTok</option>
+                          </Select>
+                        </Label>
+                        <Label className="grid gap-2">
+                          <span>Budget</span>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="46000000"
+                            value={row.budgetIdr}
+                            onChange={(event) => updateContentRow(row.id, { budgetIdr: event.target.value })}
+                          />
+                        </Label>
+                      </div>
 
-                    <Label className="grid gap-2">
-                      <span>Link konten</span>
-                      <Input
-                        placeholder="https://..."
-                        value={row.contentUrl}
-                        onChange={(event) => updateContentRow(row.id, { contentUrl: event.target.value })}
+                      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                        <Label className="grid gap-2">
+                          <span>KOL</span>
+                          <Select
+                            value={row.kolId}
+                            onChange={(event) => {
+                              const selected = addContentCampaign.kols.find((kol) => kol.id === Number(event.target.value));
+                              updateContentRow(row.id, {
+                                kolDisplayName: selected?.displayName ?? row.kolDisplayName,
+                                kolId: event.target.value ? Number(event.target.value) : "",
+                              });
+                            }}
+                          >
+                            <option value="">KOL baru/manual</option>
+                            {addContentCampaign.kols.map((kol) => (
+                              <option key={kol.id} value={kol.id}>
+                                {kol.displayName}
+                              </option>
+                            ))}
+                          </Select>
+                        </Label>
+                        <Label className="grid gap-2">
+                          <span>Link</span>
+                          <Input
+                            placeholder="https://www.instagram.com/reel/DYyTFReyo3D/"
+                            value={row.contentUrl}
+                            onChange={(event) => updateContentRow(row.id, { contentUrl: event.target.value })}
+                          />
+                        </Label>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <FormInput
+                          label="Nama KOL manual"
+                          placeholder="ITB Official"
+                          value={row.kolDisplayName}
+                          onChange={(kolDisplayName) => updateContentRow(row.id, { kolDisplayName })}
+                        />
+                        <FormInput
+                          label="Username manual"
+                          placeholder="@itb1920"
+                          value={row.kolHandle}
+                          onChange={(kolHandle) => updateContentRow(row.id, { kolHandle })}
+                        />
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-4">
+                        <FormInput label="Est. views" placeholder="75000" value={row.estimatedViewCount} onChange={(estimatedViewCount) => updateContentRow(row.id, { estimatedViewCount })} />
+                        <FormInput label="Est. likes" placeholder="4200" value={row.estimatedLikeCount} onChange={(estimatedLikeCount) => updateContentRow(row.id, { estimatedLikeCount })} />
+                        <FormInput label="Est. comments" placeholder="650" value={row.estimatedCommentCount} onChange={(estimatedCommentCount) => updateContentRow(row.id, { estimatedCommentCount })} />
+                        <FormInput label="Est. shares" placeholder="320" value={row.estimatedShareCount} onChange={(estimatedShareCount) => updateContentRow(row.id, { estimatedShareCount })} />
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+                        <Label className="grid gap-2">
+                          <span>FYP</span>
+                          <Select
+                            value={row.isFyp}
+                            onChange={(event) => updateContentRow(row.id, { isFyp: event.target.value as ContentFormRow["isFyp"] })}
+                          >
+                            <option value="unknown">Belum tahu</option>
+                            <option value="yes">Ya</option>
+                            <option value="no">Tidak</option>
+                          </Select>
+                        </Label>
+                        <FormInput label="Judul/catatan" placeholder="Story mention produk" value={row.title} onChange={(title) => updateContentRow(row.id, { title })} />
+                      </div>
+
+                      <FormTextarea
+                        label="Caption/manual note"
+                        placeholder="Konten story manual karena metadata tidak bisa di-scrap"
+                        value={row.caption}
+                        onChange={(caption) => updateContentRow(row.id, { caption })}
                       />
-                    </Label>
 
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      disabled={contentRows.length === 1}
-                      onClick={() => removeContentRow(row.id)}
-                    >
-                      Hapus
-                    </Button>
-
-                    <div className="md:col-span-3">
-                      <p className="text-muted-foreground text-[11px] uppercase tracking-[0.2em]">Baris {index + 1}</p>
-                      {(() => {
-                        const normalizedUrl = normalizeContentUrl(row.contentUrl);
-                        const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
-                        const selectedKol = addContentCampaign.kols.find((kol) => kol.id === row.kolId);
-
-                        if (!row.contentUrl.trim()) {
-                          return null;
-                        }
-
-                        return (
-                          <div className="mt-2 grid gap-2 border border-[#982E41]/15 bg-[#FFF8F9] p-3 text-xs text-[#2b1418] sm:grid-cols-[110px_minmax(0,1fr)]">
-                            <span className="border border-[#982E41]/25 bg-white px-2 py-1 text-center font-semibold uppercase tracking-[0.14em] text-[#982E41]">
-                              {platform ?? "tidak valid"}
-                            </span>
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{selectedKol?.displayName ?? "KOL belum dipilih"}</p>
-                              <p className="truncate text-muted-foreground">{normalizedUrl ?? "Link harus Instagram atau TikTok"}</p>
-                            </div>
-                          </div>
-                        );
-                      })()}
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={contentRows.length === 1}
+                          onClick={() => removeContentRow(row.id)}
+                        >
+                          <Trash2 className="mr-1 size-4" />
+                          Hapus
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -1800,7 +1942,7 @@ function RouteComponent() {
 }
 
 
-function ProgressBlock({ label, meta, percent }: { label: string; meta: string; percent: number }) {
+function ProgressBlock({ hideBar = false, label, meta, percent }: { hideBar?: boolean; label: string; meta: string; percent: number }) {
   return (
     <div className="border border-[#982E41]/20 bg-white p-3">
       <div className="flex items-end justify-between gap-3">
@@ -1808,11 +1950,13 @@ function ProgressBlock({ label, meta, percent }: { label: string; meta: string; 
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">{label}</p>
           <p className="text-xs text-muted-foreground">{meta}</p>
         </div>
-        <span className="text-2xl font-semibold text-[#2b1418]">{percent}%</span>
+        {!hideBar && <span className="text-2xl font-semibold text-[#2b1418]">{percent}%</span>}
       </div>
-      <div className="mt-2 h-2 overflow-hidden bg-[#F2DDE2]">
-        <div className="h-full bg-[#982E41]" style={{ width: `${percent}%` }} />
-      </div>
+      {!hideBar && (
+        <div className="mt-2 h-2 overflow-hidden bg-[#F2DDE2]">
+          <div className="h-full bg-[#982E41]" style={{ width: `${percent}%` }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1822,44 +1966,38 @@ function ObjectiveProgressPanel({ campaign, progress }: { campaign: CampaignDeta
 
   return (
     <div className="space-y-4 border-[1.6px] border-[#982E41]/20 bg-[#FFF8F9] p-4">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#982E41]">Objective</p>
-        <p className="mt-1 text-sm text-[#2b1418]">{formatObjectiveDetails(campaign.objective)}</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <ProgressBlock
+          label="Progress waktu"
+          percent={display.timePercent}
+          meta={`${formatHumanDate(campaign.periodStart)} → ${formatHumanDate(campaign.periodEnd)} • ${display.daysLeftLabel}`}
+        />
+        <ProgressBlock
+          hideBar
+          label="Konten"
+          percent={0}
+          meta={`${display.actual.content} konten • ${display.actual.posts} post • ${display.actual.reels} reels • ${display.actual.stories} story`}
+        />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        {display.metrics.map((metric) => (
-          <div key={metric.label} className="border border-[#982E41]/20 bg-white p-3">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">{metric.label}</p>
-              <span className="text-sm font-semibold text-[#2b1418]">{metric.percent}%</span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden bg-[#F2DDE2]">
-              <div className="h-full bg-[#982E41]" style={{ width: `${metric.percent}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {formatNumber(metric.actual)} / {formatNumber(metric.target)}
-            </p>
-            {metric.isFallback && <p className="mt-1 text-[11px] text-muted-foreground">Target belum diisi.</p>}
-          </div>
-        ))}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <MetricStatBadge icon={<Eye className="size-3.5" />} label="Views" value={display.actual.views} estimated={progress?.estimatedViewCount} />
+        <MetricStatBadge icon={<Heart className="size-3.5" />} label="Likes" value={display.actual.likes} estimated={progress?.estimatedLikeCount} />
+        <MetricStatBadge icon={<MessageCircle className="size-3.5" />} label="Comments" value={display.actual.comments} estimated={progress?.estimatedCommentCount} />
+        <MetricStatBadge icon={<Share2 className="size-3.5" />} label="Shares" value={display.actual.shares} estimated={progress?.estimatedShareCount} />
       </div>
     </div>
   );
 }
 
-function MetricTargetBadge({ actual, label, percent, target }: MetricTarget) {
+function MetricStatBadge({ estimated = 0, icon, label, value }: { estimated?: number; icon: ReactNode; label: string; value: number }) {
   return (
     <div className="border border-[#982E41]/25 bg-white px-3 py-2 text-xs text-[#2b1418]">
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold uppercase tracking-[0.14em] text-[#982E41]">{label}</span>
-        <span className="font-semibold">{target === null ? "-" : `${percent}%`}</span>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden bg-[#F2DDE2]">
-        <div className="h-full bg-[#982E41]" style={{ width: `${percent}%` }} />
+        <span className="inline-flex items-center gap-1 font-semibold uppercase tracking-[0.14em] text-[#982E41]">{icon}{label}</span>
       </div>
       <p className="mt-1 text-muted-foreground">
-        {formatNumber(actual)} / {target === null ? "belum ada target" : formatNumber(target)}
+        {formatNumber(value)} actual{estimated ? ` • est. ${formatNumber(estimated)}` : ""}
       </p>
     </div>
   );
@@ -1896,9 +2034,21 @@ function CampaignPaginationControls({
         >
           Sebelumnya
         </Button>
-        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#982E41]">
-          {page}/{totalPages}
-        </span>
+        <Input
+          aria-label="Halaman campaign"
+          className="h-8 w-16 text-center"
+          min={1}
+          max={totalPages}
+          type="number"
+          value={page}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (Number.isFinite(next)) {
+              onPageChange(Math.min(totalPages, Math.max(1, next)));
+            }
+          }}
+        />
+        <span className="text-xs text-muted-foreground">/ {totalPages}</span>
         <Button
           type="button"
           variant="outline"
@@ -2049,49 +2199,6 @@ function DateRangePicker({ label, onChange, value }: { label: string; onChange: 
           <Calendar mode="range" numberOfMonths={2} selected={value} onSelect={onChange} />
         </div>
       )}
-    </div>
-  );
-}
-
-function CampaignObjectiveFields({ onChange, value }: { onChange: (value: string) => void; value: string }) {
-  const objective = parseCampaignObjective(value);
-  const updateObjective = (patch: Partial<typeof objective>) => onChange(encodeCampaignObjective({ ...objective, ...patch }));
-  const interactions = getTargetInteractions(objective);
-
-  return (
-    <div className="space-y-3 md:col-span-2">
-      <div>
-        <Label>Objektif campaign</Label>
-        <p className="text-muted-foreground text-xs">Target eksplisit untuk progress: views dan interaksi.</p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-5">
-        <ObjectiveNumberInput label="Target post" value={objective.targetPosts} onChange={(targetPosts) => updateObjective({ targetPosts })} />
-        <ObjectiveNumberInput label="Target view" value={objective.targetViews} onChange={(targetViews) => updateObjective({ targetViews })} />
-        <ObjectiveNumberInput label="Target like" value={objective.targetLikes} onChange={(targetLikes) => updateObjective({ targetLikes })} />
-        <ObjectiveNumberInput label="Target komentar" value={objective.targetComments} onChange={(targetComments) => updateObjective({ targetComments })} />
-        <ObjectiveNumberInput label="Target share" value={objective.targetShares} onChange={(targetShares) => updateObjective({ targetShares })} />
-      </div>
-      <FormTextarea
-        label={`Catatan objektif tambahan${interactions ? ` • total interaksi ${interactions.toLocaleString("id-ID")}` : ""}`}
-        value={objective.legacyText}
-        onChange={(legacyText) => updateObjective({ legacyText })}
-        placeholder="Opsional: konteks target, segmentasi, atau KPI tambahan"
-      />
-    </div>
-  );
-}
-
-function ObjectiveNumberInput({ label, onChange, value }: { label: string; onChange: (value: number) => void; value: number }) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input
-        min={0}
-        type="number"
-        value={value || ""}
-        onChange={(event) => onChange(Number(event.target.value || 0))}
-        placeholder="0"
-      />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile, type SocialPlatform } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { syncContentWithApify } from "./apify";
 
@@ -18,14 +18,21 @@ export type CampaignContentRecord = {
   archivedAt: string | null;
   authorDisplayName: string;
   authorHandle: string;
+  budgetIdr: number | null;
   campaignId: number;
   caption: string;
   commentCount: number;
+  contentType: string;
   contentUrl: string;
   createdAt: string;
+  estimatedCommentCount: number;
+  estimatedLikeCount: number;
+  estimatedShareCount: number;
+  estimatedViewCount: number;
   externalId: string | null;
   engagementRate: string;
   id: number;
+  isFyp: boolean | null;
   kolDisplayName: string;
   kolHandles: string[];
   kolId: number;
@@ -74,8 +81,23 @@ export type CampaignDetailRecord = {
 };
 
 type CampaignContentInputRow = {
-  contentUrl: string;
-  kolId: number;
+  budgetIdr?: number | null;
+  caption?: string;
+  contentType?: "post" | "reel" | "story";
+  contentUrl?: string;
+  estimatedCommentCount?: number;
+  estimatedLikeCount?: number;
+  estimatedShareCount?: number;
+  estimatedViewCount?: number;
+  isFyp?: boolean | null;
+  kolDisplayName?: string;
+  kolHandle?: string;
+  kolId?: number | null;
+  likeCount?: number;
+  platform?: SocialPlatform;
+  shareCount?: number;
+  title?: string;
+  viewCount?: number;
 };
 
 type CampaignContentInput = {
@@ -87,14 +109,21 @@ type CampaignContentRow = {
   archivedAt: Date | null;
   authorDisplayName: string;
   authorHandle: string;
+  budgetIdr: number | null;
   campaignId: number;
   caption: string;
   commentCount: number;
+  contentType: string;
   contentUrl: string;
   createdAt: Date;
+  estimatedCommentCount: number;
+  estimatedLikeCount: number;
+  estimatedShareCount: number;
+  estimatedViewCount: number;
   externalId: string | null;
   engagementRate: string;
   id: number;
+  isFyp: boolean | null;
   kolDisplayName: string;
   kolId: number;
   likeCount: number;
@@ -172,14 +201,21 @@ function normalizeCampaignContentRow(row: CampaignContentRow, handles: string[])
     archivedAt: toIso(row.archivedAt),
     authorDisplayName: row.authorDisplayName,
     authorHandle: row.authorHandle,
+    budgetIdr: row.budgetIdr,
     campaignId: row.campaignId,
     caption: row.caption,
     commentCount: row.commentCount,
+    contentType: row.contentType,
     contentUrl: row.contentUrl,
     createdAt: row.createdAt.toISOString(),
+    estimatedCommentCount: row.estimatedCommentCount,
+    estimatedLikeCount: row.estimatedLikeCount,
+    estimatedShareCount: row.estimatedShareCount,
+    estimatedViewCount: row.estimatedViewCount,
     externalId: row.externalId,
     engagementRate: row.engagementRate,
     id: row.id,
+    isFyp: row.isFyp,
     kolDisplayName: row.kolDisplayName,
     kolHandles: handles,
     kolId: row.kolId,
@@ -243,14 +279,21 @@ async function loadCampaignContentRows(campaignId: number, linksByKolId: Map<num
       archivedAt: campaignContent.archivedAt,
       authorDisplayName: campaignContent.authorDisplayName,
       authorHandle: campaignContent.authorHandle,
+      budgetIdr: campaignContent.budgetIdr,
       campaignId: campaignContent.campaignId,
       caption: campaignContent.caption,
       commentCount: campaignContent.commentCount,
+      contentType: campaignContent.contentType,
       contentUrl: campaignContent.contentUrl,
       createdAt: campaignContent.createdAt,
+      estimatedCommentCount: campaignContent.estimatedCommentCount,
+      estimatedLikeCount: campaignContent.estimatedLikeCount,
+      estimatedShareCount: campaignContent.estimatedShareCount,
+      estimatedViewCount: campaignContent.estimatedViewCount,
       externalId: campaignContent.externalId,
       engagementRate: campaignContent.engagementRate,
       id: campaignContent.id,
+      isFyp: campaignContent.isFyp,
       kolDisplayName: kolProfile.displayName,
       kolId: campaignContent.kolId,
       likeCount: campaignContent.likeCount,
@@ -350,7 +393,7 @@ export function detectContentPlatformFromUrl(url: string) {
 }
 
 function ensureCampaignContentUrl(rowIndex: number, row: CampaignContentInputRow, existingUrls: Set<string>, seenUrls: Set<string>) {
-  const normalizedUrl = normalizeContentUrl(row.contentUrl);
+  const normalizedUrl = normalizeContentUrl(row.contentUrl ?? "");
 
   if (!normalizedUrl) {
     throw new ORPCError("BAD_REQUEST", {
@@ -390,20 +433,112 @@ function ensureCampaignContentUrl(rowIndex: number, row: CampaignContentInputRow
   };
 }
 
+function createManualContentUrl(campaignId: number, rowIndex: number) {
+  const randomId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${rowIndex}-${Math.random().toString(36).slice(2)}`;
+
+  return `manual://campaign/${campaignId}/${randomId}`;
+}
+
+function normalizeOptionalCount(value: number | undefined) {
+  return Number.isFinite(value) ? Math.max(0, Math.round(value ?? 0)) : 0;
+}
+
+function normalizeOptionalBudget(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+}
+
+function normalizeOptionalHandle(value: string | undefined) {
+  return value?.trim().replace(/^@/, "") ?? "";
+}
+
+function platformFromRow(row: CampaignContentInputRow, normalizedUrl: string | null) {
+  if (row.platform) return row.platform;
+  if (normalizedUrl) return detectContentPlatformFromUrl(normalizedUrl);
+  return null;
+}
+
+async function ensureCampaignKolLink(campaignId: number, row: CampaignContentInputRow, allowedKolIds: Set<number>) {
+  if (row.kolId && allowedKolIds.has(row.kolId)) {
+    return row.kolId;
+  }
+
+  if (row.kolId && !allowedKolIds.has(row.kolId)) {
+    await db.insert(campaignKol).values({ campaignId, kolId: row.kolId }).onConflictDoNothing();
+    allowedKolIds.add(row.kolId);
+    return row.kolId;
+  }
+
+  const handle = normalizeOptionalHandle(row.kolHandle);
+  const platform = row.platform;
+
+  if (handle && platform) {
+    const [existing] = await db
+      .select({ id: kolAccount.kolId })
+      .from(kolAccount)
+      .where(sql`LOWER(${kolAccount.handle}) = LOWER(${handle}) AND ${kolAccount.platform} = ${platform}`)
+      .limit(1);
+
+    if (existing) {
+      await db.insert(campaignKol).values({ campaignId, kolId: existing.id }).onConflictDoNothing();
+      allowedKolIds.add(existing.id);
+      return existing.id;
+    }
+  }
+
+  const displayName = row.kolDisplayName?.trim() || handle || "Manual KOL";
+  const [createdProfile] = await db
+    .insert(kolProfile)
+    .values({
+      displayName,
+      keywords: "",
+      syncMessage: handle ? "Belum disinkronkan." : "KOL manual dari konten campaign.",
+      syncStatus: handle ? "pending" : "failed",
+    })
+    .returning({ id: kolProfile.id });
+
+  if (!createdProfile) {
+    throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Gagal membuat KOL otomatis." });
+  }
+
+  if (handle && platform) {
+    await db.insert(kolAccount).values({
+      handle,
+      kolId: createdProfile.id,
+      platform,
+      profileUrl: null,
+      syncMessage: "Belum disinkronkan.",
+      syncStatus: "pending",
+    });
+  }
+
+  await db.insert(campaignKol).values({ campaignId, kolId: createdProfile.id }).onConflictDoNothing();
+  allowedKolIds.add(createdProfile.id);
+  return createdProfile.id;
+}
+
 async function loadCampaignContentRow(contentId: number) {
   const [row] = await db
     .select({
       archivedAt: campaignContent.archivedAt,
       authorDisplayName: campaignContent.authorDisplayName,
       authorHandle: campaignContent.authorHandle,
+      budgetIdr: campaignContent.budgetIdr,
       campaignId: campaignContent.campaignId,
       caption: campaignContent.caption,
       commentCount: campaignContent.commentCount,
+      contentType: campaignContent.contentType,
       contentUrl: campaignContent.contentUrl,
       createdAt: campaignContent.createdAt,
+      estimatedCommentCount: campaignContent.estimatedCommentCount,
+      estimatedLikeCount: campaignContent.estimatedLikeCount,
+      estimatedShareCount: campaignContent.estimatedShareCount,
+      estimatedViewCount: campaignContent.estimatedViewCount,
       externalId: campaignContent.externalId,
       engagementRate: campaignContent.engagementRate,
       id: campaignContent.id,
+      isFyp: campaignContent.isFyp,
       kolDisplayName: kolProfile.displayName,
       kolId: campaignContent.kolId,
       likeCount: campaignContent.likeCount,
@@ -511,14 +646,21 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
       archivedAt: campaignContent.archivedAt,
       authorDisplayName: campaignContent.authorDisplayName,
       authorHandle: campaignContent.authorHandle,
+      budgetIdr: campaignContent.budgetIdr,
       campaignId: campaignContent.campaignId,
       caption: campaignContent.caption,
       commentCount: campaignContent.commentCount,
+      contentType: campaignContent.contentType,
       contentUrl: campaignContent.contentUrl,
       createdAt: campaignContent.createdAt,
+      estimatedCommentCount: campaignContent.estimatedCommentCount,
+      estimatedLikeCount: campaignContent.estimatedLikeCount,
+      estimatedShareCount: campaignContent.estimatedShareCount,
+      estimatedViewCount: campaignContent.estimatedViewCount,
       externalId: campaignContent.externalId,
       engagementRate: campaignContent.engagementRate,
       id: campaignContent.id,
+      isFyp: campaignContent.isFyp,
       kolDisplayName: kolProfile.displayName,
       kolId: campaignContent.kolId,
       likeCount: campaignContent.likeCount,
@@ -591,13 +733,6 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
 
   const campaignKols = await loadCampaignKolLinks(input.campaignId);
 
-  if (!campaignKols.length) {
-    throw new ORPCError("BAD_REQUEST", {
-      data: { reason: "CAMPAIGN_HAS_NO_KOL" },
-      message: "Campaign ini belum punya KOL. Tambahkan KOL terlebih dahulu.",
-    });
-  }
-
   const allowedKolIds = new Set(campaignKols.map((link) => link.id));
   const existingUrls = new Set(
     (
@@ -608,22 +743,33 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
     ).map((row) => row.contentUrl),
   );
   const seenUrls = new Set<string>();
-  const preparedRows = input.contents.map((row, index) => {
-    if (!allowedKolIds.has(row.kolId)) {
+  const preparedRows = [];
+
+  for (const [index, row] of input.contents.entries()) {
+    const hasUrl = Boolean(row.contentUrl?.trim());
+    const content = hasUrl
+      ? ensureCampaignContentUrl(index, row, existingUrls, seenUrls)
+      : { contentUrl: createManualContentUrl(input.campaignId, index), platform: platformFromRow(row, null) };
+
+    const platform = content.platform ?? platformFromRow(row, content.contentUrl);
+
+    if (!platform) {
       throw new ORPCError("BAD_REQUEST", {
-        data: { reason: "KOL_NOT_IN_CAMPAIGN" },
-        message: `Baris ${index + 1}: KOL tidak termasuk di campaign ini.`,
+        data: { reason: "CONTENT_PLATFORM_REQUIRED" },
+        message: `Baris ${index + 1}: pilih platform untuk konten manual.`,
       });
     }
 
-    const content = ensureCampaignContentUrl(index, row, existingUrls, seenUrls);
+    const kolId = await ensureCampaignKolLink(input.campaignId, { ...row, platform }, allowedKolIds);
 
-    return {
+    preparedRows.push({
+      ...row,
       contentUrl: content.contentUrl,
-      kolId: row.kolId,
-      platform: content.platform,
-    };
-  });
+      kolId,
+      platform,
+      shouldSync: hasUrl && row.contentType !== "story",
+    });
+  }
 
   for (const row of preparedRows) {
     const [created] = await db
@@ -632,20 +778,29 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
         archivedAt: null,
         authorDisplayName: "",
         authorHandle: "",
+        budgetIdr: normalizeOptionalBudget(row.budgetIdr),
         campaignId: input.campaignId,
-        caption: "",
-        commentCount: 0,
+        caption: row.caption ?? "",
+        commentCount: normalizeOptionalCount(row.estimatedCommentCount),
+        contentType: row.contentType ?? "post",
         contentUrl: row.contentUrl,
         createdByUserId,
         engagementRate: "",
-        likeCount: 0,
+        estimatedCommentCount: normalizeOptionalCount(row.estimatedCommentCount),
+        estimatedLikeCount: normalizeOptionalCount(row.estimatedLikeCount),
+        estimatedShareCount: normalizeOptionalCount(row.estimatedShareCount),
+        estimatedViewCount: normalizeOptionalCount(row.estimatedViewCount),
+        isFyp: row.isFyp ?? null,
+        likeCount: normalizeOptionalCount(row.likeCount || row.estimatedLikeCount),
         kolId: row.kolId,
         metadata: null,
         platform: row.platform,
-        shareCount: 0,
-        syncStatus: "pending",
-        title: "",
-        viewCount: 0,
+        shareCount: normalizeOptionalCount(row.shareCount || row.estimatedShareCount),
+        syncMessage: row.shouldSync ? "Belum disinkronkan." : "Konten manual atau story tidak di-scrap otomatis.",
+        syncStatus: row.shouldSync ? "pending" : "success",
+        syncedAt: row.shouldSync ? null : new Date(),
+        title: row.title ?? "",
+        viewCount: normalizeOptionalCount(row.viewCount || row.estimatedViewCount),
       })
       .returning({ id: campaignContent.id });
 
@@ -654,8 +809,6 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
         message: "Gagal menyimpan konten campaign.",
       });
     }
-
-    await syncCampaignContent(created.id);
   }
 
   return await getCampaignDetail(input.campaignId);

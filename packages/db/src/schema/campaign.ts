@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
 import { kolProfile } from "./kol";
@@ -63,6 +63,8 @@ export const campaignContent = pgTable(
       .notNull()
       .references(() => kolProfile.id, { onDelete: "cascade" }),
     contentUrl: text("content_url").notNull(),
+    contentType: text("content_type").default("post").notNull(),
+    budgetIdr: integer("budget_idr"),
     platform: socialPlatformEnum("platform").notNull(),
     externalId: text("external_id"),
     title: text("title").default("").notNull(),
@@ -75,6 +77,11 @@ export const campaignContent = pgTable(
     viewCount: integer("view_count").default(0).notNull(),
     commentCount: integer("comment_count").default(0).notNull(),
     shareCount: integer("share_count").default(0).notNull(),
+    estimatedViewCount: integer("estimated_view_count").default(0).notNull(),
+    estimatedLikeCount: integer("estimated_like_count").default(0).notNull(),
+    estimatedCommentCount: integer("estimated_comment_count").default(0).notNull(),
+    estimatedShareCount: integer("estimated_share_count").default(0).notNull(),
+    isFyp: boolean("is_fyp"),
     engagementRate: text("engagement_rate").default("").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     syncStatus: kolSyncStatusEnum("sync_status").default("pending").notNull(),

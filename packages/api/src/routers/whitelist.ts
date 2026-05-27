@@ -99,7 +99,7 @@ export const whitelistRouter = {
   }),
 
   getSyncSettings: protectedProcedure.handler(async () => {
-    const interval = await getSettingNumber("kol_sync_interval_minutes", 30);
+    const interval = await getSettingNumber("kol_sync_interval_minutes", 1_440);
     const enabled = (await getSetting("kol_sync_enabled")) !== "false";
 
     return {

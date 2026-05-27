@@ -63,6 +63,13 @@ function wrapText(text: string, maxChars = 88) {
 
 function buildLines(campaign: CampaignDetailRecord, progress?: CampaignDashboardRecord): PdfLine[] {
   const contents = campaign.contentsByKol.flatMap((group) => group.contents);
+  const topKol = campaign.contentsByKol
+    .map((group) => ({
+      name: group.displayName,
+      views: group.contents.reduce((sum, content) => sum + content.viewCount, 0),
+      contentCount: group.contents.length,
+    }))
+    .sort((left, right) => right.views - left.views || right.contentCount - left.contentCount)[0];
   const totals = contents.reduce(
     (accumulator, content) => ({
       comments: accumulator.comments + content.commentCount,
@@ -83,10 +90,12 @@ function buildLines(campaign: CampaignDetailRecord, progress?: CampaignDashboard
     { size: 13, text: "Ringkasan" },
     { text: `KOL: ${campaign.kols.length}` },
     { text: `Konten: ${contents.length}` },
+    { text: `Top KOL: ${topKol ? `${topKol.name} (${formatNumber(topKol.views)} views)` : "-"}` },
     { text: `Views: ${formatNumber(progress?.viewCount ?? totals.views)}` },
     { text: `Likes: ${formatNumber(progress?.likeCount ?? totals.likes)}` },
     { text: `Comments: ${formatNumber(progress?.commentCount ?? totals.comments)}` },
     { text: `Shares: ${formatNumber(progress?.shareCount ?? totals.shares)}` },
+    { text: `Budget digunakan: Rp${formatNumber(progress?.budgetUsedIdr ?? contents.reduce((sum, content) => sum + (content.budgetIdr ?? 0), 0))}` },
     { text: "" },
     { size: 13, text: "Objective" },
   ];
@@ -100,9 +109,13 @@ function buildLines(campaign: CampaignDetailRecord, progress?: CampaignDashboard
     lines.push({ text: group.handles.length ? group.handles.join(" / ") : "Handle belum tersimpan" });
 
     for (const content of group.contents) {
-      lines.push({ text: `- ${content.platform.toUpperCase()} | ${content.syncStatus} | ${formatDate(content.postedAt)}` });
-      lines.push({ text: `  Metrics: ${formatNumber(content.viewCount)} views, ${formatNumber(content.likeCount)} likes, ${formatNumber(content.commentCount)} comments, ${formatNumber(content.shareCount)} shares` });
-      lines.push(...wrapText(content.contentUrl, 96).map((text) => ({ text: `  ${text}` })));
+      lines.push({ text: `- ${content.contentType.toUpperCase()} ${content.platform.toUpperCase()} | ${content.syncStatus} | ${formatDate(content.postedAt)}` });
+      lines.push({ text: `  Actual: ${formatNumber(content.viewCount)} views, ${formatNumber(content.likeCount)} likes, ${formatNumber(content.commentCount)} comments, ${formatNumber(content.shareCount)} shares` });
+      lines.push({ text: `  Estimasi: ${formatNumber(content.estimatedViewCount)} views, ${formatNumber(content.estimatedLikeCount)} likes, ${formatNumber(content.estimatedCommentCount)} comments, ${formatNumber(content.estimatedShareCount)} shares` });
+      lines.push({ text: `  Budget: Rp${formatNumber(content.budgetIdr ?? 0)} | FYP: ${content.isFyp === null ? "-" : content.isFyp ? "Ya" : "Tidak"}` });
+      if (!content.contentUrl.startsWith("manual://")) {
+        lines.push(...wrapText(content.contentUrl, 96).map((text) => ({ text: `  ${text}` })));
+      }
       if (content.caption || content.title) {
         lines.push(...wrapText(content.caption || content.title, 92).slice(0, 3).map((text) => ({ text: `  ${text}` })));
       }

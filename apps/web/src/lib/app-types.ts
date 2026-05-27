@@ -142,15 +142,22 @@ export type CampaignContentRecord = {
   archivedAt: string | null;
   authorDisplayName: string;
   authorHandle: string;
+  budgetIdr: number | null;
   campaignId: number;
   campaignName?: string;
   caption: string;
   commentCount: number;
+  contentType: string;
   contentUrl: string;
   createdAt: string;
+  estimatedCommentCount: number;
+  estimatedLikeCount: number;
+  estimatedShareCount: number;
+  estimatedViewCount: number;
   externalId: string | null;
   engagementRate: string;
   id: number;
+  isFyp: boolean | null;
   kolDisplayName: string;
   kolHandles: string[];
   kolId: number;
@@ -183,9 +190,14 @@ export type CampaignDetailRecord = CampaignRecord & {
 
 export type CampaignDashboardRecord = {
   brand: string;
+  budgetUsedIdr: number;
   commentCount: number;
   contentCount: number;
   createdAt: string;
+  estimatedCommentCount: number;
+  estimatedLikeCount: number;
+  estimatedShareCount: number;
+  estimatedViewCount: number;
   failedSyncCount: number;
   id: number;
   kolCount: number;
@@ -197,8 +209,11 @@ export type CampaignDashboardRecord = {
   pendingSyncCount: number;
   periodEnd: string;
   periodStart: string;
+  postCount: number;
+  reelCount: number;
   shareCount: number;
   status: CampaignRecord["status"];
+  storyCount: number;
   syncedContentCount: number;
   targetFollowerTier: string;
   targetKolCount: number;

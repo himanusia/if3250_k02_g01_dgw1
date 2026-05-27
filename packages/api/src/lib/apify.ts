@@ -482,7 +482,7 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
       message: env.APIFY_API_TOKEN
         ? "Platform ini baru disiapkan di enum dan belum punya integrasi Apify."
         : "Konfigurasi Apify belum lengkap.",
-      syncStatus: "pending",
+      syncStatus: "failed",
     };
   }
 
