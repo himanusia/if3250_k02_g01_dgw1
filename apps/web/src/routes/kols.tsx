@@ -42,6 +42,7 @@ type KolMutationInput = KolFormState & {
 
 type RawExcelRow = {
   Nama?: string;
+  Platform?: string;
   username?: string;
   "Persona kreator"?: string;
 };
@@ -643,6 +644,21 @@ function parseSocialUrl(url: string): {
   }
 }
 
+function parsePlainSocialHandle(value: string, platform: string): {
+  platform: SocialPlatform;
+  handle: string;
+} | null {
+  const cleanHandle = value.trim().replace(/^@/, "");
+  const normalizedPlatform = platform.trim().toLowerCase();
+
+  if (!cleanHandle) return null;
+
+  return {
+    handle: cleanHandle,
+    platform: normalizedPlatform === "tiktok" ? "tiktok" : "instagram",
+  };
+}
+
 function mergeKeywords(
     existing: string,
     incoming?: string,
@@ -712,8 +728,11 @@ function mergeKeywords(
         const persona =
           normalizedRow["persona kreator"] ?? "";
 
+        const platform =
+          normalizedRow["platform"] ?? "";
+
         // stop if all empty
-        if (!nama && !username && !persona) {
+        if (!nama && !username && !persona && !platform) {
           break;
         }
 
@@ -722,12 +741,13 @@ function mergeKeywords(
           continue;
         }
 
-        const key = username.toLowerCase();
+        const displayName = nama || username.replace(/^@/, "");
+        const key = displayName.toLowerCase();
 
         // create empty KOL
         if (!kolMap[key]) {
           kolMap[key] = {
-            displayName: username,
+            displayName,
             keywords: "",
             accounts: [],
           };
@@ -736,7 +756,10 @@ function mergeKeywords(
         const kol = kolMap[key];
 
         // parse social account
-        const social = parseSocialUrl(nama);
+        const social =
+          parseSocialUrl(username) ??
+          parseSocialUrl(nama) ??
+          parsePlainSocialHandle(username, platform);
 
         if (social) {
           const exists = kol.accounts.some(
@@ -783,6 +806,7 @@ function mergeKeywords(
     const rows: RawExcelRow[] = [
       {
         Nama: "Contoh Nama KOL",
+        Platform: "instagram",
         username: "@contohhandle",
         "Persona kreator": "beauty, lifestyle",
       },
