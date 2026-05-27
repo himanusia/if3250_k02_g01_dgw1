@@ -4,6 +4,7 @@ import { getBrandSummaries } from "./brand-summary.ts";
 
 const baseCampaign = {
   brand: "Digi Wonder",
+  budgetIdr: 0,
   createdAt: "2026-05-01T00:00:00.000Z",
   description: "Campaign",
   id: 1,
@@ -16,6 +17,7 @@ const baseCampaign = {
   periodStart: "2026-05-01",
   postBriefs: "",
   status: "active",
+  targetContentCount: 0,
   targetFollowerTier: "",
   targetKolCount: 0,
   updatedAt: "2026-05-10T00:00:00.000Z",

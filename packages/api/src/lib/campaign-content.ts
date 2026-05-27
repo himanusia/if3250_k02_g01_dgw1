@@ -61,6 +61,7 @@ export type CampaignContentGroupRecord = {
 
 export type CampaignDetailRecord = {
   brand: string;
+  budgetIdr: number;
   contentsByKol: CampaignContentGroupRecord[];
   createdAt: string;
   createdByUserId: string | null;
@@ -75,6 +76,7 @@ export type CampaignDetailRecord = {
   postBriefs: string;
   selectedKolIds: number[];
   status: "draft" | "active" | "completed" | "archived";
+  targetContentCount: number;
   targetFollowerTier: string;
   targetKolCount: number;
   updatedAt: string;

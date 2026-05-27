@@ -14,7 +14,6 @@ import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -31,6 +30,7 @@ import { client, orpc } from "@/utils/orpc";
 
 type CampaignFormState = {
   brand: string;
+  budgetIdr: string;
   description: string;
   keywords: string;
   name: string;
@@ -40,8 +40,14 @@ type CampaignFormState = {
   postBriefs: string;
   selectedKolIds: number[];
   status: CampaignRecord["status"];
+  targetContentCount: string;
   targetFollowerTier: string;
   targetKolCount: number;
+};
+
+type CampaignMutationInput = Omit<CampaignFormState, "budgetIdr" | "targetContentCount"> & {
+  budgetIdr: number;
+  targetContentCount: number;
 };
 
 function toDateInputValue(date: Date | undefined) {
@@ -178,6 +184,7 @@ function detectContentPlatformFromUrl(url: string) {
 function getDefaultForm(): CampaignFormState {
   return {
     brand: "",
+    budgetIdr: "",
     description: "",
     keywords: "",
     name: "",
@@ -187,6 +194,7 @@ function getDefaultForm(): CampaignFormState {
     postBriefs: "",
     selectedKolIds: [],
     status: "draft",
+    targetContentCount: "",
     targetFollowerTier: "",
     targetKolCount: 0,
   };
@@ -199,7 +207,6 @@ const TARGET_KOL_TIERS = [
   { key: "macro", label: "Macro" },
   { key: "mega", label: "Mega" },
 ] as const;
-const CAMPAIGN_PAGE_SIZE = 8;
 const CAMPAIGN_FORM_DRAFT_KEY = "digiwonder:campaigns:form-draft";
 
 type TargetKolTier = { count: number; tier: string };
@@ -413,6 +420,7 @@ function getTimeProgress(periodStart: string, periodEnd: string, now = new Date(
 }
 
 function getCampaignProgressDisplay(campaign: CampaignRecord, progress?: CampaignDashboardRecord) {
+  const targetContentCount = progress?.targetContentCount ?? campaign.targetContentCount ?? 0;
   const actual = {
     comments: progress?.commentCount ?? 0,
     content: progress?.contentCount ?? 0,
@@ -425,8 +433,9 @@ function getCampaignProgressDisplay(campaign: CampaignRecord, progress?: Campaig
   };
   const time = getTimeProgress(campaign.periodStart, campaign.periodEnd);
   const estimatedBudget = progress?.budgetUsedIdr ?? 0;
+  const contentPercent = targetContentCount > 0 ? clampPercent((actual.content / targetContentCount) * 100) : 0;
 
-  return { actual, budgetUsedIdr: estimatedBudget, daysLeftLabel: time.daysLeftLabel, timePercent: time.percent };
+  return { actual, budgetIdr: progress?.budgetIdr ?? campaign.budgetIdr ?? 0, budgetUsedIdr: estimatedBudget, contentPercent, daysLeftLabel: time.daysLeftLabel, targetContentCount, timePercent: time.percent };
 }
 
 export const Route = createFileRoute("/campaigns")({
@@ -492,6 +501,7 @@ function RouteComponent() {
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
   const [campaignSearch, setCampaignSearch] = useState("");
   const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignPageSize, setCampaignPageSize] = useState(8);
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignRecord["status"]>("active");
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
   const [contentRowErrors, setContentRowErrors] = useState<Record<string, ContentRowErrors>>({});
@@ -573,10 +583,10 @@ function RouteComponent() {
       return matchesStatus && matchesSearch;
     });
   }, [debouncedCampaignSearch, campaignStatusFilter, campaigns]);
-  const totalCampaignPages = Math.max(1, Math.ceil(filteredCampaigns.length / CAMPAIGN_PAGE_SIZE));
+  const totalCampaignPages = Math.max(1, Math.ceil(filteredCampaigns.length / campaignPageSize));
   const paginatedCampaigns = useMemo(
-    () => filteredCampaigns.slice((campaignPage - 1) * CAMPAIGN_PAGE_SIZE, campaignPage * CAMPAIGN_PAGE_SIZE),
-    [campaignPage, filteredCampaigns],
+    () => filteredCampaigns.slice((campaignPage - 1) * campaignPageSize, campaignPage * campaignPageSize),
+    [campaignPage, campaignPageSize, filteredCampaigns],
   );
 
   useEffect(() => {
@@ -743,7 +753,7 @@ function RouteComponent() {
   }, [kols]);
 
   const createCampaign = useMutation({
-    mutationFn: (input: CampaignFormState) => client.campaign.create(input),
+    mutationFn: (input: CampaignMutationInput) => client.campaign.create(input),
     onSuccess: () => {
       toast.success("Campaign berhasil dibuat");
       campaignsQuery.refetch();
@@ -756,7 +766,7 @@ function RouteComponent() {
 
 
   const updateCampaign = useMutation({
-    mutationFn: (input: CampaignFormState & { id: number }) => client.campaign.update(input),
+    mutationFn: (input: CampaignMutationInput & { id: number }) => client.campaign.update(input),
     onSuccess: () => {
       toast.success("Campaign berhasil diperbarui");
       campaignsQuery.refetch();
@@ -965,6 +975,7 @@ function RouteComponent() {
     setEditingId(campaign.id);
     setForm({
       brand: campaign.brand,
+      budgetIdr: toInputNumber(campaign.budgetIdr),
       description: campaign.description,
       keywords: campaign.keywords,
       name: campaign.name,
@@ -974,6 +985,7 @@ function RouteComponent() {
       postBriefs: campaign.postBriefs,
       selectedKolIds: campaign.kols.map((kol) => kol.id),
       status: getCampaignTemporalStatus(campaign.periodStart, campaign.periodEnd),
+      targetContentCount: toInputNumber(campaign.targetContentCount),
       targetFollowerTier: campaign.targetFollowerTier,
       targetKolCount: campaign.targetKolCount,
     });
@@ -983,7 +995,10 @@ function RouteComponent() {
   function submit() {
     const payload = {
       ...form,
+      budgetIdr: parseOptionalNumber(form.budgetIdr),
+      postBriefs: form.objective,
       status: getCampaignTemporalStatus(form.periodStart, form.periodEnd),
+      targetContentCount: parseOptionalNumber(form.targetContentCount),
       targetFollowerTier: encodeTargetKolTiers(parseTargetKolTiers(form.targetFollowerTier)),
       targetKolCount: getTargetKolTotal(parseTargetKolTiers(form.targetFollowerTier)),
     };
@@ -1118,9 +1133,8 @@ function RouteComponent() {
                       />
                       <ProgressBlock
                         label="Konten"
-                        percent={0}
-                        meta={`${progressSummary.actual.content} konten • ${progressSummary.actual.posts} post • ${progressSummary.actual.reels} reels • ${progressSummary.actual.stories} story • budget ${formatCurrencyIdr(progressSummary.budgetUsedIdr)}`}
-                        hideBar
+                        percent={progressSummary.contentPercent}
+                        meta={`${progressSummary.actual.content} / ${progressSummary.targetContentCount || "-"} konten • ${progressSummary.actual.posts} post • ${progressSummary.actual.reels} reels • ${progressSummary.actual.stories} story • budget ${formatCurrencyIdr(progressSummary.budgetUsedIdr)} / ${formatCurrencyIdr(progressSummary.budgetIdr)}`}
                       />
                     </div>
 
@@ -1194,7 +1208,11 @@ function RouteComponent() {
               {!campaignsQuery.isLoading && !campaignProgressQuery.isLoading && filteredCampaigns.length > 0 && (
                 <CampaignPaginationControls
                   page={campaignPage}
-                  pageSize={CAMPAIGN_PAGE_SIZE}
+                  pageSize={campaignPageSize}
+                  onPageSizeChange={(nextPageSize) => {
+                    setCampaignPageSize(nextPageSize);
+                    setCampaignPage(1);
+                  }}
                   totalItems={filteredCampaigns.length}
                   totalPages={totalCampaignPages}
                   onPageChange={setCampaignPage}
@@ -1217,7 +1235,7 @@ function RouteComponent() {
         }}
       >
         <DialogContent className="max-h-[92vh] max-w-5xl overflow-hidden text-[#2b1418]">
-          <DialogHeader>
+          <DialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle>{editingId ? "Edit campaign" : "Tambah campaign"}</DialogTitle>
           </DialogHeader>
 
@@ -1242,6 +1260,21 @@ function RouteComponent() {
                 options={brandOptions}
                 value={form.brand}
                 onChange={(value) => setForm((current) => ({ ...current, brand: value }))}
+              />
+              <Label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
+                <span>Budget campaign</span>
+                <Input
+                  inputMode="numeric"
+                  placeholder="Rp100.000.000"
+                  value={formatRupiahInput(form.budgetIdr)}
+                  onChange={(event) => setForm((current) => ({ ...current, budgetIdr: event.target.value.replace(/[^\d]/g, "") }))}
+                />
+              </Label>
+              <FormInput
+                label="Target konten"
+                placeholder="100"
+                value={form.targetContentCount}
+                onChange={(targetContentCount) => setForm((current) => ({ ...current, targetContentCount }))}
               />
               <DateRangePicker
                 label="Periode campaign"
@@ -1280,9 +1313,9 @@ function RouteComponent() {
             </div>
             <div className="md:col-span-2">
               <FormTextarea
-                label="Catatan campaign"
+                label="Brief campaign"
                 value={form.objective}
-                onChange={(objective) => setForm((current) => ({ ...current, objective }))}
+                onChange={(objective) => setForm((current) => ({ ...current, objective, postBriefs: objective }))}
                 placeholder="Awareness produk baru untuk audiens Gen Z"
               />
             </div>
@@ -1291,23 +1324,15 @@ function RouteComponent() {
               value={form.keywords}
               onChange={(value) => setForm((current) => ({ ...current, keywords: value }))}
             />
-            <div className="md:col-span-2">
-              <FormTextarea
-                label="Post brief campaign"
-                value={form.postBriefs}
-                onChange={(value) => setForm((current) => ({ ...current, postBriefs: value }))}
-                placeholder="Satu brief per baris"
-              />
-            </div>
             </section>
 
             <section className="grid gap-3 border border-[#982E41]/20 bg-white p-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Shortlist KOL</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">KOL</p>
               </div>
 
             <div className="grid gap-2">
-              <Label>Pilih KOL untuk campaign ini</Label>
+              <Label>KOL</Label>
 
               <div className="space-y-3">
                 <Input
@@ -1345,49 +1370,56 @@ function RouteComponent() {
                 )}
               </div>
 
-              <div className="border-border grid max-h-64 gap-2 overflow-y-auto overflow-x-hidden border p-3">
-                {filteredKols.map((kol) => {
-                  const checked = form.selectedKolIds.includes(kol.id);
+              <div className="grid gap-3 border border-border p-3">
+                <Select
+                  value=""
+                  onChange={(event) => {
+                    const kolId = Number(event.target.value);
+                    if (!kolId) return;
+                    setForm((current) => ({
+                      ...current,
+                      selectedKolIds: current.selectedKolIds.includes(kolId)
+                        ? current.selectedKolIds
+                        : [...current.selectedKolIds, kolId],
+                    }));
+                  }}
+                >
+                  <option value="">Pilih KOL</option>
+                  {filteredKols
+                    .filter((kol) => !form.selectedKolIds.includes(kol.id))
+                    .map((kol) => (
+                      <option key={kol.id} value={kol.id}>
+                        {kol.displayName}
+                      </option>
+                    ))}
+                </Select>
 
-                  return (
-                    <Label key={kol.id} className="hover:bg-muted/40 flex min-w-0 items-start gap-3 p-2 text-sm">
-                      <Checkbox
-                        className="mt-0.5 shrink-0"
-                        checked={checked}
-                        onCheckedChange={(nextChecked) => {
-                          setForm((current) => ({
-                            ...current,
-                            selectedKolIds: nextChecked === true
-                              ? [...current.selectedKolIds, kol.id]
-                              : current.selectedKolIds.filter((id) => id !== kol.id),
-                          }));
-                        }}
-                      />
-                      <span className="min-w-0">
-                        <strong>{kol.displayName}</strong>
-                        <details className="text-muted-foreground mt-1">
-                          <summary className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-foreground">
-                            Sosmed ({kol.accounts.length}) <ChevronDown className="size-3" />
-                          </summary>
-                          <span className="mt-1 block wrap-break-word">
-                            {kol.accounts.length
-                              ? kol.accounts.map((account) => `${account.platform}: @${account.handle}`).join(" • ")
-                              : "Belum ada sosmed"}
-                          </span>
-                        </details>
-                        {kol.keywords && <span className="text-muted-foreground block">{kol.keywords}</span>}
+                <div className="flex min-h-11 flex-wrap gap-2">
+                  {form.selectedKolIds.map((kolId) => {
+                    const kol = kols.find((item) => item.id === kolId);
+                    if (!kol) return null;
+
+                    return (
+                      <span key={kolId} className="inline-flex items-center gap-2 border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-sm text-[#2b1418]">
+                        {kol.displayName}
+                        <button
+                          type="button"
+                          className="inline-flex size-6 items-center justify-center text-[#982E41] hover:bg-[#982E41]/10"
+                          aria-label={`Hapus ${kol.displayName}`}
+                          onClick={() => {
+                            setForm((current) => ({
+                              ...current,
+                              selectedKolIds: current.selectedKolIds.filter((id) => id !== kolId),
+                            }));
+                          }}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
                       </span>
-                    </Label>
-                  );
-                })}
-
-                {!filteredKols.length && (
-                  <p className="text-muted-foreground text-sm">
-                    {kols.length === 0
-                      ? "Belum ada KOL. Tambah dulu di halaman KOL."
-                      : "Tidak ada KOL yang sesuai dengan filter."}
-                  </p>
-                )}
+                    );
+                  })}
+                  {!form.selectedKolIds.length && <span className="text-sm text-muted-foreground">Belum ada KOL dipilih.</span>}
+                </div>
               </div>
             </div>
             </section>
@@ -1516,7 +1548,9 @@ function RouteComponent() {
                     value={`${formatHumanDate(detailCampaignSummary?.periodStart ?? detailCampaignData?.periodStart)} → ${formatHumanDate(detailCampaignSummary?.periodEnd ?? detailCampaignData?.periodEnd)}`}
                   />
                   <DetailStat boxed label="Target KOL total" value={String(detailCampaignSummary?.targetKolCount ?? detailCampaignData?.targetKolCount ?? 0)} />
+                  <DetailStat boxed label="Target konten" value={String(detailCampaignSummary?.targetContentCount ?? detailCampaignData?.targetContentCount ?? 0)} />
                   <DetailStat boxed label="Follower tier" value={formatTargetKolTiers(detailCampaignSummary?.targetFollowerTier ?? detailCampaignData?.targetFollowerTier)} />
+                  <DetailStat boxed label="Budget campaign" value={formatCurrencyIdr(detailCampaignData.budgetIdr)} />
                   <DetailStat boxed label="Budget digunakan" value={formatCurrencyIdr(campaignProgressById.get(detailCampaignData.id)?.budgetUsedIdr)} />
                   <DetailStat boxed label="Last sync" value={formatHumanDateTime(getOldestContentSyncAt(detailCampaignData.contentsByKol))} />
                 </div>
@@ -1535,7 +1569,6 @@ function RouteComponent() {
 
                 <div className="grid gap-3">
                   <DetailStat boxed label="Deskripsi" value={detailCampaignData?.description ?? detailCampaignSummary?.description ?? "-"} />
-                  <DetailStat boxed label="Post brief" value={detailCampaignData?.postBriefs ?? detailCampaignSummary?.postBriefs ?? "-"} />
                 </div>
 
                 <details className="group border border-[#982E41]/15 bg-[#FFF8F9] p-3">
@@ -2124,10 +2157,9 @@ function ObjectiveProgressPanel({ campaign, progress }: { campaign: CampaignDeta
           meta={`${formatHumanDate(campaign.periodStart)} → ${formatHumanDate(campaign.periodEnd)} • ${display.daysLeftLabel}`}
         />
         <ProgressBlock
-          hideBar
           label="Konten"
-          percent={0}
-          meta={`${display.actual.content} konten • ${display.actual.posts} post • ${display.actual.reels} reels • ${display.actual.stories} story`}
+          percent={display.contentPercent}
+          meta={`${display.actual.content} / ${display.targetContentCount || "-"} konten • ${display.actual.posts} post • ${display.actual.reels} reels • ${display.actual.stories} story`}
         />
       </div>
 
@@ -2156,12 +2188,14 @@ function MetricStatBadge({ estimated = 0, icon, label, value }: { estimated?: nu
 
 function CampaignPaginationControls({
   onPageChange,
+  onPageSizeChange,
   page,
   pageSize,
   totalItems,
   totalPages,
 }: {
   onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
   page: number;
   pageSize: number;
   totalItems: number;
@@ -2175,7 +2209,18 @@ function CampaignPaginationControls({
       <span className="text-xs text-muted-foreground">
         {start}-{end} dari {totalItems}
       </span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          className="h-8 w-24"
+          value={String(pageSize)}
+          onChange={(event) => onPageSizeChange(Number(event.target.value))}
+        >
+          {[4, 8, 12, 20].map((size) => (
+            <option key={size} value={size}>
+              {size} / page
+            </option>
+          ))}
+        </Select>
         <Button
           type="button"
           variant="outline"

@@ -121,6 +121,7 @@ export type KolRecord = {
 
 export type CampaignRecord = {
   brand: string;
+  budgetIdr: number;
   createdAt: string;
   description: string;
   id: number;
@@ -133,6 +134,7 @@ export type CampaignRecord = {
   periodStart: string;
   postBriefs: string;
   status: "draft" | "active" | "completed" | "archived";
+  targetContentCount: number;
   targetFollowerTier: string;
   targetKolCount: number;
   updatedAt: string;
@@ -190,6 +192,7 @@ export type CampaignDetailRecord = CampaignRecord & {
 
 export type CampaignDashboardRecord = {
   brand: string;
+  budgetIdr: number;
   budgetUsedIdr: number;
   commentCount: number;
   contentCount: number;
@@ -215,6 +218,7 @@ export type CampaignDashboardRecord = {
   status: CampaignRecord["status"];
   storyCount: number;
   syncedContentCount: number;
+  targetContentCount: number;
   targetFollowerTier: string;
   targetKolCount: number;
   updatedAt: string;

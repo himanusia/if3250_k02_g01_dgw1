@@ -480,7 +480,6 @@ export const kolRouter = {
   create: protectedProcedure.input(kolInputSchema).handler(async ({ input }) => {
     try {
       await assertAccountsAreUnique(input.accounts);
-      await validateAccounts(input.accounts);
 
       const created = await db.transaction(async (tx) => {
         const [createdProfile] = await tx
@@ -489,6 +488,8 @@ export const kolRouter = {
             actualRateCard: input.actualRateCard ?? null,
             displayName: input.displayName,
             keywords: input.keywords,
+            syncMessage: "Sinkronisasi sedang berjalan.",
+            syncStatus: "pending",
           })
           .returning({ id: kolProfile.id });
 
@@ -498,13 +499,14 @@ export const kolRouter = {
             kolId: createdProfile!.id,
             platform: account.platform,
             profileUrl: account.profileUrl || null,
+            syncMessage: "Sinkronisasi sedang berjalan.",
+            syncStatus: "pending",
           })),
         );
 
         return createdProfile!;
       });
 
-      await syncKolProfile(created.id);
       return await mapKolRecord(created.id);
     } catch (error) {
       throw toKolSaveError(error);

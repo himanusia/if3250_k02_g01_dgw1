@@ -16,6 +16,7 @@ import {
 
 const campaignInputSchema = z.object({
   brand: z.string().trim().min(1),
+  budgetIdr: z.number().int().nonnegative().default(0),
   description: z.string().trim().min(1),
   keywords: z.string().trim().default(""),
   name: z.string().trim().min(1),
@@ -25,6 +26,7 @@ const campaignInputSchema = z.object({
   postBriefs: z.string().trim().default(""),
   selectedKolIds: z.array(z.number().int().positive()).default([]),
   status: z.enum(["draft", "active", "completed", "archived"]),
+  targetContentCount: z.number().int().nonnegative().default(0),
   targetFollowerTier: z.string().trim().default(""),
   targetKolCount: z.number().int().nonnegative(),
 });
@@ -207,6 +209,7 @@ export const campaignRouter = {
 
       return {
         brand: item.brand,
+        budgetIdr: item.budgetIdr,
         commentCount: campaignContents.reduce((sum, row) => sum + row.commentCount, 0),
         budgetUsedIdr: campaignContents.reduce((sum, row) => sum + (row.budgetIdr ?? 0), 0),
         contentCount: campaignContents.length,
@@ -232,6 +235,7 @@ export const campaignRouter = {
         shareCount: campaignContents.reduce((sum, row) => sum + row.shareCount, 0),
         status: item.status,
         syncedContentCount: successfulSyncs.length,
+        targetContentCount: item.targetContentCount,
         targetFollowerTier: item.targetFollowerTier,
         targetKolCount: item.targetKolCount,
         updatedAt: item.updatedAt.toISOString(),
@@ -296,6 +300,7 @@ export const campaignRouter = {
         .insert(campaign)
         .values({
           brand: input.brand,
+          budgetIdr: input.budgetIdr,
           createdByUserId: context.session.user.id,
           description: input.description,
           keywords: input.keywords,
@@ -305,6 +310,7 @@ export const campaignRouter = {
           periodStart: toDate(input.periodStart),
           postBriefs: input.postBriefs,
           status: input.status,
+          targetContentCount: input.targetContentCount,
           targetFollowerTier: input.targetFollowerTier,
           targetKolCount: input.targetKolCount,
         })
@@ -357,6 +363,7 @@ export const campaignRouter = {
           .update(campaign)
           .set({
             brand: input.brand,
+            budgetIdr: input.budgetIdr,
             description: input.description,
             keywords: input.keywords,
             name: input.name,
@@ -365,6 +372,7 @@ export const campaignRouter = {
             periodStart: toDate(input.periodStart),
             postBriefs: input.postBriefs,
             status: input.status,
+            targetContentCount: input.targetContentCount,
             targetFollowerTier: input.targetFollowerTier,
             targetKolCount: input.targetKolCount,
             updatedAt: new Date(),

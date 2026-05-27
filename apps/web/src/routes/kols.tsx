@@ -405,10 +405,16 @@ function RouteComponent() {
 
   const createKol = useMutation({
     mutationFn: (input: KolMutationInput) => client.kol.create(input),
-    onSuccess: () => {
-      toast.success("KOL berhasil ditambahkan ke database");
-      kolQuery.refetch();
+    onSuccess: async (kol) => {
+      toast.success("KOL berhasil ditambahkan");
       resetForm();
+      kolQuery.refetch();
+
+      try {
+        await syncKol.mutateAsync({ id: kol.id });
+      } finally {
+        kolQuery.refetch();
+      }
     },
     onError: (error) => {
       toast.error(getKolErrorMessage(error, "Gagal menambahkan KOL"));
@@ -565,7 +571,9 @@ function RouteComponent() {
       return;
     }
 
-    createKol.mutate({ ...form, actualRateCard });
+    const payload = { ...form, actualRateCard };
+    resetForm();
+    createKol.mutate(payload);
   }
 
   // spreadsheet import
@@ -1083,10 +1091,10 @@ function mergeKeywords(
                 })()}
 
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" style={{ color: KOLS_COLORS.darkText }}>
-                  <MetricBox label="Total followers" value={formatNumber(kol.totalFollowers)} />
-                  <MetricBox label="Avg likes" value={formatNumber(kol.averageLikes)} />
-                  <MetricBox label="Avg views" value={formatNumber(kol.averageViews)} />
-                  <MetricBox label="Engagement" value={kol.engagementRate || "-"} />
+                  <MetricBox isLoading={kol.syncStatus === "pending"} label="Total followers" value={formatNumber(kol.totalFollowers)} />
+                  <MetricBox isLoading={kol.syncStatus === "pending"} label="Avg likes" value={formatNumber(kol.averageLikes)} />
+                  <MetricBox isLoading={kol.syncStatus === "pending"} label="Avg views" value={formatNumber(kol.averageViews)} />
+                  <MetricBox isLoading={kol.syncStatus === "pending"} label="Engagement" value={kol.engagementRate || "-"} />
                 </div>
 
                 <div className="grid gap-1 text-[13px] md:grid-cols-2" style={{ color: KOLS_COLORS.text }}>
@@ -1388,7 +1396,7 @@ function mergeKeywords(
                     }}
                   />
 
-                  <div className="flex items-end xl:justify-end">
+                  <div className="flex items-center xl:justify-end xl:pt-6">
                     <Button
                       type="button"
                       variant="ghost"
@@ -1964,7 +1972,7 @@ function FormInput({
 }) {
   return (
     <Label className="grid min-w-0 gap-2">
-      {label ? <span>{label}</span> : <span aria-hidden="true" className="hidden md:block">&nbsp;</span>}
+      {label ? <span>{label}</span> : <span aria-hidden="true">&nbsp;</span>}
 
       <div className="relative">
         {ghost && (
@@ -2133,11 +2141,11 @@ function PaginationControls({
   );
 }
 
-function MetricBox({ label, value }: { label: string; value: string }) {
+function MetricBox({ isLoading = false, label, value }: { isLoading?: boolean; label: string; value: string }) {
   return (
     <div className="grid gap-1 border border-[#b43c39]/15 bg-white/70 px-3 py-2">
       <p className="text-[13px] uppercase tracking-[0.22em]" style={{ color: KOLS_COLORS.stroke }}>{label}</p>
-      <p className="text-[19px] font-[560] leading-none tracking-[0.04em]">{value}</p>
+      {isLoading ? <Skeleton className="h-5 w-20 bg-[#b43c39]/10" /> : <p className="text-[19px] font-[560] leading-none tracking-[0.04em]">{value}</p>}
     </div>
   );
 }
