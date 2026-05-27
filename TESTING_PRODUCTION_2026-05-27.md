@@ -2,7 +2,7 @@
 
 Target: `https://digiwonder.vercel.app`
 
-Deployment commit: `ae34626` (`feat(rate-card): use configurable deterministic formula`)
+Deployment commit: `597ea05` (`fix(kol): parse spreadsheet handles from username column`)
 
 ## Scope
 
@@ -30,7 +30,7 @@ If the cookie expires, a fresh logged-in browser session cookie is required, spe
 | Add KOL | Pass | Created production test KOL id `3`; estimated rate source was `formula` |
 | Edit KOL | Pass | Updated test KOL display name successfully |
 | Delete KOL | Pass | Deleted test KOL id `3` successfully |
-| Upload XLSX path | Pass | Exercised same backend bulk import path used by spreadsheet upload; summary `success: 1, skipped: 0, failed: 0, total: 1` |
+| Upload XLSX through UI | Pass | Browser uploaded `.xlsx`; preview parsed `@itb1920` from `username`; result `success: 1, skipped: 0, failed: 0, total: 1` |
 | Add campaign | Pass | Created production test campaign id `2` |
 | Edit campaign | Pass | Updated test campaign name/status/date/objective successfully |
 | Add post | Pass | Added Instagram post `DYzDtOdxZBd`; sync status returned `success` |
@@ -80,6 +80,6 @@ Sources:
 
 ## Notes
 
-- The spreadsheet upload UI parses `.xlsx` client-side, then calls `kol.bulkImport`. This test exercised that backend path directly with the same input shape after verifying local build.
+- The spreadsheet upload UI parses `.xlsx` client-side, then calls `kol.bulkImport`. Production browser testing verified the full UI path with a real `.xlsx` upload.
 - The PDF generator is client-side; production PDF download was verified with a real browser download event.
 - The supplied session can be reused only while it remains valid. For future tests, a fresh logged-in session cookie is enough.
