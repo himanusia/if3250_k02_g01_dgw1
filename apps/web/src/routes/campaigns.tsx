@@ -250,6 +250,32 @@ function parseOptionalNumber(value: string) {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : 0;
 }
 
+function toInputNumber(value: number | null | undefined) {
+  return value && Number.isFinite(value) ? String(Math.round(value)) : "";
+}
+
+function getRateForContentType(kol: KolRecord | undefined, contentType: ContentFormRow["contentType"]) {
+  const key = contentType === "reel" ? "reel" : contentType === "story" ? "story" : "post";
+  return kol?.actualRateCard?.[key]?.suggested ?? kol?.estimatedRateCard?.[key]?.suggested ?? null;
+}
+
+function getKolContentEstimate(kol: KolRecord | undefined, contentType: ContentFormRow["contentType"]) {
+  if (!kol) {
+    return {};
+  }
+
+  const estimatedViewCount = kol.averageViews || Math.round(kol.totalFollowers * 0.2);
+  const estimatedLikeCount = kol.averageLikes || Math.round(estimatedViewCount * 0.04);
+
+  return {
+    budgetIdr: toInputNumber(getRateForContentType(kol, contentType)),
+    estimatedCommentCount: toInputNumber(estimatedLikeCount * 0.08),
+    estimatedLikeCount: toInputNumber(estimatedLikeCount),
+    estimatedShareCount: toInputNumber(estimatedLikeCount * 0.04),
+    estimatedViewCount: toInputNumber(estimatedViewCount),
+  };
+}
+
 function formatHumanDate(value: string | null | undefined) {
   if (!value) return "-";
   const date = new Date(value.includes("T") ? value : `${value}T00:00:00`);
@@ -794,6 +820,14 @@ function RouteComponent() {
 
   function updateContentRow(rowId: string, patch: Partial<ContentFormRow>) {
     setContentRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
+  }
+
+  function applyKolEstimate(row: ContentFormRow, kolId: number | "", contentType = row.contentType) {
+    const selectedKol = kolId ? kols.find((kol) => kol.id === Number(kolId)) : undefined;
+    return {
+      ...getKolContentEstimate(selectedKol, contentType),
+      kolDisplayName: selectedKol?.displayName ?? row.kolDisplayName,
+    };
   }
 
   function addContentRow() {
@@ -1574,6 +1608,8 @@ function RouteComponent() {
                                   <Button
                                     variant="destructive"
                                     size="sm"
+                                    aria-label="Hapus konten"
+                                    title="Hapus"
                                     disabled={deleteContent.isPending}
                                     onClick={() => {
                                       if (window.confirm("Hapus permanen konten ini?")) {
@@ -1581,8 +1617,7 @@ function RouteComponent() {
                                       }
                                     }}
                                   >
-                                    <Trash2 className="mr-1 size-4" />
-                                    Hapus
+                                    <Trash2 className="size-4" />
                                   </Button>
                                 </div>
                               </div>
@@ -1724,6 +1759,8 @@ function RouteComponent() {
                                   <Button
                                     variant="destructive"
                                     size="sm"
+                                    aria-label="Hapus konten"
+                                    title="Hapus"
                                     disabled={deleteContent.isPending}
                                     onClick={() => {
                                       if (window.confirm("Hapus permanen konten ini?")) {
@@ -1731,8 +1768,7 @@ function RouteComponent() {
                                       }
                                     }}
                                   >
-                                    <Trash2 className="mr-1 size-4" />
-                                    Hapus
+                                    <Trash2 className="size-4" />
                                   </Button>
                                 </div>
                               </div>
@@ -1797,7 +1833,13 @@ function RouteComponent() {
                           <span>Jenis</span>
                           <Select
                             value={row.contentType}
-                            onChange={(event) => updateContentRow(row.id, { contentType: event.target.value as ContentFormRow["contentType"] })}
+                            onChange={(event) => {
+                              const contentType = event.target.value as ContentFormRow["contentType"];
+                              updateContentRow(row.id, {
+                                contentType,
+                                ...applyKolEstimate(row, row.kolId, contentType),
+                              });
+                            }}
                           >
                             <option value="post">Post</option>
                             <option value="reel">Reels</option>
@@ -1832,9 +1874,11 @@ function RouteComponent() {
                             value={row.kolId}
                             onChange={(event) => {
                               const selected = addContentCampaign.kols.find((kol) => kol.id === Number(event.target.value));
+                              const kolId = event.target.value ? Number(event.target.value) : "";
                               updateContentRow(row.id, {
+                                ...applyKolEstimate(row, kolId),
                                 kolDisplayName: selected?.displayName ?? row.kolDisplayName,
-                                kolId: event.target.value ? Number(event.target.value) : "",
+                                kolId,
                               });
                             }}
                           >
@@ -1905,11 +1949,12 @@ function RouteComponent() {
                           type="button"
                           variant="destructive"
                           size="sm"
+                          aria-label="Hapus baris konten"
+                          title="Hapus"
                           disabled={contentRows.length === 1}
                           onClick={() => removeContentRow(row.id)}
                         >
-                          <Trash2 className="mr-1 size-4" />
-                          Hapus
+                          <Trash2 className="size-4" />
                         </Button>
                       </div>
                     </div>

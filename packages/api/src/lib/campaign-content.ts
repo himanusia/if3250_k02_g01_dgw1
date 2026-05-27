@@ -449,6 +449,52 @@ function normalizeOptionalBudget(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
 }
 
+function getRateCardSuggested(rateCard: unknown, contentType: string) {
+  if (!rateCard || typeof rateCard !== "object") return null;
+  const key = contentType === "reel" ? "reel" : contentType === "story" ? "story" : "post";
+  const section = (rateCard as Record<string, unknown>)[key];
+  if (!section || typeof section !== "object") return null;
+  const suggested = (section as Record<string, unknown>).suggested;
+  return typeof suggested === "number" && Number.isFinite(suggested) ? Math.round(suggested) : null;
+}
+
+async function loadKolContentDefaults(kolId: number, contentType: string) {
+  const [profile] = await db
+    .select({
+      actualRateCard: kolProfile.actualRateCard,
+      averageLikes: kolProfile.averageLikes,
+      averageViews: kolProfile.averageViews,
+      estimatedRateCard: kolProfile.estimatedRateCard,
+      totalFollowers: kolProfile.totalFollowers,
+    })
+    .from(kolProfile)
+    .where(eq(kolProfile.id, kolId))
+    .limit(1);
+
+  if (!profile) {
+    return {
+      budgetIdr: null,
+      estimatedCommentCount: 0,
+      estimatedLikeCount: 0,
+      estimatedShareCount: 0,
+      estimatedViewCount: 0,
+    };
+  }
+
+  const estimatedViewCount = Math.max(0, Math.round(profile.averageViews || Math.max(profile.totalFollowers * 0.2, 0)));
+  const estimatedLikeCount = Math.max(0, Math.round(profile.averageLikes || estimatedViewCount * 0.04));
+  const estimatedCommentCount = Math.max(0, Math.round(estimatedLikeCount * 0.08));
+  const estimatedShareCount = Math.max(0, Math.round(estimatedLikeCount * 0.04));
+
+  return {
+    budgetIdr: getRateCardSuggested(profile.actualRateCard, contentType) ?? getRateCardSuggested(profile.estimatedRateCard, contentType),
+    estimatedCommentCount,
+    estimatedLikeCount,
+    estimatedShareCount,
+    estimatedViewCount,
+  };
+}
+
 function normalizeOptionalHandle(value: string | undefined) {
   return value?.trim().replace(/^@/, "") ?? "";
 }
@@ -761,10 +807,16 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
     }
 
     const kolId = await ensureCampaignKolLink(input.campaignId, { ...row, platform }, allowedKolIds);
+    const defaults = await loadKolContentDefaults(kolId, row.contentType ?? "post");
 
     preparedRows.push({
       ...row,
+      budgetIdr: row.budgetIdr ?? defaults.budgetIdr,
       contentUrl: content.contentUrl,
+      estimatedCommentCount: row.estimatedCommentCount || defaults.estimatedCommentCount,
+      estimatedLikeCount: row.estimatedLikeCount || defaults.estimatedLikeCount,
+      estimatedShareCount: row.estimatedShareCount || defaults.estimatedShareCount,
+      estimatedViewCount: row.estimatedViewCount || defaults.estimatedViewCount,
       kolId,
       platform,
       shouldSync: hasUrl && row.contentType !== "story",

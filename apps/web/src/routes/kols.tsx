@@ -1064,10 +1064,11 @@ function mergeKeywords(
                         variant="outline"
                         size="sm"
                         onClick={() => setDeleteTargetId(kol.id)}
+                        aria-label={`Hapus ${kol.displayName}`}
+                        title="Hapus"
                         className={KOL_ACTION_BUTTON_CLASS}
                       >
-                        <Trash2 className="mr-1 size-3.5" />
-                        Hapus
+                        <Trash2 className="size-3.5" />
                       </Button>
                     </div>
 

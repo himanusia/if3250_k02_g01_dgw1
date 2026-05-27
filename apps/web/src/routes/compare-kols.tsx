@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/compare-kols")({
@@ -199,67 +200,67 @@ function RouteComponent() {
           <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             Overall
           </h2>
-          {kolQuery.isLoading ? <CompareTableSkeleton /> : <table className="w-full min-w-[760px] table-fixed border border-[#b43c39]/15 text-sm">
-            <thead className="bg-[#fff3d8] text-[#2b1418]">
-              <tr>
-                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+          {kolQuery.isLoading ? <CompareTableSkeleton /> : <Table className="min-w-[760px] table-fixed border border-[#b43c39]/15 text-sm">
+            <TableHeader className="bg-[#fff3d8] text-[#2b1418]">
+              <TableRow>
+                <TableHead>
                   Name
-                </th>
-                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                </TableHead>
+                <TableHead>
                   Followers
-                </th>
-                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                </TableHead>
+                <TableHead>
                   Avg Likes
-                </th>
-                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                </TableHead>
+                <TableHead>
                   Avg Views
-                </th>
-                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                </TableHead>
+                <TableHead>
                   ER
-                </th>
-                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                </TableHead>
+                <TableHead>
                   Est. Post
-                </th>
-                <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                </TableHead>
+                <TableHead>
                   Actual Post
-                </th>
-              </tr>
-            </thead>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
 
-            <tbody className="text-[#2b1418]">
+            <TableBody className="text-[#2b1418]">
               {selectedKols.map((kol) => (
-                <tr key={kol.id} className="hover:bg-[#fff6f8]">
-                  <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
+                <TableRow key={kol.id} className="hover:bg-[#fff6f8]">
+                  <TableCell className="font-medium">
                     {kol.displayName}
-                  </td>
+                  </TableCell>
 
-                  <td className="border border-[#b43c39]/15 px-3 py-2">
+                  <TableCell>
                     {kol.totalFollowers.toLocaleString()}
-                  </td>
+                  </TableCell>
 
-                  <td className="border border-[#b43c39]/15 px-3 py-2">
+                  <TableCell>
                     {kol.averageLikes.toLocaleString()}
-                  </td>
+                  </TableCell>
 
-                  <td className="border border-[#b43c39]/15 px-3 py-2">
+                  <TableCell>
                     {kol.averageViews.toLocaleString()}
-                  </td>
+                  </TableCell>
 
-                  <td className="border border-[#b43c39]/15 px-3 py-2">
+                  <TableCell>
                     {kol.engagementRate || "-"}
-                  </td>
+                  </TableCell>
 
-                  <td className="border border-[#b43c39]/15 px-3 py-2">
+                  <TableCell>
                     {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}
-                  </td>
+                  </TableCell>
 
-                  <td className="border border-[#b43c39]/15 px-3 py-2">
+                  <TableCell>
                     {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>}
+            </TableBody>
+          </Table>}
         </div>
 
         {(Object.entries(groupedByPlatform) as Array<[SocialPlatform, GroupedPlatformAccount[]]>).map(([platform, accounts]) => (
@@ -269,74 +270,74 @@ function RouteComponent() {
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] table-fixed border border-[#b43c39]/15 text-sm">
-              <thead className="bg-[#fff3d8] text-[#2b1418]">
-                <tr>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+            <Table className="min-w-[860px] table-fixed border border-[#b43c39]/15 text-sm">
+              <TableHeader className="bg-[#fff3d8] text-[#2b1418]">
+                <TableRow>
+                  <TableHead>
                     Name
-                  </th>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                  </TableHead>
+                  <TableHead>
                     Handle
-                  </th>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                  </TableHead>
+                  <TableHead>
                     Followers
-                  </th>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                  </TableHead>
+                  <TableHead>
                     Avg Likes
-                  </th>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                  </TableHead>
+                  <TableHead>
                     Avg Views
-                  </th>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                  </TableHead>
+                  <TableHead>
                     ER
-                  </th>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                  </TableHead>
+                  <TableHead>
                     Est. Post
-                  </th>
-                  <th className="border border-[#b43c39]/15 px-3 py-2 text-left">
+                  </TableHead>
+                  <TableHead>
                     Actual Post
-                  </th>
-                </tr>
-              </thead>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
 
-              <tbody className="text-[#2b1418]">
+              <TableBody className="text-[#2b1418]">
                 {accounts.map((acc) => (
-                  <tr key={acc.id} className="hover:bg-[#fff6f8]">
-                    <td className="border border-[#b43c39]/15 px-3 py-2 font-medium">
+                  <TableRow key={acc.id} className="hover:bg-[#fff6f8]">
+                    <TableCell className="font-medium">
                       {acc.displayName}
-                    </td>
+                    </TableCell>
 
-                    <td className="border border-[#b43c39]/15 px-3 py-2">
+                    <TableCell>
                       @{acc.handle}
-                    </td>
+                    </TableCell>
 
-                    <td className="border border-[#b43c39]/15 px-3 py-2">
+                    <TableCell>
                       {acc.followers.toLocaleString()}
-                    </td>
+                    </TableCell>
 
-                    <td className="border border-[#b43c39]/15 px-3 py-2">
+                    <TableCell>
                       {acc.averageLikes.toLocaleString()}
-                    </td>
+                    </TableCell>
 
-                    <td className="border border-[#b43c39]/15 px-3 py-2">
+                    <TableCell>
                       {acc.averageViews.toLocaleString()}
-                    </td>
+                    </TableCell>
 
-                    <td className="border border-[#b43c39]/15 px-3 py-2">
+                    <TableCell>
                       {acc.engagementRate || "-"}
-                    </td>
+                    </TableCell>
 
-                    <td className="border border-[#b43c39]/15 px-3 py-2">
+                    <TableCell>
                       {formatCurrencyIdr(acc.estimatedPostRate)}
-                    </td>
+                    </TableCell>
 
-                    <td className="border border-[#b43c39]/15 px-3 py-2">
+                    <TableCell>
                       {formatCurrencyIdr(acc.actualPostRate)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       ))}

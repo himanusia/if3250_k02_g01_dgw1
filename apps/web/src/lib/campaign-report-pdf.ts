@@ -193,9 +193,14 @@ export function downloadCampaignReportPdf(campaign: CampaignDetailRecord, progre
   const blob = buildPdfBytes(renderPages(buildLines(campaign, progress)));
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
+  const safeCampaignName = cleanPdfText(campaign.name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || `campaign-${campaign.id}`;
 
   anchor.href = url;
-  anchor.download = `campaign-${campaign.id}-report.pdf`;
+  anchor.download = `${safeCampaignName}-report.pdf`;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
