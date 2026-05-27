@@ -236,6 +236,10 @@ function getSocialUrl(platform: SocialPlatform, handle: string) {
   return `https://www.tiktok.com/@${cleanHandle}`;
 }
 
+function getSocialPlatformLabel(platform: SocialPlatform) {
+  return platform === "instagram" ? "Instagram" : "TikTok";
+}
+
 function SocialPlatformIcon({ platform, className = "size-4" }: { platform: SocialPlatform; className?: string }) {
   if (platform === "instagram") {
     return <Instagram className={className} aria-hidden="true" />;
@@ -1019,7 +1023,7 @@ function mergeKeywords(
                           {formatFollowerTier(kol.followerTier)}
                         </span>
                         <span className="border border-[#982E41]/20 bg-white px-2 py-1 text-[12px] font-medium text-[#722331]">
-                          {kol.accounts.length} akun sosial
+                          {kol.accounts.length} Sosial Media
                         </span>
                       </div>
                       {kol.keywords && (
@@ -1120,10 +1124,10 @@ function mergeKeywords(
                   <summary className="flex cursor-pointer items-center justify-between gap-3 text-[13px] font-semibold text-[#2b1418]">
                     <span className="inline-flex items-center gap-2">
                       <ChevronDown className="size-4 -rotate-90 text-[#982E41] transition-transform group-open:rotate-0" />
-                      Akun sosial
+                      Sosial Media
                     </span>
                     <span className="inline-flex items-center gap-1 text-xs font-normal text-[#722331]">
-                      {kol.accounts.length} akun
+                      {kol.accounts.length} Sosial Media
                     </span>
                   </summary>
                   <div className="mt-3 grid gap-5">
@@ -1134,6 +1138,9 @@ function mergeKeywords(
                     >
                       {(() => {
                         const metadata = getAccountMetadata(account.metadata);
+                        const accountDisplayName = metadata?.fullName && metadata.fullName !== account.handle
+                          ? metadata.fullName
+                          : account.handle;
 
                         return (
                           <>
@@ -1167,7 +1174,7 @@ function mergeKeywords(
                                     className="inline-flex items-center gap-2 text-[16px] font-bold uppercase leading-none text-[#1D1114] underline-offset-2 hover:underline"
                                   >
                                     <SocialPlatformIcon platform={account.platform} />
-                                    {account.platform}
+                                    {accountDisplayName}
                                   </a>
                                   <a
                                     href={getSocialUrl(account.platform, account.handle)}
@@ -1178,9 +1185,6 @@ function mergeKeywords(
                                   >
                                     @{account.handle}
                                   </a>
-                                  {metadata?.fullName && metadata.fullName !== account.handle && (
-                                    <p className="text-[13px]">{metadata.fullName}</p>
-                                  )}
                                   <div className="flex flex-wrap gap-2 text-[12px]">
                                     {metadata?.verified && <MetaBadge>Verified</MetaBadge>}
                                     {metadata?.isBusinessAccount && <MetaBadge>Business</MetaBadge>}
@@ -1264,7 +1268,7 @@ function mergeKeywords(
                         <div className="min-w-0">
                           <div className="mb-2 flex items-center gap-2 font-semibold uppercase tracking-[0.14em] text-[#982E41]">
                             <SocialPlatformIcon platform={content.platform} className="size-4" />
-                            {content.platform}
+                            {getSocialPlatformLabel(content.platform)}
                           </div>
                           <p className="line-clamp-2 font-semibold">{getPostDisplayTitle(content)}</p>
                           <p className="mt-1 text-muted-foreground">
@@ -2174,7 +2178,7 @@ function RecentAccountPosts({ metadata }: { metadata: Record<string, unknown> | 
   return (
     <div className="grid gap-2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: KOLS_COLORS.stroke }}>
-        Recent post dari sosmed
+        Recent post dari Sosial Media
       </p>
       <div className="grid gap-2 md:grid-cols-3">
         {posts.map((post, index) => {

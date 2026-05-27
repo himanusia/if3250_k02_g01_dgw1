@@ -417,6 +417,9 @@ function RouteComponent() {
           <div className="grid gap-3">
             {kol.accounts.map((account) => {
               const metadata = getAccountMetadata(account.metadata);
+              const accountDisplayName = metadata?.fullName && metadata.fullName !== account.handle
+                ? metadata.fullName
+                : account.handle;
 
               return (
                 <div key={account.id} className="border-border grid gap-3 border p-3">
@@ -436,11 +439,8 @@ function RouteComponent() {
                       )}
 
                       <div className="min-w-0 space-y-1">
-                        <p className="font-medium capitalize">{account.platform}</p>
+                        <p className="font-medium">{accountDisplayName}</p>
                         <p className="text-muted-foreground wrap-break-word text-sm">@{account.handle}</p>
-                        {metadata?.fullName && metadata.fullName !== account.handle && (
-                          <p className="text-sm">{metadata.fullName}</p>
-                        )}
                         <div className="flex flex-wrap gap-2 text-xs">
                           {metadata?.verified && <MetaBadge>Verified</MetaBadge>}
                           {metadata?.isBusinessAccount && <MetaBadge>Business</MetaBadge>}
@@ -794,7 +794,7 @@ function RecentAccountPosts({ metadata }: { metadata: Record<string, unknown> | 
   return (
     <div className="grid gap-2">
       <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-[0.18em]">
-        Recent post dari sosmed
+        Recent post dari Sosial Media
       </p>
       <div className="grid gap-2 md:grid-cols-3">
         {posts.map((post, index) => {

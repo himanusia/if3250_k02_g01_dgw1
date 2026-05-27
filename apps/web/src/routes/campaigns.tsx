@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Eye, Heart, Loader2, MessageCircle, PencilLine, Plus, RefreshCcw, Search, Share2, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Eye, Heart, Instagram, Loader2, MessageCircle, PencilLine, Plus, RefreshCcw, Search, Share2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { DateRange } from "react-day-picker";
@@ -179,6 +179,69 @@ function detectContentPlatformFromUrl(url: string) {
   }
 
   return null;
+}
+
+function getSocialPlatformLabel(platform: ContentFormRow["platform"]) {
+  return platform === "instagram" ? "Instagram" : "TikTok";
+}
+
+function SocialPlatformIcon({ platform, className = "size-3.5" }: { platform: ContentFormRow["platform"]; className?: string }) {
+  if (platform === "instagram") {
+    return <Instagram className={className} aria-hidden="true" />;
+  }
+
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16.5 3.2c.4 2.4 1.8 3.9 4.1 4.1v3.1c-1.4.1-2.7-.3-4-1.1v5.9c0 4.2-2.7 6.6-6.2 6.6-3.1 0-5.6-2.1-5.6-5.2 0-3.4 2.6-5.6 6.3-5.4v3.2c-1.8-.3-3 .5-3 2 0 1.3 1 2.1 2.2 2.1 1.4 0 2.5-.8 2.5-3V3.2h3.7Z" />
+    </svg>
+  );
+}
+
+function parseCampaignSocialHandle(value: string) {
+  const match = value.trim().match(/^(instagram|tiktok)\s*:?\s*@?(.+)$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const platform = match[1]!.toLowerCase() as ContentFormRow["platform"];
+  const handle = match[2]!.replace(/^@/, "").trim();
+
+  if (!handle) {
+    return null;
+  }
+
+  return { handle, platform };
+}
+
+function SocialHandleList({ emptyLabel, handles }: { emptyLabel: string; handles: string[] }) {
+  if (!handles.length) {
+    return <span>{emptyLabel}</span>;
+  }
+
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {handles.map((handle, index) => {
+        const parsed = parseCampaignSocialHandle(handle);
+
+        if (!parsed) {
+          return <span key={`${handle}-${index}`}>{handle}</span>;
+        }
+
+        return (
+          <span
+            key={`${parsed.platform}-${parsed.handle}-${index}`}
+            className="inline-flex items-center gap-1"
+            aria-label={`${getSocialPlatformLabel(parsed.platform)} @${parsed.handle}`}
+            title={`${getSocialPlatformLabel(parsed.platform)} @${parsed.handle}`}
+          >
+            <SocialPlatformIcon platform={parsed.platform} />
+            <span>@{parsed.handle}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 function getDefaultForm(): CampaignFormState {
@@ -896,7 +959,7 @@ function RouteComponent() {
     }
 
     const nextErrors: Record<string, ContentRowErrors> = {};
-    const normalizedRows = contentRows.map((row, index) => {
+    const normalizedRows = contentRows.map((row) => {
       const normalizedUrl = row.contentUrl.trim() ? normalizeContentUrl(row.contentUrl) : "";
       const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
       const errors: ContentRowErrors = {};
@@ -1597,7 +1660,7 @@ function RouteComponent() {
                         <div className="min-w-0">
                           <p className="font-semibold text-[#2b1418]">{kol.displayName}</p>
                           <p className="mt-1 break-words text-xs text-muted-foreground">
-                            {kol.handles.length ? kol.handles.join(" / ") : "Belum ada akun sosial tersimpan."}
+                            <SocialHandleList handles={kol.handles} emptyLabel="Belum ada sosial media tersimpan." />
                           </p>
                         </div>
                       </div>
@@ -1632,7 +1695,7 @@ function RouteComponent() {
                           <div className="min-w-0">
                             <p className="truncate text-[18px] font-semibold leading-none text-foreground">{group.displayName}</p>
                             <p className="text-[13px] text-muted-foreground">
-                              {group.handles.length ? group.handles.join(" / ") : "Tidak ada handle yang tersimpan."}
+                              <SocialHandleList handles={group.handles} emptyLabel="Tidak ada sosial media yang tersimpan." />
                             </p>
                           </div>
                           </div>
@@ -1655,7 +1718,7 @@ function RouteComponent() {
                                           return (
                                             <div className="flex flex-wrap items-center gap-2">
                                               <span className="border-border text-muted-foreground border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em]">
-                                                {content.contentType} · {content.platform}
+                                                {content.contentType} · {getSocialPlatformLabel(content.platform)}
                                               </span>
                                               <span
                                                 className={`border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] ${
@@ -1830,7 +1893,7 @@ function RouteComponent() {
                           <div>
                             <p className="text-[18px] font-semibold leading-none text-foreground">{group.displayName}</p>
                             <p className="text-[13px] text-muted-foreground">
-                              {group.handles.length ? group.handles.join(" / ") : "Tidak ada handle yang tersimpan."}
+                              <SocialHandleList handles={group.handles} emptyLabel="Tidak ada sosial media yang tersimpan." />
                             </p>
                           </div>
                           <span className="border border-border bg-[#F1E2E6] px-2 py-1 text-xs text-muted-foreground">
@@ -1848,7 +1911,7 @@ function RouteComponent() {
                                       archived
                                     </span>
                                     <span className="border border-border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                                      {content.platform}
+                                      {getSocialPlatformLabel(content.platform)}
                                     </span>
                                   </div>
                                   <a
