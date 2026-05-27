@@ -23,6 +23,26 @@ export type RateCardMetadata = {
   source: "formula" | "ml";
 };
 
+export type RateCardFormulaSettings = {
+  campaignHistoryBonus: number;
+  engagementRateIdr: number;
+  followerRateIdr: number;
+  instagramMultiplier: number;
+  macroTierMultiplier: number;
+  maxCampaignHistoryBonus: number;
+  maxMultiPlatformBonus: number;
+  megaTierMultiplier: number;
+  microTierMultiplier: number;
+  minimumRateIdr: number;
+  multiPlatformBonus: number;
+  nanoTierMultiplier: number;
+  rangeSpread: number;
+  reelMultiplier: number;
+  storyMultiplier: number;
+  tiktokMultiplier: number;
+  viewCpmIdr: number;
+};
+
 export type WhitelistEntry = {
   createdAt: string;
   createdByUserId: string | null;

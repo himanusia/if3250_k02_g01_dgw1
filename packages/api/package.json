@@ -21,7 +21,6 @@
     "@types/pg": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
-    "onnxruntime-node": "^1.25.1",
     "zod": "catalog:"
   },
   "devDependencies": {

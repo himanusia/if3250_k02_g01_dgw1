@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import type { WhitelistEntry, WhitelistRole } from "@/lib/app-types";
+import type { RateCardFormulaSettings, WhitelistEntry, WhitelistRole } from "@/lib/app-types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +83,31 @@ function fromMinutes(minutes: number) {
   return { value: minutes, unit: "minute" as const };
 }
 
+const DEFAULT_RATE_FORM: RateCardFormulaSettings = {
+  campaignHistoryBonus: 0.03,
+  engagementRateIdr: 700,
+  followerRateIdr: 35,
+  instagramMultiplier: 1,
+  macroTierMultiplier: 1.1,
+  maxCampaignHistoryBonus: 0.15,
+  maxMultiPlatformBonus: 0.1,
+  megaTierMultiplier: 1.25,
+  microTierMultiplier: 1,
+  minimumRateIdr: 50000,
+  multiPlatformBonus: 0.05,
+  nanoTierMultiplier: 0.9,
+  rangeSpread: 0.2,
+  reelMultiplier: 1.6,
+  storyMultiplier: 0.35,
+  tiktokMultiplier: 0.85,
+  viewCpmIdr: 50000,
+};
+
+function parseNumberInput(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function RouteComponent() {
   useEffect(() => {
     document.documentElement.classList.add("digiTheme");
@@ -97,6 +122,7 @@ function RouteComponent() {
   const syncSettingsQuery = useQuery(
     orpc.whitelist.getSyncSettings.queryOptions()
   );
+  const rateFormulaQuery = useQuery(orpc.whitelist.getRateCardFormulaSettings.queryOptions());
 
   const syncSettings = syncSettingsQuery.data;
   const [syncForm, setSyncForm] = useState({
@@ -104,6 +130,7 @@ function RouteComponent() {
     intervalUnit: "minute" as "minute" | "hour" | "day",
     enabled: true,
   });
+  const [rateForm, setRateForm] = useState<RateCardFormulaSettings>(DEFAULT_RATE_FORM);
 
   useEffect(() => {
     if (!syncSettings) return;
@@ -116,6 +143,12 @@ function RouteComponent() {
       enabled: syncSettings.enabled,
     });
   }, [syncSettings]);
+
+  useEffect(() => {
+    if (rateFormulaQuery.data) {
+      setRateForm(rateFormulaQuery.data as RateCardFormulaSettings);
+    }
+  }, [rateFormulaQuery.data]);
 
   const intervalMinutes = toMinutes(syncForm.intervalValue, syncForm.intervalUnit);
 
@@ -139,6 +172,21 @@ function RouteComponent() {
       syncSettingsQuery.refetch();
     },
   });
+  const updateRateFormula = useMutation({
+    mutationFn: (input: RateCardFormulaSettings) => client.whitelist.updateRateCardFormulaSettings(input),
+    onSuccess: () => {
+      toast.success("Rumus estimasi rate diperbarui");
+      rateFormulaQuery.refetch();
+    },
+  });
+  const resetRateFormula = useMutation({
+    mutationFn: () => client.whitelist.resetRateCardFormulaSettings(),
+    onSuccess: (settings) => {
+      toast.success("Rumus estimasi rate dikembalikan ke default");
+      setRateForm(settings as RateCardFormulaSettings);
+      rateFormulaQuery.refetch();
+    },
+  });
 
   function submitSyncSettings() {
     updateSyncSettings.mutate({
@@ -148,6 +196,13 @@ function RouteComponent() {
       ),
       enabled: syncForm.enabled,
     });
+  }
+
+  function updateRateField(key: keyof RateCardFormulaSettings, value: string) {
+    setRateForm((current) => ({
+      ...current,
+      [key]: parseNumberInput(value),
+    }));
   }
 
   const [form, setForm] = useState({
@@ -253,6 +308,65 @@ function RouteComponent() {
             )}
 
             {enabled && <p className="text-sm text-muted-foreground">{nextSyncLabel}</p>}
+          </>
+        )}
+      </section>
+
+      <section className="w-full space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
+        <div>
+          <h2 className="font-goldman text-2xl font-bold uppercase tracking-wide text-[#2b1418]">Rate Formula</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Estimasi deterministik: followers, engagement rate, average views, platform, tier, multi-platform, dan history campaign.
+          </p>
+        </div>
+
+        {rateFormulaQuery.isLoading ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            {Array.from({ length: 9 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 md:grid-cols-3">
+              <RateField label="Minimum rate (IDR)" value={rateForm.minimumRateIdr} onChange={(value) => updateRateField("minimumRateIdr", value)} />
+              <RateField label="IDR per follower" value={rateForm.followerRateIdr} onChange={(value) => updateRateField("followerRateIdr", value)} />
+              <RateField label="IDR per engagement" value={rateForm.engagementRateIdr} onChange={(value) => updateRateField("engagementRateIdr", value)} />
+              <RateField label="View CPM (IDR)" value={rateForm.viewCpmIdr} onChange={(value) => updateRateField("viewCpmIdr", value)} />
+              <RateField label="Instagram multiplier" step="0.01" value={rateForm.instagramMultiplier} onChange={(value) => updateRateField("instagramMultiplier", value)} />
+              <RateField label="TikTok multiplier" step="0.01" value={rateForm.tiktokMultiplier} onChange={(value) => updateRateField("tiktokMultiplier", value)} />
+              <RateField label="Nano tier multiplier" step="0.01" value={rateForm.nanoTierMultiplier} onChange={(value) => updateRateField("nanoTierMultiplier", value)} />
+              <RateField label="Micro tier multiplier" step="0.01" value={rateForm.microTierMultiplier} onChange={(value) => updateRateField("microTierMultiplier", value)} />
+              <RateField label="Macro tier multiplier" step="0.01" value={rateForm.macroTierMultiplier} onChange={(value) => updateRateField("macroTierMultiplier", value)} />
+              <RateField label="Mega tier multiplier" step="0.01" value={rateForm.megaTierMultiplier} onChange={(value) => updateRateField("megaTierMultiplier", value)} />
+              <RateField label="Story multiplier" step="0.01" value={rateForm.storyMultiplier} onChange={(value) => updateRateField("storyMultiplier", value)} />
+              <RateField label="Reel multiplier" step="0.01" value={rateForm.reelMultiplier} onChange={(value) => updateRateField("reelMultiplier", value)} />
+              <RateField label="Range spread" step="0.01" value={rateForm.rangeSpread} onChange={(value) => updateRateField("rangeSpread", value)} />
+              <RateField label="Campaign history bonus" step="0.01" value={rateForm.campaignHistoryBonus} onChange={(value) => updateRateField("campaignHistoryBonus", value)} />
+              <RateField label="Max history bonus" step="0.01" value={rateForm.maxCampaignHistoryBonus} onChange={(value) => updateRateField("maxCampaignHistoryBonus", value)} />
+              <RateField label="Multi-platform bonus" step="0.01" value={rateForm.multiPlatformBonus} onChange={(value) => updateRateField("multiPlatformBonus", value)} />
+              <RateField label="Max multi-platform bonus" step="0.01" value={rateForm.maxMultiPlatformBonus} onChange={(value) => updateRateField("maxMultiPlatformBonus", value)} />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={() => updateRateFormula.mutate(rateForm)}
+                disabled={updateRateFormula.isPending}
+                className="rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
+              >
+                {updateRateFormula.isPending ? "Menyimpan..." : "Simpan rumus"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => resetRateFormula.mutate()}
+                disabled={resetRateFormula.isPending}
+                className="rounded-none border border-[#B43C39] bg-white px-4 text-[13px] font-medium text-[#B43C39] hover:bg-[#fff3d8] hover:text-[#8f2e2c]"
+              >
+                {resetRateFormula.isPending ? "Reset..." : "Reset default"}
+              </Button>
+            </div>
           </>
         )}
       </section>
@@ -368,5 +482,31 @@ function AccessListSkeleton() {
         </div>
       ))}
     </>
+  );
+}
+
+function RateField({
+  label,
+  onChange,
+  step = "1",
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  step?: string;
+  value: number;
+}) {
+  return (
+    <Label className="grid gap-2 text-sm">
+      <span>{label}</span>
+      <Input
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+        min={0}
+        step={step}
+        type="number"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </Label>
   );
 }

@@ -1,16 +1,42 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
-import { whitelistEmail, appSettings } from "@if3250_k02_g01_dgw1/db/schema/whitelist";
+import { whitelistEmail } from "@if3250_k02_g01_dgw1/db/schema/whitelist";
 import { ORPCError } from "@orpc/server";
 import { desc, eq } from "drizzle-orm";
 import z from "zod";
 
 import { protectedProcedure } from "../index";
+import { getSetting, getSettingNumber, setSetting } from "../lib/app-settings";
+import {
+  DEFAULT_RATE_CARD_FORMULA_SETTINGS,
+  getRateCardFormulaSettings,
+  type RateCardFormulaSettings,
+} from "../lib/rate-card-estimator";
 
 const whitelistInputSchema = z.object({
   email: z.email(),
   note: z.string().trim().max(500).optional().default(""),
   role: z.enum(["admin", "user"]),
 });
+
+const formulaSettingsSchema = z.object({
+  campaignHistoryBonus: z.number().min(0).max(1),
+  engagementRateIdr: z.number().int().min(0),
+  followerRateIdr: z.number().min(0),
+  instagramMultiplier: z.number().min(0.1).max(5),
+  macroTierMultiplier: z.number().min(0.1).max(5),
+  maxCampaignHistoryBonus: z.number().min(0).max(2),
+  maxMultiPlatformBonus: z.number().min(0).max(2),
+  megaTierMultiplier: z.number().min(0.1).max(5),
+  microTierMultiplier: z.number().min(0.1).max(5),
+  minimumRateIdr: z.number().int().min(0),
+  multiPlatformBonus: z.number().min(0).max(1),
+  nanoTierMultiplier: z.number().min(0.1).max(5),
+  rangeSpread: z.number().min(0).max(0.9),
+  reelMultiplier: z.number().min(0.1).max(10),
+  storyMultiplier: z.number().min(0.1).max(10),
+  tiktokMultiplier: z.number().min(0.1).max(5),
+  viewCpmIdr: z.number().int().min(0),
+}) satisfies z.ZodType<RateCardFormulaSettings>;
 
 export const whitelistRouter = {
   create: protectedProcedure.input(whitelistInputSchema).handler(async ({ context, input }) => {
@@ -113,37 +139,33 @@ export const whitelistRouter = {
         });
 
       return { success: true };
-    })
+    }),
+
+  getRateCardFormulaSettings: protectedProcedure.handler(async ({ context }) => {
+    if (context.whitelist.role !== "admin") {
+      throw new ORPCError("FORBIDDEN");
+    }
+
+    return await getRateCardFormulaSettings();
+  }),
+
+  resetRateCardFormulaSettings: protectedProcedure.handler(async ({ context }) => {
+    if (context.whitelist.role !== "admin") {
+      throw new ORPCError("FORBIDDEN");
+    }
+
+    await setSetting("rate_card_formula_settings", JSON.stringify(DEFAULT_RATE_CARD_FORMULA_SETTINGS));
+    return DEFAULT_RATE_CARD_FORMULA_SETTINGS;
+  }),
+
+  updateRateCardFormulaSettings: protectedProcedure
+    .input(formulaSettingsSchema)
+    .handler(async ({ context, input }) => {
+      if (context.whitelist.role !== "admin") {
+        throw new ORPCError("FORBIDDEN");
+      }
+
+      await setSetting("rate_card_formula_settings", JSON.stringify(input));
+      return input;
+    }),
 };
-
-export async function getSetting(key: string): Promise<string | null> {
-  const [row] = await db
-    .select()
-    .from(appSettings)
-    .where(eq(appSettings.key, key))
-    .limit(1);
-
-  return row?.value ?? null;
-}
-
-export async function getSettingNumber(
-  key: string,
-  fallback: number
-) {
-  const existing = await getSetting(key);
-
-  if (existing !== null) {
-    const parsed = Number(existing);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-
-  await db
-    .insert(appSettings)
-    .values({
-      key,
-      value: String(fallback),
-    })
-    .onConflictDoNothing();
-
-  return fallback;
-}
