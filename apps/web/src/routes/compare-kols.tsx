@@ -10,7 +10,7 @@ import { arrayFromQueryData } from "@/lib/query-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { client, orpc } from "@/utils/orpc";
@@ -159,18 +159,21 @@ function RouteComponent() {
           <div className="grid gap-2">
             <span className="text-sm text-[#2b1418]">Tambahkan akun terpilih ke campaign</span>
             <div className="flex min-w-0 flex-wrap gap-2">
-              <Select
+              <SearchableSelect
                 className="min-w-0 flex-1 border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={selectedCampaignId}
-                onChange={(event) => setSelectedCampaignId(event.target.value)}
-              >
-                <option value="">Pilih campaign</option>
-                {campaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.name}
-                  </option>
-                ))}
-              </Select>
+                onValueChange={setSelectedCampaignId}
+                options={[
+                  { label: "Pilih campaign", value: "" },
+                  ...campaigns.map((campaign) => ({
+                    label: campaign.name,
+                    value: String(campaign.id),
+                    keywords: [campaign.brand, campaign.keywords, campaign.objective],
+                  })),
+                ]}
+                placeholder="Pilih campaign"
+                searchPlaceholder="Cari campaign"
+              />
               <Button
                 className="rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
                 disabled={!selectedCampaignId || !selectedKolIds.length || addKol.isPending}

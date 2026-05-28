@@ -2,7 +2,7 @@ import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile, type SocialPlatform } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ilike } from "drizzle-orm";
 
 import { syncContentWithApify } from "./apify";
 
@@ -525,7 +525,7 @@ async function ensureCampaignKolLink(campaignId: number, row: CampaignContentInp
     const [existing] = await db
       .select({ id: kolAccount.kolId })
       .from(kolAccount)
-      .where(sql`LOWER(${kolAccount.handle}) = LOWER(${handle}) AND ${kolAccount.platform} = ${platform}`)
+      .where(and(ilike(kolAccount.handle, handle), eq(kolAccount.platform, platform)))
       .limit(1);
 
     if (existing) {

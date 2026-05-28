@@ -10,7 +10,7 @@ import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, ge
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -20,6 +20,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { client, orpc } from "@/utils/orpc";
+
+const SOCIAL_PLATFORM_OPTIONS = [
+  { label: "Instagram", value: "instagram" },
+  { label: "TikTok", value: "tiktok" },
+] as const;
 
 export const Route = createFileRoute("/kols/$kolId")({
   component: RouteComponent,
@@ -633,16 +638,16 @@ function RouteComponent() {
             />
             <Label className="grid gap-2">
               <span>Platform</span>
-              <Select
+              <SearchableSelect
                 className="text-xs"
                 value={historyForm.platform}
-                onChange={(event) =>
-                  setHistoryForm((c) => ({ ...c, platform: event.target.value as SocialPlatform }))
+                onValueChange={(value) =>
+                  setHistoryForm((c) => ({ ...c, platform: value as SocialPlatform }))
                 }
-              >
-                <option value="instagram">Instagram</option>
-                <option value="tiktok">TikTok</option>
-              </Select>
+                options={[...SOCIAL_PLATFORM_OPTIONS]}
+                placeholder="Pilih platform"
+                searchPlaceholder="Cari platform"
+              />
             </Label>
             <div className="grid gap-4 md:grid-cols-2">
               <Label className="grid gap-2">

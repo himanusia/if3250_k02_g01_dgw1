@@ -1,7 +1,7 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile } from "@if3250_k02_g01_dgw1/db/schema/kol";
-import { and, desc, eq, gt, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, ilike, isNull, lt, lte, or } from "drizzle-orm";
 import z from "zod";
 
 import { protectedProcedure } from "../index";
@@ -356,8 +356,16 @@ export const campaignRouter = {
       const whereParts = [];
 
       if (search) {
-        const likeSearch = `%${search.toLowerCase()}%`;
-        whereParts.push(sql`(LOWER(${campaign.name}) LIKE ${likeSearch} OR LOWER(${campaign.brand}) LIKE ${likeSearch} OR LOWER(${campaign.description}) LIKE ${likeSearch} OR LOWER(${campaign.keywords}) LIKE ${likeSearch} OR LOWER(${campaign.objective}) LIKE ${likeSearch})`);
+        const likeSearch = `%${search}%`;
+        whereParts.push(
+          or(
+            ilike(campaign.name, likeSearch),
+            ilike(campaign.brand, likeSearch),
+            ilike(campaign.description, likeSearch),
+            ilike(campaign.keywords, likeSearch),
+            ilike(campaign.objective, likeSearch),
+          ),
+        );
       }
 
       if (status !== "all") {
@@ -380,12 +388,12 @@ export const campaignRouter = {
         .orderBy(desc(campaign.createdAt))
         .limit(pageSize)
         .offset(offset);
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)::int` })
+      const [totalRow] = await db
+        .select({ total: count() })
         .from(campaign)
         .where(whereClause);
       const links = await getCampaignKolLinks();
-      const totalItems = Number(count ?? 0);
+      const totalItems = Number(totalRow?.total ?? 0);
       const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
       return {

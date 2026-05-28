@@ -2,7 +2,7 @@ import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolCampaignHistory, kolProfile, kolRateCardHistory } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
-import { desc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNull, lt } from "drizzle-orm";
 import z from "zod";
 
 import { estimateRateCard } from "../lib/rate-card-estimator";
@@ -103,7 +103,7 @@ async function assertAccountsAreUnique(accounts: Array<z.infer<typeof kolAccount
     const existing = await db
       .select({ id: kolAccount.id, kolId: kolAccount.kolId })
       .from(kolAccount)
-      .where(sql`LOWER(${kolAccount.handle}) = LOWER(${normalizeHandle(account.handle)}) AND ${kolAccount.platform} = ${account.platform}`)
+      .where(and(ilike(kolAccount.handle, normalizeHandle(account.handle)), eq(kolAccount.platform, account.platform)))
       .limit(1);
 
     if (existing.some((row) => row.kolId !== currentKolId)) {
@@ -538,12 +538,7 @@ export const kolRouter = {
           const existing = await db
             .select({ id: kolAccount.id })
             .from(kolAccount)
-            .where(
-              sql`
-                LOWER(${kolAccount.handle}) = LOWER(${account.handle})
-                AND ${kolAccount.platform} = ${account.platform}
-              `,
-            )
+            .where(and(ilike(kolAccount.handle, normalizeHandle(account.handle)), eq(kolAccount.platform, account.platform)))
             .limit(1);
 
           if (existing.length > 0) {
@@ -765,19 +760,22 @@ export async function runGlobalSyncBatch(limit = 5) {
 
   const cutoff = new Date(Date.now() - intervalMinutes * 60 * 1000);
 
-  const kols = await db
+  const unsyncedKols = await db
     .select({ id: kolProfile.id })
     .from(kolProfile)
-    .where(
-      or(
-        isNull(kolProfile.lastSyncedAt),
-        lt(kolProfile.lastSyncedAt, cutoff)
-      )
-    )
-    .orderBy(
-      sql`COALESCE(${kolProfile.lastSyncedAt}, '1970-01-01') ASC`
-    )
+    .where(isNull(kolProfile.lastSyncedAt))
     .limit(limit);
+
+  const staleKols = unsyncedKols.length >= limit
+    ? []
+    : await db
+        .select({ id: kolProfile.id })
+        .from(kolProfile)
+        .where(lt(kolProfile.lastSyncedAt, cutoff))
+        .orderBy(asc(kolProfile.lastSyncedAt))
+        .limit(limit - unsyncedKols.length);
+
+  const kols = [...unsyncedKols, ...staleKols];
 
   for (const kol of kols) {
     try {

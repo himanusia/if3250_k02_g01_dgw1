@@ -11,7 +11,7 @@ import { formatCurrencyIdr, formatDateTime, formatNumber, getAccountMetadata, ge
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -27,6 +27,16 @@ type KolAccountFormState = {
   handle: string;
   platform: SocialPlatform;
 };
+
+const PLATFORM_OPTIONS = [
+  { label: "Semua platform", value: "all" },
+  { label: "Instagram", value: "instagram" },
+  { label: "TikTok", value: "tiktok" },
+] as const;
+const SOCIAL_PLATFORM_OPTIONS = [
+  { label: "Instagram", value: "instagram" },
+  { label: "TikTok", value: "tiktok" },
+] as const;
 
 type KolFormState = {
   accounts: KolAccountFormState[];
@@ -936,41 +946,36 @@ function mergeKeywords(
             </Label>
             <Label className="grid gap-2 text-sm">
               <span>Platform</span>
-              <Select
+              <SearchableSelect
                 className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={platformFilter}
-                onChange={(event) => setPlatformFilter(event.target.value as typeof platformFilter)}
-              >
-                <option value="all">Semua platform</option>
-                <option value="instagram">Instagram</option>
-                <option value="tiktok">TikTok</option>
-              </Select>
+                onValueChange={(value) => setPlatformFilter(value as typeof platformFilter)}
+                options={[...PLATFORM_OPTIONS]}
+                placeholder="Pilih platform"
+                searchPlaceholder="Cari platform"
+              />
             </Label>
             <Label className="grid gap-2 text-sm">
               <span>Tier</span>
-              <Select
+              <SearchableSelect
                 className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={tierFilter}
-                onChange={(event) => setTierFilter(event.target.value)}
-              >
-                <option value="all">Semua tier</option>
-                {tierOptions.map((tier) => (
-                  <option key={tier} value={tier}>{tier}</option>
-                ))}
-              </Select>
+                onValueChange={setTierFilter}
+                options={[{ label: "Semua tier", value: "all" }, ...tierOptions.map((tier) => ({ label: tier, value: tier }))]}
+                placeholder="Pilih tier"
+                searchPlaceholder="Cari tier"
+              />
             </Label>
             <Label className="grid gap-2 text-sm">
               <span>Keyword</span>
-              <Select
+              <SearchableSelect
                 className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={keywordFilter}
-                onChange={(event) => setKeywordFilter(event.target.value)}
-              >
-                <option value="all">Semua keyword</option>
-                {keywordOptions.map((keyword) => (
-                  <option key={keyword} value={keyword}>{keyword}</option>
-                ))}
-              </Select>
+                onValueChange={setKeywordFilter}
+                options={[{ label: "Semua keyword", value: "all" }, ...keywordOptions.map((keyword) => ({ label: keyword, value: keyword }))]}
+                placeholder="Pilih keyword"
+                searchPlaceholder="Cari keyword"
+              />
             </Label>
           </div>
 
@@ -2016,15 +2021,15 @@ function PlatformSelect({ onChange, value }: { onChange: (value: SocialPlatform)
           platform={value}
           className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-[#982E41]"
         />
-        <Select
+        <SearchableSelect
           aria-label="Platform"
           className="pl-9 text-[12px]"
           value={value}
-          onChange={(event) => onChange(event.target.value as SocialPlatform)}
-        >
-          <option value="instagram">Instagram</option>
-          <option value="tiktok">TikTok</option>
-        </Select>
+          onValueChange={(nextValue) => onChange(nextValue as SocialPlatform)}
+          options={[...SOCIAL_PLATFORM_OPTIONS]}
+          placeholder="Pilih platform"
+          searchPlaceholder="Cari platform"
+        />
       </div>
     </Label>
   );

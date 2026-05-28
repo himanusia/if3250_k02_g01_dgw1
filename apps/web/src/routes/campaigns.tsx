@@ -19,7 +19,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -290,6 +290,29 @@ const TARGET_KOL_TIERS = [
   { key: "macro", label: "Macro" },
   { key: "mega", label: "Mega" },
 ] as const;
+const CAMPAIGN_STATUS_OPTIONS = [
+  { label: "Semua status", value: "all" },
+  { label: "Belum mulai", value: "draft" },
+  { label: "Berjalan", value: "active" },
+  { label: "Selesai", value: "completed" },
+] as const;
+const CONTENT_TYPE_OPTIONS = [
+  { label: "Post", value: "post" },
+  { label: "Reels", value: "reel" },
+  { label: "Story", value: "story" },
+] as const;
+const CONTENT_PLATFORM_OPTIONS = [
+  { label: "Instagram", value: "instagram" },
+  { label: "TikTok", value: "tiktok" },
+] as const;
+const FYP_OPTIONS = [
+  { label: "Tidak", value: "no" },
+  { label: "Ya", value: "yes" },
+] as const;
+const CAMPAIGN_PAGE_SIZE_OPTIONS = [4, 8, 12, 20].map((size) => ({
+  label: `${size} / page`,
+  value: String(size),
+}));
 const CAMPAIGN_FORM_DRAFT_KEY = "digiwonder:campaigns:form-draft";
 
 type TargetKolTier = { count: number; tier: string };
@@ -1168,15 +1191,13 @@ function RouteComponent() {
               </Label>
               <Label className="grid gap-2 text-sm text-[#2b1418]">
                 <span>Filter status</span>
-                <Select
+                <SearchableSelect
                   value={campaignStatusFilter}
-                  onChange={(event) => setCampaignStatusFilter(event.target.value as typeof campaignStatusFilter)}
-                >
-                  <option value="all">Semua status</option>
-                  <option value="draft">Belum mulai</option>
-                  <option value="active">Berjalan</option>
-                  <option value="completed">Selesai</option>
-                </Select>
+                  onValueChange={(value) => setCampaignStatusFilter(value as typeof campaignStatusFilter)}
+                  options={[...CAMPAIGN_STATUS_OPTIONS]}
+                  placeholder="Pilih status"
+                  searchPlaceholder="Cari status"
+                />
               </Label>
             </div>
 
@@ -2033,20 +2054,19 @@ function RouteComponent() {
                       <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
                         <Label className="grid gap-2">
                           <span>Jenis</span>
-                          <Select
+                          <SearchableSelect
                             value={row.contentType}
-                            onChange={(event) => {
-                              const contentType = event.target.value as ContentFormRow["contentType"];
+                            onValueChange={(value) => {
+                              const contentType = value as ContentFormRow["contentType"];
                               updateContentRow(row.id, {
                                 contentType,
                                 ...applyKolEstimate(row, row.kolId, contentType),
                               });
                             }}
-                          >
-                            <option value="post">Post</option>
-                            <option value="reel">Reels</option>
-                            <option value="story">Story</option>
-                          </Select>
+                            options={[...CONTENT_TYPE_OPTIONS]}
+                            placeholder="Pilih jenis"
+                            searchPlaceholder="Cari jenis"
+                          />
                         </Label>
                         <Label className="grid gap-2">
                           <span>Link</span>
@@ -2073,13 +2093,13 @@ function RouteComponent() {
                           <div className="grid gap-3 md:grid-cols-3">
                             <Label className="grid gap-2">
                               <span>Platform</span>
-                              <Select
+                              <SearchableSelect
                                 value={row.platform}
-                                onChange={(event) => updateContentRow(row.id, { platform: event.target.value as ContentFormRow["platform"] })}
-                              >
-                                <option value="instagram">Instagram</option>
-                                <option value="tiktok">TikTok</option>
-                              </Select>
+                                onValueChange={(value) => updateContentRow(row.id, { platform: value as ContentFormRow["platform"] })}
+                                options={[...CONTENT_PLATFORM_OPTIONS]}
+                                placeholder="Pilih platform"
+                                searchPlaceholder="Cari platform"
+                              />
                               {contentRowErrors[row.id]?.platform && (
                                 <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.platform}</span>
                               )}
@@ -2095,38 +2115,41 @@ function RouteComponent() {
                             </Label>
                             <Label className="grid gap-2">
                               <span>FYP</span>
-                              <Select
+                              <SearchableSelect
                                 value={row.isFyp}
-                                onChange={(event) => updateContentRow(row.id, { isFyp: event.target.value as ContentFormRow["isFyp"] })}
-                              >
-                                <option value="no">Tidak</option>
-                                <option value="yes">Ya</option>
-                              </Select>
+                                onValueChange={(value) => updateContentRow(row.id, { isFyp: value as ContentFormRow["isFyp"] })}
+                                options={[...FYP_OPTIONS]}
+                                placeholder="Pilih FYP"
+                                searchPlaceholder="Cari FYP"
+                              />
                             </Label>
                           </div>
 
                           <div className="grid gap-3 md:grid-cols-3">
                             <Label className="grid gap-2 md:col-span-1">
                               <span>KOL</span>
-                              <Select
-                                value={row.kolId}
-                                onChange={(event) => {
-                                  const selected = addContentCampaign.kols.find((kol) => kol.id === Number(event.target.value));
-                                  const kolId = event.target.value ? Number(event.target.value) : "";
+                              <SearchableSelect
+                                value={row.kolId === "" ? "" : String(row.kolId)}
+                                onValueChange={(value) => {
+                                  const selected = addContentCampaign.kols.find((kol) => kol.id === Number(value));
+                                  const kolId = value ? Number(value) : "";
                                   updateContentRow(row.id, {
                                     ...applyKolEstimate(row, kolId),
                                     kolDisplayName: selected?.displayName ?? row.kolDisplayName,
                                     kolId,
                                   });
                                 }}
-                              >
-                                <option value="">Otomatis dari link</option>
-                                {addContentCampaign.kols.map((kol) => (
-                                  <option key={kol.id} value={kol.id}>
-                                    {kol.displayName}
-                                  </option>
-                                ))}
-                              </Select>
+                                options={[
+                                  { label: "Otomatis dari link", value: "" },
+                                  ...addContentCampaign.kols.map((kol) => ({
+                                    label: kol.displayName,
+                                    value: String(kol.id),
+                                    keywords: kol.handles,
+                                  })),
+                                ]}
+                                placeholder="Pilih KOL"
+                                searchPlaceholder="Cari KOL"
+                              />
                               {contentRowErrors[row.id]?.kol && (
                                 <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.kol}</span>
                               )}
@@ -2291,17 +2314,14 @@ function CampaignPaginationControls({
         {start}-{end} dari {totalItems}
       </span>
       <div className="flex flex-wrap items-center gap-2">
-        <Select
+        <SearchableSelect
           className="h-8 w-24"
           value={String(pageSize)}
-          onChange={(event) => onPageSizeChange(Number(event.target.value))}
-        >
-          {[4, 8, 12, 20].map((size) => (
-            <option key={size} value={size}>
-              {size} / page
-            </option>
-          ))}
-        </Select>
+          onValueChange={(value) => onPageSizeChange(Number(value))}
+          options={CAMPAIGN_PAGE_SIZE_OPTIONS}
+          placeholder="Page size"
+          searchPlaceholder="Cari ukuran"
+        />
         <Button
           type="button"
           variant="outline"
@@ -2483,18 +2503,20 @@ function BrandInput({ onChange, options, value }: { onChange: (value: string) =>
   return (
     <label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
       <span>Brand</span>
-      <Input
+      <SearchableSelect
         className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
-        list="campaign-brand-options"
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="DigiWonder"
+        onValueChange={onChange}
+        options={options.map((option) => ({ label: option, value: option }))}
+        placeholder={value || "DigiWonder"}
+        searchPlaceholder="Cari brand"
         value={value}
       />
-      <datalist id="campaign-brand-options">
-        {options.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      <Input
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Atau ketik brand baru"
+        value={value}
+      />
     </label>
   );
 }

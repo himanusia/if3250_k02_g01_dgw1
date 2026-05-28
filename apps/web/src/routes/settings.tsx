@@ -9,12 +9,22 @@ import type { RateCardFormulaSettings, WhitelistEntry, WhitelistRole } from "@/l
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { requireAdminWhitelist } from "@/lib/auth-guard";
 import { client, orpc } from "@/utils/orpc";
+
+const SYNC_INTERVAL_UNIT_OPTIONS = [
+  { label: "Menit", value: "minute" },
+  { label: "Jam", value: "hour" },
+  { label: "Hari", value: "day" },
+] as const;
+const WHITELIST_ROLE_OPTIONS = [
+  { label: "User", value: "user" },
+  { label: "Admin", value: "admin" },
+] as const;
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: async ({ location }) => {
@@ -281,20 +291,19 @@ function RouteComponent() {
 
             <Label className="grid gap-2 text-sm">
               <span>Unit</span>
-              <Select
+              <SearchableSelect
                 className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={syncForm.intervalUnit}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   setSyncForm((prev) => ({
                     ...prev,
-                    intervalUnit: e.target.value as "minute" | "hour" | "day",
+                    intervalUnit: value as "minute" | "hour" | "day",
                   }))
                 }
-              >
-                <option value="minute">Menit</option>
-                <option value="hour">Jam</option>
-                <option value="day">Hari</option>
-              </Select>
+                options={[...SYNC_INTERVAL_UNIT_OPTIONS]}
+                placeholder="Pilih unit"
+                searchPlaceholder="Cari unit"
+              />
             </Label>
 
             <Button
@@ -397,19 +406,19 @@ function RouteComponent() {
 
           <Label className="grid gap-2 text-sm">
             <span>Role</span>
-            <Select
+            <SearchableSelect
               className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
               value={form.role}
-              onChange={(event) =>
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  role: event.target.value as WhitelistRole,
+                  role: value as WhitelistRole,
                 }))
               }
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </Select>
+              options={[...WHITELIST_ROLE_OPTIONS]}
+              placeholder="Pilih role"
+              searchPlaceholder="Cari role"
+            />
           </Label>
 
           <Label className="grid gap-2 text-sm">
