@@ -14,8 +14,10 @@ import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -2652,8 +2654,7 @@ function EstimatedMetricValue({ estimated, value }: { estimated: number; value: 
 }
 
 function KeywordFilterCombobox({ options, selected, onChange }: { options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
-  const [query, setQuery] = useState("");
-  const filteredOptions = options.filter((option) => option.toLowerCase().includes(query.trim().toLowerCase()));
+  const [open, setOpen] = useState(false);
 
   function toggle(option: string) {
     onChange(selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option]);
@@ -2662,80 +2663,108 @@ function KeywordFilterCombobox({ options, selected, onChange }: { options: strin
   return (
     <div className="space-y-2">
       <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Filter keyword</p>
-      <div className="border border-[#982E41]/20 bg-white p-2">
-        <Input
-          placeholder="Search keyword"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="h-9"
-        />
-        <div className="mt-2 max-h-44 overflow-y-auto border border-[#982E41]/10">
-          {filteredOptions.length ? filteredOptions.map((keyword) => {
-            const isSelected = selected.includes(keyword);
-            return (
-              <button
-                key={keyword}
-                type="button"
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[#FFF8F9]"
-                onClick={() => toggle(keyword)}
-              >
-                <span>{keyword}</span>
-                {isSelected && <Check className="size-4 text-[#982E41]" />}
-              </button>
-            );
-          }) : <div className="px-3 py-2 text-sm text-muted-foreground">Keyword tidak ditemukan.</div>}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            aria-expanded={open}
+            className="h-10 w-full justify-between border-[#982E41]/20 bg-white px-3 text-left text-sm font-normal"
+          >
+            <span className="truncate">
+              {selected.length ? `${selected.length} keyword dipilih` : "Cari keyword"}
+            </span>
+            <ChevronDown className="size-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] border-[#982E41]/20 p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search keyword" />
+            <CommandList>
+              <CommandEmpty>Keyword tidak ditemukan.</CommandEmpty>
+              <CommandGroup>
+                {options.map((keyword) => {
+                  const isSelected = selected.includes(keyword);
+                  return (
+                    <CommandItem
+                      key={keyword}
+                      value={keyword}
+                      onSelect={() => toggle(keyword)}
+                      className="justify-between"
+                    >
+                      <span>{keyword}</span>
+                      {isSelected && <Check className="size-4 text-[#982E41]" />}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selected.map((keyword) => (
+            <button
+              key={keyword}
+              type="button"
+              className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#982E41]"
+              onClick={() => toggle(keyword)}
+            >
+              {keyword} ×
+            </button>
+          ))}
         </div>
-        {selected.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {selected.map((keyword) => (
-              <button
-                key={keyword}
-                type="button"
-                className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#982E41]"
-                onClick={() => toggle(keyword)}
-              >
-                {keyword} ×
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
 
 function KolCombobox({ kols, onSelect, placeholder }: { kols: KolRecord[]; onSelect: (kolId: number) => void; placeholder: string }) {
-  const [query, setQuery] = useState("");
-  const filteredKols = kols.filter((kol) => {
-    const haystack = [kol.displayName, kol.keywords, ...kol.accounts.map((account) => account.handle)].join(" ").toLowerCase();
-    return haystack.includes(query.trim().toLowerCase());
-  });
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="border border-[#982E41]/20 bg-white p-2">
-      <Input
-        placeholder={placeholder}
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        className="h-9"
-      />
-      <div className="mt-2 max-h-56 overflow-y-auto border border-[#982E41]/10">
-        {filteredKols.length ? filteredKols.map((kol) => (
-          <button
-            key={kol.id}
-            type="button"
-            className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-[#FFF8F9]"
-            onClick={() => {
-              onSelect(kol.id);
-              setQuery("");
-            }}
-          >
-            <span className="text-sm font-medium text-[#2b1418]">{kol.displayName}</span>
-            <span className="text-xs text-muted-foreground">{kol.keywords || "Tanpa keyword"}</span>
-          </button>
-        )) : <div className="px-3 py-2 text-sm text-muted-foreground">KOL tidak ditemukan.</div>}
-      </div>
-    </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          aria-expanded={open}
+          className="h-10 w-full justify-between border-[#982E41]/20 bg-white px-3 text-left text-sm font-normal"
+        >
+          <span className="truncate">{placeholder}</span>
+          <ChevronDown className="size-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] border-[#982E41]/20 p-0" align="start">
+        <Command filter={(value, search, keywords) => {
+          const haystack = [value, ...(keywords ?? [])].join(" ").toLowerCase();
+          return haystack.includes(search.toLowerCase()) ? 1 : 0;
+        }}>
+          <CommandInput placeholder="Search KOL" />
+          <CommandList>
+            <CommandEmpty>KOL tidak ditemukan.</CommandEmpty>
+            <CommandGroup>
+              {kols.map((kol) => (
+                <CommandItem
+                  key={kol.id}
+                  value={kol.displayName}
+                  keywords={[kol.keywords, ...kol.accounts.map((account) => account.handle)].filter(Boolean)}
+                  onSelect={() => {
+                    onSelect(kol.id);
+                    setOpen(false);
+                  }}
+                  className="flex-col items-start gap-0.5"
+                >
+                  <span className="text-sm font-medium text-[#2b1418]">{kol.displayName}</span>
+                  <span className="text-xs text-muted-foreground">{kol.keywords || "Tanpa keyword"}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
