@@ -15,7 +15,6 @@ import { arrayFromQueryData } from "@/lib/query-data";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -68,7 +67,11 @@ type CampaignListResponse = {
 };
 
 function toDateInputValue(date: Date | undefined) {
-  return date ? date.toISOString().slice(0, 10) : "";
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function fromDateInputValue(value: string) {
@@ -494,8 +497,6 @@ function parseTargetKolTiers(value: string | null | undefined): TargetKolTier[] 
   const text = value?.trim() ?? "";
 
   if (!text) {
-    result.set("nano", 15);
-    result.set("micro", 5);
     return Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
   }
 
@@ -509,8 +510,7 @@ function parseTargetKolTiers(value: string | null | undefined): TargetKolTier[] 
     }
   }
 
-  const parsed = Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
-  return parsed.length ? parsed : [{ tier: "nano", count: 15 }, { tier: "micro", count: 5 }];
+  return Array.from(result, ([tier, count]) => ({ tier, count })).filter((item) => item.count > 0);
 }
 
 function encodeTargetKolTiers(tiers: TargetKolTier[]) {
@@ -686,6 +686,13 @@ function RouteComponent() {
     return Array.from(new Set(campaigns.map((campaign) => campaign.brand.trim()).filter(Boolean)))
       .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
   }, [campaigns]);
+  const keywordOptions = useMemo(() => {
+    return Array.from(new Set([
+      ...campaigns.flatMap((campaign) => parseKeywordTokens(campaign.keywords)),
+      ...kols.flatMap((kol) => parseKeywordTokens(kol.keywords)),
+    ]))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  }, [campaigns, kols]);
 
   const addContentCampaign = useMemo(() => {
     if (addContentCampaignId === null) {
@@ -1469,6 +1476,7 @@ function RouteComponent() {
             </div>
             <KeywordTokenInput
               label="Keyword"
+              suggestions={keywordOptions}
               value={form.keywords}
               onChange={(value) => setForm((current) => ({ ...current, keywords: value }))}
             />
@@ -1501,13 +1509,33 @@ function RouteComponent() {
                     const kol = kols.find((item) => item.id === kolId);
                     if (!kol) return null;
 
+                    const keywordTokens = parseKeywordTokens(kol.keywords);
+
                     return (
-                      <div key={kolId} className="flex items-center justify-between gap-3 border border-[#982E41]/25 bg-[#FFF8F9] px-3 py-2 text-sm text-[#2b1418]">
-                        <span className="min-w-0">
+                      <div key={kolId} className="flex items-start justify-between gap-3 border border-[#982E41]/25 bg-[#FFF8F9] px-3 py-2 text-sm text-[#2b1418]">
+                        <span className="min-w-0 space-y-1">
                           <span className="block truncate font-medium">{kol.displayName}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {kol.accounts.map((account) => `@${account.handle}`).join(" / ") || kol.keywords || "-"}
+                          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            {kol.accounts.length ? (
+                              kol.accounts.map((account) => (
+                                <span key={account.id} className="inline-flex items-center gap-1">
+                                  <SocialPlatformIcon platform={account.platform} className="size-3.5" />
+                                  @{account.handle}
+                                </span>
+                              ))
+                            ) : (
+                              <span>-</span>
+                            )}
                           </span>
+                          {keywordTokens.length ? (
+                            <span className="flex flex-wrap gap-1.5">
+                              {keywordTokens.map((keyword) => (
+                                <span key={keyword} className="border border-[#982E41]/25 bg-white px-2 py-0.5 text-[11px] font-medium text-[#982E41]">
+                                  {keyword}
+                                </span>
+                              ))}
+                            </span>
+                          ) : null}
                         </span>
                         <button
                           type="button"
@@ -2424,9 +2452,23 @@ function KeywordChips({ value }: { value: string | null | undefined }) {
   );
 }
 
-function KeywordTokenInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+function KeywordTokenInput({
+  label,
+  onChange,
+  suggestions = [],
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  suggestions?: string[];
+  value: string;
+}) {
   const tokens = parseKeywordTokens(value);
   const [draft, setDraft] = useState("");
+  const availableSuggestions = suggestions.filter((suggestion) =>
+    !tokens.some((token) => token.toLowerCase() === suggestion.toLowerCase()) &&
+    (!draft || suggestion.toLowerCase().includes(draft.toLowerCase())),
+  );
 
   function commitDraft(rawDraft = draft) {
     const nextTokens = parseKeywordTokens(rawDraft);
@@ -2477,12 +2519,42 @@ function KeywordTokenInput({ label, onChange, value }: { label: string; onChange
           placeholder={tokens.length ? "Tambah lalu tekan spasi" : "Ketik keyword lalu tekan spasi"}
         />
       </div>
+      {availableSuggestions.length ? (
+        <div className="space-y-2 border border-[#982E41]/15 bg-[#FFF8F9] p-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#982E41]">Suggestion</p>
+          <div className="flex flex-wrap gap-2">
+            {availableSuggestions.slice(0, 12).map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                className="border border-[#982E41]/25 bg-white px-2 py-1 text-xs font-medium text-[#982E41] hover:bg-[#982E41]/10"
+                onClick={() => onChange(encodeKeywordTokens([...tokens, suggestion]))}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function TargetKolTierInputs({ onChange, value }: { onChange: (value: string) => void; value: string }) {
   const tiers = parseTargetKolTiers(value);
+  const tierCounts = useMemo(
+    () => Object.fromEntries(TARGET_KOL_TIERS.map(({ key }) => [key, tiers.find((item) => item.tier === key)?.count ?? 0])) as Record<string, number>,
+    [value],
+  );
+  const [focusedTier, setFocusedTier] = useState<string | null>(null);
+  const [draftCounts, setDraftCounts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(TARGET_KOL_TIERS.map(({ key }) => [key, String(tierCounts[key] ?? 0)])),
+  );
+
+  useEffect(() => {
+    if (focusedTier) return;
+    setDraftCounts(Object.fromEntries(TARGET_KOL_TIERS.map(({ key }) => [key, String(tierCounts[key] ?? 0)])));
+  }, [focusedTier, tierCounts]);
 
   function updateTier(tier: string, count: number) {
     const next = TARGET_KOL_TIERS.map(({ key }) => ({
@@ -2491,6 +2563,12 @@ function TargetKolTierInputs({ onChange, value }: { onChange: (value: string) =>
     }));
 
     onChange(encodeTargetKolTiers(next));
+  }
+
+  function updateTierDraft(tier: string, rawValue: string) {
+    const digitsOnly = rawValue.replace(/[^\d]/g, "");
+    setDraftCounts((current) => ({ ...current, [tier]: digitsOnly }));
+    updateTier(tier, digitsOnly ? Number(digitsOnly) : 0);
   }
 
   return (
@@ -2504,9 +2582,14 @@ function TargetKolTierInputs({ onChange, value }: { onChange: (value: string) =>
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#982E41]">{label}</span>
             <Input
               min={0}
-              type="number"
-              value={tiers.find((item) => item.tier === key)?.count ?? 0}
-              onChange={(event) => updateTier(key, Number(event.target.value || 0))}
+              inputMode="numeric"
+              value={draftCounts[key] ?? ""}
+              onFocus={() => setFocusedTier(key)}
+              onBlur={() => {
+                setFocusedTier(null);
+                setDraftCounts((current) => ({ ...current, [key]: current[key] === "" ? "0" : current[key] ?? "0" }));
+              }}
+              onChange={(event) => updateTierDraft(key, event.target.value)}
             />
           </Label>
         ))}
@@ -2535,24 +2618,44 @@ function DateRangePicker({ label, onChange, value }: { label: string; onChange: 
 }
 
 function BrandInput({ onChange, options, value }: { onChange: (value: string) => void; options: string[]; value: string }) {
-  const listId = "campaign-brand-options";
+  const [open, setOpen] = useState(false);
+  const filteredOptions = options.filter((option) => option.toLowerCase().includes(value.toLowerCase()) && option !== value);
 
   return (
-    <label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
+    <Label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
       <span>Brand</span>
-      <Input
-        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
-        list={listId}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="DigiWonder"
-        value={value}
-      />
-      <datalist id={listId}>
-        {options.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
-    </label>
+      <div className="relative">
+        <Input
+          className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="DigiWonder"
+          value={value}
+        />
+        {open && filteredOptions.length ? (
+          <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-56 overflow-y-auto border border-[#982E41]/20 bg-white p-1 shadow-sm">
+            {filteredOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className="block w-full px-2 py-2 text-left text-sm normal-case tracking-normal text-[#2b1418] hover:bg-[#fff6f8]"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </Label>
   );
 }
 
@@ -2720,47 +2823,107 @@ function EstimatedMetricValue({ estimated, value }: { estimated: number; value: 
 
 function KolCombobox({ kols, onSelect, placeholder }: { kols: KolRecord[]; onSelect: (kolId: number) => void; placeholder: string }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const filteredKols = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return kols;
+
+    return kols.filter((kol) => {
+      const haystack = [
+        kol.displayName,
+        kol.keywords,
+        kol.followerTier,
+        ...kol.accounts.flatMap((account) => [account.handle, account.platform]),
+      ].join(" ").toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [kols, query]);
+
+  function selectKol(kolId: number) {
+    onSelect(kolId);
+    setQuery("");
+    setOpen(false);
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          aria-expanded={open}
-          className="h-10 w-full justify-between border-[#982E41]/20 bg-white px-3 text-left text-sm font-normal"
-        >
-          <span className="truncate">{placeholder}</span>
-          <ChevronDown className="size-4 opacity-50" />
-        </Button>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-[#982E41]" />
+          <Input
+            aria-expanded={open}
+            role="combobox"
+            className="h-10 w-full border-[#982E41]/20 bg-white pl-9 pr-9 text-sm font-normal text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+            placeholder={placeholder}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              if (!open) setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setOpen(true);
+              }
+
+              if (event.key === "Enter" && open && filteredKols[0]) {
+                event.preventDefault();
+                selectKol(filteredKols[0].id);
+              }
+
+              if (event.key === "Escape") {
+                setOpen(false);
+              }
+            }}
+          />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 z-10 size-4 -translate-y-1/2 opacity-50" />
+        </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] border-[#982E41]/20 p-0" align="start">
-        <Command filter={(value, search, keywords) => {
-          const haystack = [value, ...(keywords ?? [])].join(" ").toLowerCase();
-          return haystack.includes(search.toLowerCase()) ? 1 : 0;
-        }}>
-          <CommandInput placeholder="Search KOL" />
-          <CommandList>
-            <CommandEmpty>KOL tidak ditemukan.</CommandEmpty>
-            <CommandGroup>
-              {kols.map((kol) => (
-                <CommandItem
+      <PopoverContent className="w-[--radix-popover-trigger-width] border-[#982E41]/20 p-0" align="start" onOpenAutoFocus={(event) => event.preventDefault()}>
+        <div className="max-h-80 overflow-y-auto p-1">
+          {filteredKols.length ? (
+            filteredKols.map((kol) => {
+              const keywordTokens = parseKeywordTokens(kol.keywords);
+
+              return (
+                <button
                   key={kol.id}
-                  value={kol.displayName}
-                  keywords={[kol.keywords, ...kol.accounts.map((account) => account.handle)].filter(Boolean)}
-                  onSelect={() => {
-                    onSelect(kol.id);
-                    setOpen(false);
-                  }}
-                  className="flex-col items-start gap-0.5"
+                  type="button"
+                  className="grid w-full gap-1 px-2 py-2 text-left text-sm text-[#2b1418] hover:bg-[#fff6f8]"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectKol(kol.id)}
                 >
-                  <span className="text-sm font-medium text-[#2b1418]">{kol.displayName}</span>
-                  <span className="text-xs text-muted-foreground">{kol.keywords || "Tanpa keyword"}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+                  <span className="font-medium">{kol.displayName}</span>
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {kol.accounts.length ? (
+                      kol.accounts.map((account) => (
+                        <span key={account.id} className="inline-flex items-center gap-1">
+                          <SocialPlatformIcon platform={account.platform} className="size-3.5" />
+                          @{account.handle}
+                        </span>
+                      ))
+                    ) : (
+                      <span>Tanpa akun</span>
+                    )}
+                  </span>
+                  {keywordTokens.length ? (
+                    <span className="flex flex-wrap gap-1.5">
+                      {keywordTokens.slice(0, 6).map((keyword) => (
+                        <span key={keyword} className="border border-[#982E41]/25 bg-white px-2 py-0.5 text-[11px] font-medium text-[#982E41]">
+                          {keyword}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-2 py-3 text-sm text-muted-foreground">KOL tidak ditemukan.</div>
+          )}
+        </div>
       </PopoverContent>
     </Popover>
   );
