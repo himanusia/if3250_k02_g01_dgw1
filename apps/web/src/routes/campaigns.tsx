@@ -635,6 +635,7 @@ function RouteComponent() {
   );
   const kols = arrayFromQueryData<KolRecord>(kolsQuery.data);
   const detailCampaignData = (detailCampaignQuery.data as CampaignDetailRecord | null | undefined) ?? null;
+  const detailCampaignProgress = detailCampaignData ? campaignProgressById.get(detailCampaignData.id) : undefined;
 
   useEffect(() => {
     const hasPendingContent = detailCampaignData?.contentsByKol.some((group) =>
@@ -709,6 +710,28 @@ function RouteComponent() {
 
     return { activeContentGroups: activeGroups, archivedContentGroups: archivedGroups };
   }, [detailCampaignData]);
+  const detailKolTierRows = useMemo(() => {
+    if (!detailCampaignData) {
+      return TARGET_KOL_TIERS.map(({ key, label }) => ({ actual: 0, key, label, target: 0 }));
+    }
+
+    const targets = new Map(parseTargetKolTiers(detailCampaignData.targetFollowerTier).map((tier) => [tier.tier, tier.count]));
+    const selectedKolIds = new Set(detailCampaignData.kols.map((kol) => kol.id));
+    const actuals = new Map(TARGET_KOL_TIERS.map(({ key }) => [key, 0]));
+
+    kols.forEach((kol) => {
+      if (selectedKolIds.has(kol.id) && actuals.has(kol.followerTier)) {
+        actuals.set(kol.followerTier, (actuals.get(kol.followerTier) ?? 0) + 1);
+      }
+    });
+
+    return TARGET_KOL_TIERS.map(({ key, label }) => ({
+      actual: actuals.get(key) ?? 0,
+      key,
+      label,
+      target: targets.get(key) ?? 0,
+    }));
+  }, [detailCampaignData, kols]);
 
   const addContent = useMutation({
     mutationFn: (input: { campaignId: number; contents: AddContentPayloadRow[] }) =>
@@ -1575,7 +1598,7 @@ function RouteComponent() {
                       disabled={!detailCampaignData}
                       onClick={() => {
                         if (detailCampaignData) {
-                          downloadCampaignReportPdf(detailCampaignData, campaignProgressById.get(detailCampaignData.id));
+                          downloadCampaignReportPdf(detailCampaignData, campaignProgressById.get(detailCampaignData.id), kols);
                         }
                       }}
                     >
@@ -1599,30 +1622,64 @@ function RouteComponent() {
             ) : (
               <div className="grid gap-6 px-4 py-4 sm:px-6 sm:py-6">
               <section className="space-y-4 border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <DetailStat boxed label="Nama campaign" value={detailCampaignSummary?.name ?? detailCampaignData?.name ?? "-"} />
-                  <DetailStat boxed label="Brand" value={detailCampaignSummary?.brand ?? detailCampaignData?.brand ?? "-"} />
-                  <DetailStat boxed label="Status" value={detailCampaignSummary?.status ?? detailCampaignData?.status ?? "-"} />
-                  <DetailStat
-                    boxed
-                    label="Periode"
-                    value={`${formatHumanDate(detailCampaignSummary?.periodStart ?? detailCampaignData?.periodStart)} → ${formatHumanDate(detailCampaignSummary?.periodEnd ?? detailCampaignData?.periodEnd)}`}
-                  />
-                  <DetailStat boxed label="Target KOL total" value={String(detailCampaignSummary?.targetKolCount ?? detailCampaignData?.targetKolCount ?? 0)} />
-                  <DetailStat boxed label="Target konten" value={String(detailCampaignSummary?.targetContentCount ?? detailCampaignData?.targetContentCount ?? 0)} />
-                  <DetailStat boxed label="Target post" value={String(detailCampaignSummary?.targetPostCount ?? detailCampaignData?.targetPostCount ?? 0)} />
-                  <DetailStat boxed label="Target reels" value={String(detailCampaignSummary?.targetReelCount ?? detailCampaignData?.targetReelCount ?? 0)} />
-                  <DetailStat boxed label="Target story" value={String(detailCampaignSummary?.targetStoryCount ?? detailCampaignData?.targetStoryCount ?? 0)} />
-                  <DetailStat boxed label="Follower tier" value={formatTargetKolTiers(detailCampaignSummary?.targetFollowerTier ?? detailCampaignData?.targetFollowerTier)} />
-                  <DetailStat boxed label="Budget campaign" value={formatCurrencyIdr(detailCampaignData.budgetIdr)} />
-                  <DetailStat boxed label="Budget digunakan" value={formatCurrencyIdr(campaignProgressById.get(detailCampaignData.id)?.budgetUsedIdr)} />
-                  <DetailStat boxed label="Last sync" value={formatHumanDateTime(getOldestContentSyncAt(detailCampaignData.contentsByKol))} />
+                <div className="flex flex-col gap-3 border-b border-[#982E41]/15 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#982E41]">{detailCampaignData.brand}</p>
+                    <h2 className="mt-1 break-words font-goldman text-2xl font-bold uppercase tracking-wide text-[#2b1418] md:text-3xl">
+                      {detailCampaignData.name}
+                    </h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <span className="border border-[#982E41]/15 bg-[#FFF8F9] px-2 py-1 text-[#2b1418]">{formatCampaignStatus(detailCampaignData.status)}</span>
+                      <span>{formatHumanDate(detailCampaignData.periodStart)} → {formatHumanDate(detailCampaignData.periodEnd)}</span>
+                      <span>Last sync: {formatHumanDateTime(getOldestContentSyncAt(detailCampaignData.contentsByKol))}</span>
+                    </div>
+                  </div>
+                  <div className="min-w-[220px] border border-[#982E41]/15 bg-[#FFF8F9] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#982E41]">Budget</p>
+                    <p className="mt-1 text-lg font-semibold text-[#2b1418]">
+                      {formatCurrencyIdr(detailCampaignProgress?.budgetUsedIdr)} / {formatCurrencyIdr(detailCampaignData.budgetIdr)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {clampPercent(((detailCampaignProgress?.budgetUsedIdr ?? 0) / Math.max(1, detailCampaignData.budgetIdr)) * 100)}% terpakai
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
+                  <div className="border border-[#982E41]/15 bg-white">
+                    <div className="border-b border-[#982E41]/15 bg-[#FFF8F9] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">
+                      KOL
+                    </div>
+                    <div className="divide-y divide-[#982E41]/10">
+                      <CampaignDetailRow label="Total KOL" value={`${detailCampaignData.kols.length.toLocaleString("id-ID")} / ${detailCampaignData.targetKolCount.toLocaleString("id-ID")}`} strong />
+                      {detailKolTierRows.map((tier) => (
+                        <CampaignDetailRow
+                          key={tier.key}
+                          label={`KOL ${tier.label}`}
+                          value={`${tier.actual.toLocaleString("id-ID")} / ${tier.target.toLocaleString("id-ID")}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border border-[#982E41]/15 bg-white">
+                    <div className="border-b border-[#982E41]/15 bg-[#FFF8F9] px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">
+                      Konten
+                    </div>
+                    <div className="divide-y divide-[#982E41]/10">
+                      <CampaignDetailRow label="Total konten" value={`${(detailCampaignProgress?.contentCount ?? 0).toLocaleString("id-ID")} / ${detailCampaignData.targetContentCount.toLocaleString("id-ID")}`} strong />
+                      <CampaignDetailRow label="Post" value={`${(detailCampaignProgress?.postCount ?? 0).toLocaleString("id-ID")} / ${detailCampaignData.targetPostCount.toLocaleString("id-ID")}`} />
+                      <CampaignDetailRow label="Reels" value={`${(detailCampaignProgress?.reelCount ?? 0).toLocaleString("id-ID")} / ${detailCampaignData.targetReelCount.toLocaleString("id-ID")}`} />
+                      <CampaignDetailRow label="Story" value={`${(detailCampaignProgress?.storyCount ?? 0).toLocaleString("id-ID")} / ${detailCampaignData.targetStoryCount.toLocaleString("id-ID")}`} />
+                      <CampaignDetailRow label="Published / drafting / belum acc" value={`${(detailCampaignProgress?.syncedContentCount ?? 0).toLocaleString("id-ID")} / ${(detailCampaignProgress?.pendingSyncCount ?? 0).toLocaleString("id-ID")} / ${(detailCampaignProgress?.failedSyncCount ?? 0).toLocaleString("id-ID")}`} />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid gap-3">
                   <ObjectiveProgressPanel
                     campaign={detailCampaignData}
-                    progress={campaignProgressById.get(detailCampaignData.id)}
+                    progress={detailCampaignProgress}
                   />
                   <DetailStat boxed label="Keywords" value={<KeywordChips value={detailCampaignData?.keywords ?? detailCampaignSummary?.keywords} />} />
                   <div className="grid gap-3 md:grid-cols-2">
@@ -1632,7 +1689,7 @@ function RouteComponent() {
                 </div>
 
                 <div className="grid gap-3">
-                  <DetailStat boxed label="Deskripsi" value={detailCampaignData?.description ?? detailCampaignSummary?.description ?? "-"} />
+                  <DetailStat boxed label="Brief campaign" value={detailCampaignData?.description ?? detailCampaignSummary?.description ?? "-"} />
                 </div>
 
                 <details className="group border border-[#982E41]/15 bg-[#FFF8F9] p-3">
@@ -2718,6 +2775,23 @@ function DetailStat({
       <div className={`${valueClassName} break-words whitespace-pre-line`}>
         {value}
       </div>
+    </div>
+  );
+}
+
+function CampaignDetailRow({
+  label,
+  strong = false,
+  value,
+}: {
+  label: string;
+  strong?: boolean;
+  value: ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-sm">
+      <span className={`${strong ? "font-semibold text-[#2b1418]" : "text-muted-foreground"}`}>{label}</span>
+      <span className={`${strong ? "text-base font-semibold" : "font-medium"} text-right text-[#2b1418]`}>{value}</span>
     </div>
   );
 }

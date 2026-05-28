@@ -19,6 +19,8 @@ export const Route = createFileRoute("/compare-kols")({
   component: RouteComponent,
 });
 
+const KOL_PAGE_SIZE = 6;
+
 type GroupedPlatformAccount = KolRecord["accounts"][number] & {
   actualPostRate: number | null;
   displayName: string;
@@ -37,6 +39,7 @@ function parseKeywordSegments(keywords: string | null | undefined): string[] {
 function RouteComponent() {
   const [search, setSearch] = useState("");
   const [keywordFilter, setKeywordFilter] = useState("all");
+  const [kolPage, setKolPage] = useState(1);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [selectedKolIds, setSelectedKolIds] = useState<number[]>([]);
 
@@ -84,6 +87,18 @@ function RouteComponent() {
   }, [keywordFilter, kols, search]);
 
   const selectedKols = kols.filter((kol) => selectedKolIds.includes(kol.id));
+  const totalKolPages = Math.max(1, Math.ceil(filteredKols.length / KOL_PAGE_SIZE));
+  const paginatedKols = filteredKols.slice((kolPage - 1) * KOL_PAGE_SIZE, kolPage * KOL_PAGE_SIZE);
+
+  useEffect(() => {
+    setKolPage(1);
+  }, [keywordFilter, search]);
+
+  useEffect(() => {
+    if (kolPage > totalKolPages) {
+      setKolPage(totalKolPages);
+    }
+  }, [kolPage, totalKolPages]);
 
   const groupedByPlatform = useMemo<Record<SocialPlatform, GroupedPlatformAccount[]>>(() => {
     const map: Record<SocialPlatform, GroupedPlatformAccount[]> = {
@@ -108,18 +123,19 @@ function RouteComponent() {
   }, [selectedKols]);
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <div className="container mx-auto grid w-full max-w-7xl gap-5 overflow-x-hidden px-4 py-6 lg:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.15fr)] lg:py-8">
+      <div className="container mx-auto grid w-full max-w-[1500px] gap-5 overflow-x-hidden px-4 py-6 lg:grid-cols-[380px_minmax(0,1fr)] lg:py-8">
       <section className="min-w-0 max-w-full overflow-hidden space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
           <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Bandingkan kandidat KOL</h1>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)]">
+        <div className="grid gap-3">
           <FilterInput label="Cari nama / handle" value={search} onChange={setSearch} />
           <Label className="grid gap-2 text-sm text-[#2b1418]">
             <span>Keyword</span>
             <SearchableSelect
+              className="w-full"
               value={keywordFilter}
               onValueChange={setKeywordFilter}
               options={[{ label: "Semua keyword", value: "all" }, ...keywordOptions.map((keyword) => ({ label: keyword, value: keyword }))]}
@@ -129,10 +145,15 @@ function RouteComponent() {
           </Label>
         </div>
 
-        <div className="grid max-h-[34rem] gap-3 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+        <div className="flex items-center justify-between gap-3 border border-[#b43c39]/15 bg-[#fff6f8] px-3 py-2 text-sm text-[#2b1418]">
+          <span>{filteredKols.length.toLocaleString("id-ID")} kandidat</span>
+          <span>{selectedKolIds.length.toLocaleString("id-ID")} dipilih</span>
+        </div>
+
+        <div className="grid max-h-[31rem] gap-3 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3">
           {kolQuery.isLoading ? (
             <CompareKolPickerSkeleton />
-          ) : filteredKols.map((kol) => {
+          ) : paginatedKols.map((kol) => {
             const selected = selectedKolIds.includes(kol.id);
 
             return (
@@ -151,9 +172,9 @@ function RouteComponent() {
               >
                 <span className="block w-full">
                   <span className="flex items-start justify-between gap-3">
-                    <span>
+                    <span className="min-w-0">
                       <span className="block font-medium text-[#2b1418]">{kol.displayName}</span>
-                      <span className="block text-sm text-muted-foreground">
+                      <span className="block break-words text-sm text-muted-foreground">
                         {kol.accounts.map((account) => `@${account.handle}`).join(" • ")}
                       </span>
                     </span>
@@ -171,6 +192,30 @@ function RouteComponent() {
           {!kolQuery.isLoading && !filteredKols.length && (
             <p className="text-sm text-muted-foreground">Tidak ada akun yang cocok dengan filter.</p>
           )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 rounded-none border-[#b43c39]/20"
+            disabled={kolPage <= 1}
+            onClick={() => setKolPage((page) => Math.max(1, page - 1))}
+          >
+            Sebelumnya
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {kolPage} / {totalKolPages}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 rounded-none border-[#b43c39]/20"
+            disabled={kolPage >= totalKolPages}
+            onClick={() => setKolPage((page) => Math.min(totalKolPages, page + 1))}
+          >
+            Berikutnya
+          </Button>
         </div>
       </section>
 
@@ -228,11 +273,20 @@ function RouteComponent() {
           <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             Overall
           </h2>
-          {kolQuery.isLoading ? <CompareTableSkeleton /> : <div className="border border-[#b43c39]/15"><Table className="min-w-[760px] text-sm">
+          {kolQuery.isLoading ? <CompareTableSkeleton /> : <div className="border border-[#b43c39]/15"><Table className="min-w-[1180px] text-sm">
             <TableHeader className="bg-[#fff3d8] text-[#2b1418]">
               <TableRow>
                 <TableHead className="w-[220px]">
                   Name
+                </TableHead>
+                <TableHead className="w-[220px]">
+                  Handles
+                </TableHead>
+                <TableHead>
+                  Tier
+                </TableHead>
+                <TableHead className="w-[180px]">
+                  Keywords
                 </TableHead>
                 <TableHead className="text-right">
                   Followers
@@ -250,6 +304,12 @@ function RouteComponent() {
                   Est. Post
                 </TableHead>
                 <TableHead className="text-right">
+                  Est. Reels
+                </TableHead>
+                <TableHead className="text-right">
+                  Est. Story
+                </TableHead>
+                <TableHead className="text-right">
                   Actual Post
                 </TableHead>
               </TableRow>
@@ -260,6 +320,18 @@ function RouteComponent() {
                 <TableRow key={kol.id} className="hover:bg-[#fff6f8]">
                   <TableCell className="font-medium">
                     {kol.displayName}
+                  </TableCell>
+
+                  <TableCell className="whitespace-normal text-muted-foreground">
+                    {kol.accounts.map((account) => `@${account.handle}`).join(" • ") || "-"}
+                  </TableCell>
+
+                  <TableCell className="capitalize">
+                    {kol.followerTier}
+                  </TableCell>
+
+                  <TableCell className="whitespace-normal text-muted-foreground">
+                    {kol.keywords || "-"}
                   </TableCell>
 
                   <TableCell className="text-right">
@@ -283,13 +355,21 @@ function RouteComponent() {
                   </TableCell>
 
                   <TableCell className="text-right">
+                    {formatCurrencyIdr(kol.estimatedRateCard?.reel.suggested)}
+                  </TableCell>
+
+                  <TableCell className="text-right">
+                    {formatCurrencyIdr(kol.estimatedRateCard?.story.suggested)}
+                  </TableCell>
+
+                  <TableCell className="text-right">
                     {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}
                   </TableCell>
                 </TableRow>
               ))}
               {!selectedKols.length && (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-20 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="h-20 text-center text-muted-foreground">
                     Pilih KOL untuk melihat perbandingan.
                   </TableCell>
                 </TableRow>
@@ -305,7 +385,7 @@ function RouteComponent() {
           </h2>
 
           <div className="overflow-x-auto border border-[#b43c39]/15">
-            <Table className="min-w-[860px] text-sm">
+            <Table className="min-w-[1060px] text-sm">
               <TableHeader className="bg-[#fff3d8] text-[#2b1418]">
                 <TableRow>
                   <TableHead className="w-[200px]">
@@ -331,6 +411,12 @@ function RouteComponent() {
                   </TableHead>
                   <TableHead className="text-right">
                     Actual Post
+                  </TableHead>
+                  <TableHead>
+                    Sync
+                  </TableHead>
+                  <TableHead>
+                    Last Sync
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -369,11 +455,19 @@ function RouteComponent() {
                     <TableCell className="text-right">
                       {formatCurrencyIdr(acc.actualPostRate)}
                     </TableCell>
+
+                    <TableCell className="capitalize">
+                      {acc.syncStatus}
+                    </TableCell>
+
+                    <TableCell>
+                      {acc.lastSyncedAt ? new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(acc.lastSyncedAt)) : "-"}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {!accounts.length && (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-16 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-16 text-center text-muted-foreground">
                       Belum ada akun {platform} yang dipilih.
                     </TableCell>
                   </TableRow>
