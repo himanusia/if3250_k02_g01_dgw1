@@ -64,46 +64,85 @@ function wrapText(text: string, maxChars = 88) {
 
 function buildLines(campaign: CampaignDetailRecord, progress?: CampaignDashboardRecord): PdfLine[] {
   const contents = campaign.contentsByKol.flatMap((group) => group.contents);
-  const topKol = campaign.contentsByKol
+  const kolSummaries = campaign.contentsByKol
     .map((group) => ({
       name: group.displayName,
+      handles: group.handles,
       views: group.contents.reduce((sum, content) => sum + content.viewCount, 0),
+      likes: group.contents.reduce((sum, content) => sum + content.likeCount, 0),
+      comments: group.contents.reduce((sum, content) => sum + content.commentCount, 0),
+      shares: group.contents.reduce((sum, content) => sum + content.shareCount, 0),
       contentCount: group.contents.length,
-    }))
-    .sort((left, right) => right.views - left.views || right.contentCount - left.contentCount)[0];
+    }));
+  const topKolByViews = [...kolSummaries].sort((left, right) => right.views - left.views || right.contentCount - left.contentCount)[0];
+  const topKolByLikes = [...kolSummaries].sort((left, right) => right.likes - left.likes || right.contentCount - left.contentCount)[0];
+  const topKolByContents = [...kolSummaries].sort((left, right) => right.contentCount - left.contentCount || right.views - left.views)[0];
   const totals = contents.reduce(
     (accumulator, content) => ({
       comments: accumulator.comments + content.commentCount,
+      failed: accumulator.failed + (content.syncStatus === "failed" ? 1 : 0),
       likes: accumulator.likes + content.likeCount,
+      pending: accumulator.pending + (content.syncStatus === "pending" ? 1 : 0),
+      post: accumulator.post + (content.contentType === "post" ? 1 : 0),
+      reel: accumulator.reel + (content.contentType === "reel" ? 1 : 0),
       shares: accumulator.shares + content.shareCount,
+      story: accumulator.story + (content.contentType === "story" ? 1 : 0),
+      success: accumulator.success + (content.syncStatus === "success" ? 1 : 0),
       views: accumulator.views + content.viewCount,
     }),
-    { comments: 0, likes: 0, shares: 0, views: 0 },
+    { comments: 0, failed: 0, likes: 0, pending: 0, post: 0, reel: 0, shares: 0, story: 0, success: 0, views: 0 },
   );
+  const uniqueHandleCount = new Set(campaign.contentsByKol.flatMap((group) => group.handles)).size;
+  const totalBudgetUsed = progress?.budgetUsedIdr ?? contents.reduce((sum, content) => sum + (content.budgetIdr ?? 0), 0);
+  const actualContentCount = progress?.contentCount ?? contents.length;
+  const actualViewCount = progress?.viewCount ?? totals.views;
+  const actualLikeCount = progress?.likeCount ?? totals.likes;
+  const actualCommentCount = progress?.commentCount ?? totals.comments;
+  const actualShareCount = progress?.shareCount ?? totals.shares;
 
   const lines: PdfLine[] = [
-    { size: 18, text: `Laporan Campaign: ${campaign.name}` },
+    { size: 18, text: "Laporan Campaign" },
+    { size: 15, text: campaign.name },
     { text: `Brand: ${campaign.brand}` },
     { text: `Status: ${campaign.status}` },
     { text: `Periode: ${campaign.periodStart} - ${campaign.periodEnd}` },
     { text: `Generated: ${formatDate(new Date().toISOString())}` },
     { text: "" },
-    { size: 13, text: "Ringkasan" },
-    { text: `KOL: ${campaign.kols.length}` },
-    { text: `Konten: ${contents.length}` },
-    { text: `Top KOL: ${topKol ? `${topKol.name} (${formatNumber(topKol.views)} views)` : "-"}` },
-    { text: `Views: ${formatNumber(progress?.viewCount ?? totals.views)}` },
-    { text: `Likes: ${formatNumber(progress?.likeCount ?? totals.likes)}` },
-    { text: `Comments: ${formatNumber(progress?.commentCount ?? totals.comments)}` },
-    { text: `Shares: ${formatNumber(progress?.shareCount ?? totals.shares)}` },
-    { text: `Budget digunakan: Rp${formatNumber(progress?.budgetUsedIdr ?? contents.reduce((sum, content) => sum + (content.budgetIdr ?? 0), 0))}` },
+    { size: 13, text: "I. Informasi Campaign" },
+    { text: `Target KOL: ${formatNumber(campaign.targetKolCount)} | KOL terhubung: ${formatNumber(campaign.kols.length)} | Handle unik: ${formatNumber(uniqueHandleCount)}` },
+    { text: `Target konten: ${formatNumber(campaign.targetContentCount)} | Aktual konten: ${formatNumber(actualContentCount)} (post ${formatNumber(progress?.postCount ?? totals.post)}, reels ${formatNumber(progress?.reelCount ?? totals.reel)}, story ${formatNumber(progress?.storyCount ?? totals.story)})` },
+    { text: `Budget campaign: Rp${formatNumber(campaign.budgetIdr)} | Budget digunakan: Rp${formatNumber(totalBudgetUsed)}` },
+    { text: `Keyword: ${campaign.keywords || "-"}` },
     { text: "" },
-    { size: 13, text: "Objective" },
+    { size: 13, text: "II. Ringkasan Eksekutif" },
+    { text: `Total Views: ${formatNumber(actualViewCount)}` },
+    { text: `Total Likes: ${formatNumber(actualLikeCount)}` },
+    { text: `Total Comments: ${formatNumber(actualCommentCount)}` },
+    { text: `Total Shares: ${formatNumber(actualShareCount)}` },
+    { text: `Status sync: ${formatNumber(progress?.syncedContentCount ?? totals.success)} sukses, ${formatNumber(progress?.failedSyncCount ?? totals.failed)} gagal, ${formatNumber(progress?.pendingSyncCount ?? totals.pending)} pending` },
+    { text: `Top KOL by views: ${topKolByViews ? `${topKolByViews.name} (${formatNumber(topKolByViews.views)} views)` : "-"}` },
+    { text: `Top KOL by likes: ${topKolByLikes ? `${topKolByLikes.name} (${formatNumber(topKolByLikes.likes)} likes)` : "-"}` },
+    { text: `KOL konten terbanyak: ${topKolByContents ? `${topKolByContents.name} (${formatNumber(topKolByContents.contentCount)} konten)` : "-"}` },
+    { text: "" },
+    { size: 13, text: "III. Objective" },
   ];
 
   lines.push(...wrapText(formatObjectiveDetails(campaign.objective)).map((text) => ({ text })));
-  lines.push({ text: "" }, { size: 13, text: "Deskripsi" });
+  lines.push({ text: "" }, { size: 13, text: "IV. Deskripsi dan Brief" });
   lines.push(...wrapText(campaign.description).map((text) => ({ text })));
+  lines.push(...wrapText(campaign.postBriefs).map((text) => ({ text: `Brief: ${text}` })));
+
+  lines.push({ text: "" }, { size: 13, text: "V. Ringkasan Per KOL" });
+  if (!kolSummaries.length) {
+    lines.push({ text: "Belum ada KOL yang terhubung ke campaign ini." });
+  }
+  for (const kol of kolSummaries) {
+    lines.push({
+      text: `${kol.name} | ${kol.handles.length ? kol.handles.join(" / ") : "-"} | ${formatNumber(kol.contentCount)} konten | ${formatNumber(kol.views)} views | ${formatNumber(kol.likes)} likes | ${formatNumber(kol.comments)} comments | ${formatNumber(kol.shares)} shares`,
+    });
+  }
+
+  lines.push({ text: "" }, { size: 13, text: "VI. Rincian Konten Per KOL" });
 
   for (const group of campaign.contentsByKol) {
     lines.push({ text: "" }, { size: 13, text: `KOL: ${group.displayName}` });
@@ -113,7 +152,7 @@ function buildLines(campaign: CampaignDetailRecord, progress?: CampaignDashboard
       lines.push({ text: `- ${content.contentType.toUpperCase()} ${content.platform.toUpperCase()} | ${content.syncStatus} | ${formatDate(content.postedAt)}` });
       lines.push({ text: `  Actual: ${formatNumber(content.viewCount)} views, ${formatNumber(content.likeCount)} likes, ${formatNumber(content.commentCount)} comments, ${formatNumber(content.shareCount)} shares` });
       lines.push({ text: `  Estimasi: ${formatNumber(content.estimatedViewCount)} views, ${formatNumber(content.estimatedLikeCount)} likes, ${formatNumber(content.estimatedCommentCount)} comments, ${formatNumber(content.estimatedShareCount)} shares` });
-      lines.push({ text: `  Budget: Rp${formatNumber(content.budgetIdr ?? 0)} | FYP: ${content.isFyp ? "Ya" : "Tidak"}` });
+      lines.push({ text: `  Budget: Rp${formatNumber(content.budgetIdr ?? 0)} | FYP: ${content.isFyp === null ? "-" : content.isFyp ? "Ya" : "Tidak"} | Author: ${content.authorDisplayName || content.authorHandle || "-"}` });
       if (!content.contentUrl.startsWith("manual://")) {
         lines.push(...wrapText(content.contentUrl, 96).map((text) => ({ text: `  ${text}` })));
       }
@@ -164,7 +203,7 @@ function renderPages(lines: PdfLine[]) {
 function buildPdfBytes(pages: string[]) {
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    `<< /Type /Pages /Kids ${pages.map((_, index) => `${3 + index * 2} 0 R`).join(" ")} /Count ${pages.length} >>`,
+    `<< /Type /Pages /Kids [${pages.map((_, index) => `${3 + index * 2} 0 R`).join(" ")}] /Count ${pages.length} >>`,
   ];
 
   pages.forEach((commands, index) => {

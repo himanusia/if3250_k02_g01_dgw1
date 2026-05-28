@@ -1549,7 +1549,7 @@ function RouteComponent() {
           setIsDetailDialogOpen(true);
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto text-[#2b1418]">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden text-[#2b1418]">
           <DialogHeader className="px-5 py-5 sm:px-6">
               <div className="flex flex-col gap-3 pr-10 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -1633,16 +1633,17 @@ function RouteComponent() {
               </div>
           </DialogHeader>
 
-          {!detailCampaignSummary ? (
-            detailCampaignQuery.isLoading ? (
-              <CampaignDetailSkeleton compact />
+          <div className="max-h-[calc(90vh-116px)] overflow-y-auto overflow-x-hidden">
+            {!detailCampaignSummary ? (
+              detailCampaignQuery.isLoading ? (
+                <CampaignDetailSkeleton compact />
+              ) : (
+                <div className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">Campaign tidak ditemukan.</div>
+              )
+            ) : !detailCampaignData ? (
+              <CampaignDetailSkeleton />
             ) : (
-              <div className="px-4 pb-4 text-sm text-muted-foreground sm:px-6 sm:pb-6">Campaign tidak ditemukan.</div>
-            )
-          ) : !detailCampaignData ? (
-            <CampaignDetailSkeleton />
-          ) : (
-            <div className="grid gap-6 px-4 py-4 sm:px-6 sm:py-6">
+              <div className="grid gap-6 px-4 py-4 sm:px-6 sm:py-6">
               <section className="space-y-4 border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   <DetailStat boxed label="Nama campaign" value={detailCampaignSummary?.name ?? detailCampaignData?.name ?? "-"} />
@@ -2007,8 +2008,9 @@ function RouteComponent() {
                   </details>
                 </section>
               ) : null}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
