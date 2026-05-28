@@ -483,11 +483,11 @@ function RouteComponent() {
   const syncDueKols = useMutation({
     mutationFn: () => client.kol.syncDueKols(),
     onSuccess: (result) => {
-      toast.success(`Manual sync batch selesai: ${result.synced} dari ${result.total} KOL diproses.`);
+      toast.success(`Sinkronisasi KOL terjadwal selesai: ${result.synced} dari ${result.total} KOL diproses.`);
       kolQuery.refetch();
     },
     onError: (error) => {
-      toast.error(getKolErrorMessage(error, "Manual sync batch gagal"));
+      toast.error(getKolErrorMessage(error, "Sinkronisasi KOL terjadwal gagal"));
     },
   });
 
@@ -896,7 +896,7 @@ function mergeKeywords(
                 onClick={() => syncDueKols.mutate()}
               >
                 {syncDueKols.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCcw className="mr-2 size-4" />}
-                Trigger Cron Sync
+                {syncDueKols.isPending ? "Menyinkronkan..." : "Sinkronkan KOL terjadwal"}
               </Button>
 
               <Button
@@ -1067,7 +1067,7 @@ function mergeKeywords(
                         ) : (
                           <RefreshCcw className="mr-1 size-3.5" />
                         )}
-                        {syncingKolId === kol.id || kol.syncStatus === "pending" ? "Sinkron..." : "Sinkronkan"}
+                        {syncingKolId === kol.id || kol.syncStatus === "pending" ? "Menyinkronkan..." : "Sinkronkan"}
                       </Button>
                       <Button
                         variant="outline"

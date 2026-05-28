@@ -40,12 +40,12 @@ export const Route = createFileRoute("/settings")({
 });
 
 function formatTimeUntilDetailed(ms: number) {
-  if (ms <= 0) return "next sync now";
+  if (ms <= 0) return "Sinkronisasi berikutnya sekarang";
 
   const totalMinutes = Math.floor(ms / 60000);
 
   if (totalMinutes < 1) {
-    return "next sync in: < 1 minute";
+    return "Sinkronisasi berikutnya dalam < 1 menit";
   }
 
   const days = Math.floor(totalMinutes / 1440);
@@ -55,19 +55,19 @@ function formatTimeUntilDetailed(ms: number) {
   const parts: string[] = [];
 
   if (days > 0) {
-    parts.push(`${days} day${days > 1 ? "s" : ""}`);
+    parts.push(`${days} hari`);
   }
 
   if (hours > 0) {
-    parts.push(`${hours} hour${hours > 1 ? "s" : ""}`);
+    parts.push(`${hours} jam`);
   }
 
   if (minutes > 0 && days === 0) {
     // only show minutes if < 1 day to avoid clutter
-    parts.push(`${minutes} minute${minutes > 1 ? "s" : ""}`);
+    parts.push(`${minutes} menit`);
   }
 
-  return `next sync in: ${parts.join(" ")}`;
+  return `Sinkronisasi berikutnya dalam ${parts.join(" ")}`;
 }
 
 function toMinutes(value: number, unit: "minute" | "hour" | "day") {

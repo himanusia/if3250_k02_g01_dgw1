@@ -1167,7 +1167,7 @@ function RouteComponent() {
                   className="rounded-none border-[#982E41] bg-white font-semibold text-[#982E41] hover:bg-[#982E41] hover:text-white"
                 >
                   {syncActiveContent.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCcw className="mr-2 size-4" />}
-                  Sync konten aktif
+                  {syncActiveContent.isPending ? "Menyinkronkan..." : "Sinkronkan konten aktif"}
                 </Button>
                 <Button type="button" onClick={openCreateDialog} className="rounded-none bg-[#B43C39] font-semibold text-white hover:bg-[#8f2e2c]">
                   <Plus className="mr-2 size-4" />
@@ -1585,7 +1585,7 @@ function RouteComponent() {
                           }}
                         >
                           {syncContent.isPending ? <Loader2 className="mr-1 size-4 animate-spin" /> : <RefreshCcw className="mr-1 size-4" />}
-                          Sync
+                          {syncContent.isPending ? "Menyinkronkan..." : "Sinkronkan konten"}
                         </Button>
                         <Button
                           variant="outline"
@@ -1778,7 +1778,7 @@ function RouteComponent() {
                                                 }`}
                                               >
                                                 {isSyncingThisContent && <Loader2 className="mr-1 inline size-3 animate-spin" />}
-                                                {isSyncingThisContent ? "sedang sync..." : content.syncStatus}
+                                                {isSyncingThisContent ? "menyinkronkan..." : content.syncStatus}
                                               </span>
                                             </div>
                                           );
@@ -1819,7 +1819,7 @@ function RouteComponent() {
                                     ) : (
                                       <RefreshCcw className="mr-1 size-4" />
                                     )}
-                                    {syncingContentId === content.id || content.syncStatus === "pending" ? "Sedang sync..." : "Sync sekarang"}
+                                    {syncingContentId === content.id || content.syncStatus === "pending" ? "Menyinkronkan..." : "Sinkronkan"}
                                   </Button>
                                   <Button
                                     variant="outline"

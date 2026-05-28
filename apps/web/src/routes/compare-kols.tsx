@@ -25,9 +25,18 @@ type GroupedPlatformAccount = KolRecord["accounts"][number] & {
   estimatedPostRate: number | null;
 };
 
+function parseKeywordSegments(keywords: string | null | undefined): string[] {
+  const raw = keywords?.trim();
+  if (!raw) return [];
+  return raw
+    .split(/[\s,]+/)
+    .map((keyword) => keyword.trim().replace(/^#+/, ""))
+    .filter(Boolean);
+}
+
 function RouteComponent() {
   const [search, setSearch] = useState("");
-  const [keywordFilter, setKeywordFilter] = useState("");
+  const [keywordFilter, setKeywordFilter] = useState("all");
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
   const [selectedKolIds, setSelectedKolIds] = useState<number[]>([]);
 
@@ -45,6 +54,10 @@ function RouteComponent() {
   const campaignQuery = useQuery(orpc.campaign.list.queryOptions());
   const kols = arrayFromQueryData<KolRecord>(kolQuery.data);
   const campaigns = arrayFromQueryData<CampaignRecord>(campaignQuery.data);
+  const keywordOptions = useMemo(() => {
+    return Array.from(new Set(kols.flatMap((kol) => parseKeywordSegments(kol.keywords))))
+      .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  }, [kols]);
   const addKol = useMutation({
     mutationFn: (input: { campaignId: number; kolId: number }) => client.campaign.addKolToCampaign(input),
     onError: (error) => {
@@ -61,7 +74,9 @@ function RouteComponent() {
             .toLowerCase()
             .includes(search.toLowerCase());
         const matchesKeyword =
-          !keywordFilter || kol.keywords.toLowerCase().includes(keywordFilter.toLowerCase());
+          keywordFilter === "all" || parseKeywordSegments(kol.keywords).some(
+            (keyword) => keyword.toLowerCase() === keywordFilter.toLowerCase(),
+          );
 
         return matchesSearch && matchesKeyword;
       })
@@ -93,19 +108,28 @@ function RouteComponent() {
   }, [selectedKols]);
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <div className="container mx-auto grid w-full max-w-6xl gap-5 overflow-x-hidden px-4 py-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:py-8">
+      <div className="container mx-auto grid w-full max-w-7xl gap-5 overflow-x-hidden px-4 py-6 lg:py-8">
       <section className="min-w-0 max-w-full overflow-hidden space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
           <h1 className="font-goldman text-3xl font-bold uppercase tracking-wide text-[#2b1418] md:text-4xl">Bandingkan kandidat KOL</h1>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,320px)]">
           <FilterInput label="Cari nama / handle" value={search} onChange={setSearch} />
-          <FilterInput label="Keyword" value={keywordFilter} onChange={setKeywordFilter} />
+          <Label className="grid gap-2 text-sm text-[#2b1418]">
+            <span>Keyword</span>
+            <SearchableSelect
+              value={keywordFilter}
+              onValueChange={setKeywordFilter}
+              options={[{ label: "Semua keyword", value: "all" }, ...keywordOptions.map((keyword) => ({ label: keyword, value: keyword }))]}
+              placeholder="Pilih keyword"
+              searchPlaceholder="Cari keyword"
+            />
+          </Label>
         </div>
 
-        <div className="max-h-128 space-y-2 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3">
+        <div className="grid max-h-[34rem] gap-3 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3 md:grid-cols-2 xl:grid-cols-3">
           {kolQuery.isLoading ? (
             <CompareKolPickerSkeleton />
           ) : filteredKols.map((kol) => {
@@ -116,7 +140,7 @@ function RouteComponent() {
                 key={kol.id}
                 type="button"
                 variant={selected ? "default" : "outline"}
-                className={`h-auto w-full justify-start border p-3 text-left transition-colors ${selected ? "border-[#B43C39] bg-[#fff3d8] text-[#2b1418] hover:bg-[#ffeabd]" : "border-[#b43c39]/15 bg-white text-[#2b1418] hover:bg-[#fff6f8]"}`}
+                className={`h-full min-h-[8.5rem] w-full items-start justify-start border p-3 text-left transition-colors ${selected ? "border-[#B43C39] bg-[#fff3d8] text-[#2b1418] hover:bg-[#ffeabd]" : "border-[#b43c39]/15 bg-white text-[#2b1418] hover:bg-[#fff6f8]"}`}
                 onClick={() => {
                   setSelectedKolIds((current) =>
                     current.includes(kol.id)
@@ -160,7 +184,7 @@ function RouteComponent() {
             <span className="text-sm text-[#2b1418]">Tambahkan akun terpilih ke campaign</span>
             <div className="flex min-w-0 flex-wrap gap-2">
               <SearchableSelect
-                className="min-w-0 flex-1 border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                className="h-8 min-w-64 flex-1 border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
                 value={selectedCampaignId}
                 onValueChange={setSelectedCampaignId}
                 options={[
@@ -175,7 +199,7 @@ function RouteComponent() {
                 searchPlaceholder="Cari campaign"
               />
               <Button
-                className="rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
+                className="h-8 rounded-none border border-[#B43C39] bg-[#B43C39] px-4 text-[13px] font-medium text-white hover:bg-[#8f2e2c]"
                 disabled={!selectedCampaignId || !selectedKolIds.length || addKol.isPending}
                 onClick={async () => {
                   try {
@@ -204,28 +228,28 @@ function RouteComponent() {
           <h2 className="mb-2 text-lg font-semibold capitalize text-[#2b1418]">
             Overall
           </h2>
-          {kolQuery.isLoading ? <CompareTableSkeleton /> : <Table className="min-w-[760px] table-fixed border border-[#b43c39]/15 text-sm">
+          {kolQuery.isLoading ? <CompareTableSkeleton /> : <div className="border border-[#b43c39]/15"><Table className="min-w-[760px] text-sm">
             <TableHeader className="bg-[#fff3d8] text-[#2b1418]">
               <TableRow>
-                <TableHead>
+                <TableHead className="w-[220px]">
                   Name
                 </TableHead>
-                <TableHead>
+                <TableHead className="text-right">
                   Followers
                 </TableHead>
-                <TableHead>
+                <TableHead className="text-right">
                   Avg Likes
                 </TableHead>
-                <TableHead>
+                <TableHead className="text-right">
                   Avg Views
                 </TableHead>
-                <TableHead>
+                <TableHead className="text-right">
                   ER
                 </TableHead>
-                <TableHead>
+                <TableHead className="text-right">
                   Est. Post
                 </TableHead>
-                <TableHead>
+                <TableHead className="text-right">
                   Actual Post
                 </TableHead>
               </TableRow>
@@ -238,33 +262,40 @@ function RouteComponent() {
                     {kol.displayName}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-right">
                     {kol.totalFollowers.toLocaleString()}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-right">
                     {kol.averageLikes.toLocaleString()}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-right">
                     {kol.averageViews.toLocaleString()}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-right">
                     {kol.engagementRate || "-"}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-right">
                     {formatCurrencyIdr(kol.estimatedRateCard?.post.suggested)}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="text-right">
                     {formatCurrencyIdr(kol.actualRateCard?.post.suggested)}
                   </TableCell>
                 </TableRow>
               ))}
+              {!selectedKols.length && (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-20 text-center text-muted-foreground">
+                    Pilih KOL untuk melihat perbandingan.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
-          </Table>}
+          </Table></div>}
         </div>
 
         {(Object.entries(groupedByPlatform) as Array<[SocialPlatform, GroupedPlatformAccount[]]>).map(([platform, accounts]) => (
@@ -273,32 +304,32 @@ function RouteComponent() {
             {platform}
           </h2>
 
-          <div className="overflow-x-auto">
-            <Table className="min-w-[860px] table-fixed border border-[#b43c39]/15 text-sm">
+          <div className="overflow-x-auto border border-[#b43c39]/15">
+            <Table className="min-w-[860px] text-sm">
               <TableHeader className="bg-[#fff3d8] text-[#2b1418]">
                 <TableRow>
-                  <TableHead>
+                  <TableHead className="w-[200px]">
                     Name
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="w-[180px]">
                     Handle
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     Followers
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     Avg Likes
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     Avg Views
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     ER
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     Est. Post
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="text-right">
                     Actual Post
                   </TableHead>
                 </TableRow>
@@ -315,31 +346,38 @@ function RouteComponent() {
                       @{acc.handle}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="text-right">
                       {acc.followers.toLocaleString()}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="text-right">
                       {acc.averageLikes.toLocaleString()}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="text-right">
                       {acc.averageViews.toLocaleString()}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="text-right">
                       {acc.engagementRate || "-"}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="text-right">
                       {formatCurrencyIdr(acc.estimatedPostRate)}
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="text-right">
                       {formatCurrencyIdr(acc.actualPostRate)}
                     </TableCell>
                   </TableRow>
                 ))}
+                {!accounts.length && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-16 text-center text-muted-foreground">
+                      Belum ada akun {platform} yang dipilih.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
