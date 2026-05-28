@@ -1,7 +1,7 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile } from "@if3250_k02_g01_dgw1/db/schema/kol";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNull, lt, lte, sql } from "drizzle-orm";
 import z from "zod";
 
 import { protectedProcedure } from "../index";
@@ -363,11 +363,11 @@ export const campaignRouter = {
       if (status !== "all") {
         const now = new Date();
         if (status === "draft") {
-          whereParts.push(sql`${campaign.periodStart} > ${now}`);
+          whereParts.push(gt(campaign.periodStart, now));
         } else if (status === "active") {
-          whereParts.push(sql`${campaign.periodStart} <= ${now} AND ${campaign.periodEnd} >= ${now}`);
+          whereParts.push(and(lte(campaign.periodStart, now), gte(campaign.periodEnd, now)));
         } else {
-          whereParts.push(sql`${campaign.periodEnd} < ${now}`);
+          whereParts.push(lt(campaign.periodEnd, now));
         }
       }
 
