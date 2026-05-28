@@ -1,5 +1,5 @@
 import type { CampaignDashboardRecord, CampaignDetailRecord, KolRecord } from "./app-types";
-import { formatObjectiveDetails } from "./campaign-objective";
+import { getTargetInteractions, parseCampaignObjective } from "./campaign-objective";
 
 type PdfPage = {
   commands: string[];
@@ -267,6 +267,29 @@ function drawParagraph(pages: PdfPage[], page: PdfPage, title: string, body: str
   return current;
 }
 
+function drawObjectiveProgress(pages: PdfPage[], page: PdfPage, campaign: CampaignDetailRecord, progress: CampaignDashboardRecord | undefined, totals: { comments: number; likes: number; shares: number; views: number }) {
+  const objective = parseCampaignObjective(campaign.objective);
+  const actualInteractions = (progress?.likeCount ?? totals.likes) + (progress?.commentCount ?? totals.comments) + (progress?.shareCount ?? totals.shares);
+  const targetInteractions = getTargetInteractions(objective);
+  const rows: Array<[string, string]> = [
+    ["Konten", `${formatNumber(progress?.contentCount ?? campaign.contentsByKol.flatMap((group) => group.contents).length)} / ${formatNumber(campaign.targetContentCount)}`],
+    ["Views", `${formatNumber(progress?.viewCount ?? totals.views)} / ${objective.targetViews ? formatNumber(objective.targetViews) : "-"}`],
+    ["Likes", `${formatNumber(progress?.likeCount ?? totals.likes)} / ${objective.targetLikes ? formatNumber(objective.targetLikes) : "-"}`],
+    ["Comments", `${formatNumber(progress?.commentCount ?? totals.comments)} / ${objective.targetComments ? formatNumber(objective.targetComments) : "-"}`],
+    ["Shares", `${formatNumber(progress?.shareCount ?? totals.shares)} / ${objective.targetShares ? formatNumber(objective.targetShares) : "-"}`],
+    ["Interaksi", `${formatNumber(actualInteractions)} / ${targetInteractions ? formatNumber(targetInteractions) : "-"}`],
+  ];
+
+  return drawSummaryTable(pages, page, "Progress Objective", rows);
+}
+
+function getDescriptionText(campaign: CampaignDetailRecord) {
+  const candidates = [campaign.description, campaign.postBriefs, parseCampaignObjective(campaign.objective).legacyText]
+    .map((value) => cleanPdfText(value))
+    .filter((value) => value && value !== "-");
+  return candidates[0] ?? "";
+}
+
 function drawTable<T>(pages: PdfPage[], page: PdfPage, title: string, columns: TableColumn<T>[], rows: T[], emptyText: string) {
   let current = ensureSpace(pages, page, 64);
   drawSectionTitle(current, title);
@@ -410,8 +433,11 @@ function buildReportPages(campaign: CampaignDetailRecord, progress?: CampaignDas
     ["Keyword", campaign.keywords || "-"],
   ]);
   page = drawSummaryTable(pages, page, `Summary KOL ${campaign.brand}`, summaryRows);
-  page = drawParagraph(pages, page, "Objective", formatObjectiveDetails(campaign.objective));
-  page = drawParagraph(pages, page, "Brief Campaign", campaign.postBriefs || campaign.description);
+  page = drawObjectiveProgress(pages, page, campaign, progress, totals);
+  const descriptionText = getDescriptionText(campaign);
+  if (descriptionText) {
+    page = drawParagraph(pages, page, "Deskripsi", descriptionText);
+  }
   page = drawTable(
     pages,
     page,

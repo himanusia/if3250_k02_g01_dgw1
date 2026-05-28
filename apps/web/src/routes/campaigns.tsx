@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import type { CampaignContentRecord, CampaignDashboardRecord, CampaignDetailRecord, CampaignRecord, KolRecord } from "@/lib/app-types";
 import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-archive";
-import { formatObjectiveSummary, getObjectiveText } from "@/lib/campaign-objective";
+import { getObjectiveText } from "@/lib/campaign-objective";
 import { downloadCampaignReportPdf } from "@/lib/campaign-report-pdf";
 import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
 import { arrayFromQueryData } from "@/lib/query-data";
@@ -1261,7 +1261,7 @@ function RouteComponent() {
                       <div className="min-w-0 space-y-1">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B43C39]">{campaign.brand}</p>
                         <h2 className="truncate text-lg font-semibold text-[#2b1418]">{campaign.name}</h2>
-                        <p className="line-clamp-2 text-sm text-muted-foreground">{formatObjectiveSummary(campaign.objective)}</p>
+                        <p className="line-clamp-2 text-sm text-muted-foreground">{campaign.description || "-"}</p>
                       </div>
                       <span className="w-fit border border-[#b43c39]/20 bg-[#fff3d8] px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#7B204C]">{formatCampaignStatus(derivedStatus)}</span>
                     </div>
@@ -1456,12 +1456,12 @@ function RouteComponent() {
 
             <section className="grid gap-5 border border-[#982E41]/20 bg-white p-4 md:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Brief</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">Deskripsi</p>
               </div>
 
             <div className="md:col-span-2">
               <FormTextarea
-                label="Brief campaign"
+                label="Deskripsi campaign"
                 value={form.objective}
                 onChange={(objective) => setForm((current) => ({ ...current, description: objective, objective, postBriefs: objective }))}
                 placeholder="Awareness produk baru untuk audiens Gen Z"
@@ -1727,7 +1727,7 @@ function RouteComponent() {
                 </div>
 
                 <div className="grid gap-3">
-                  <DetailStat boxed label="Brief campaign" value={detailCampaignData?.description ?? detailCampaignSummary?.description ?? "-"} />
+                  <DetailStat boxed label="Deskripsi" value={detailCampaignData?.description ?? detailCampaignSummary?.description ?? "-"} />
                 </div>
 
                 <details className="group border border-[#982E41]/15 bg-[#FFF8F9] p-3">
