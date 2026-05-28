@@ -2,6 +2,7 @@
 
 import { Check, ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 
 export type SearchableSelectOption = {
   disabled?: boolean;
+  icon?: ReactNode;
   keywords?: string[];
   label: string;
   value: string;
@@ -56,8 +58,9 @@ export function SearchableSelect({
             className,
           )}
         >
-          <span className={cn("truncate", !selectedOption && "text-muted-foreground")}>
-            {selectedOption?.label ?? placeholder}
+          <span className={cn("flex min-w-0 items-center gap-2 truncate", !selectedOption && "text-muted-foreground")}>
+            {selectedOption?.icon}
+            <span className="truncate">{selectedOption?.label ?? placeholder}</span>
           </span>
           <ChevronDown className="size-4 opacity-50" />
         </Button>
@@ -87,7 +90,10 @@ export function SearchableSelect({
                   }}
                   className="justify-between"
                 >
-                  <span className="truncate">{option.label}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    {option.icon}
+                    <span className="truncate">{option.label}</span>
+                  </span>
                   {option.value === value && <Check className="size-4 text-[#982E41]" />}
                 </CommandItem>
               ))}

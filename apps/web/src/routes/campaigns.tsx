@@ -314,11 +314,16 @@ const CAMPAIGN_PAGE_SIZE_OPTIONS = [4, 8, 12, 20].map((size) => ({
   value: String(size),
 }));
 const CAMPAIGN_FORM_DRAFT_KEY = "digiwonder:campaigns:form-draft";
+const ADD_CONTENT_FORM_DRAFT_KEY = "digiwonder:campaigns:add-content-draft";
 
 type TargetKolTier = { count: number; tier: string };
 type CampaignFormDraft = {
   editingId: number | null;
   form: CampaignFormState;
+};
+type AddContentFormDraft = {
+  campaignId: number;
+  rows: ContentFormRow[];
 };
 
 function loadCampaignFormDraft() {
@@ -341,6 +346,29 @@ function saveCampaignFormDraft(draft: CampaignFormDraft) {
 function clearCampaignFormDraft() {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(CAMPAIGN_FORM_DRAFT_KEY);
+  }
+}
+
+function loadAddContentFormDraft(campaignId: number) {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(ADD_CONTENT_FORM_DRAFT_KEY) ?? "null") as AddContentFormDraft | null;
+    return parsed?.campaignId === campaignId && Array.isArray(parsed.rows) && parsed.rows.length ? parsed.rows : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAddContentFormDraft(draft: AddContentFormDraft) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ADD_CONTENT_FORM_DRAFT_KEY, JSON.stringify(draft));
+  }
+}
+
+function clearAddContentFormDraft() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(ADD_CONTENT_FORM_DRAFT_KEY);
   }
 }
 
@@ -743,6 +771,7 @@ function RouteComponent() {
         setAddContentCampaignId(null);
         setContentRows(getDefaultContentRows());
         setContentRowErrors({});
+        clearAddContentFormDraft();
         return;
       }
 
@@ -760,6 +789,7 @@ function RouteComponent() {
       setAddContentCampaignId(null);
       setContentRows(getDefaultContentRows());
       setContentRowErrors({});
+      clearAddContentFormDraft();
       campaignsQuery.refetch();
       campaignProgressQuery.refetch();
       kolsQuery.refetch();
@@ -929,7 +959,7 @@ function RouteComponent() {
 
   function openAddContentDialog(campaignId: number) {
     setAddContentCampaignId(campaignId);
-    setContentRows(getDefaultContentRows());
+    setContentRows(loadAddContentFormDraft(campaignId) ?? getDefaultContentRows());
     setIsAddContentDialogOpen(true);
   }
 
@@ -947,6 +977,14 @@ function RouteComponent() {
 
     saveCampaignFormDraft({ editingId, form });
   }, [editingId, form, isDialogOpen]);
+
+  useEffect(() => {
+    if (!isAddContentDialogOpen || addContentCampaignId === null) {
+      return;
+    }
+
+    saveAddContentFormDraft({ campaignId: addContentCampaignId, rows: contentRows });
+  }, [addContentCampaignId, contentRows, isAddContentDialogOpen]);
 
   function updateContentRow(rowId: string, patch: Partial<ContentFormRow>) {
     setContentRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
@@ -999,8 +1037,8 @@ function RouteComponent() {
         errors.contentUrl = "Link harus berasal dari Instagram atau TikTok.";
       }
 
-      if (row.contentType === "story" && !normalizedUrl && !row.kolId && !row.kolDisplayName.trim() && !row.kolHandle.trim()) {
-        errors.kol = "Pilih KOL atau isi username untuk story tanpa link.";
+      if (row.contentType === "story" && !normalizedUrl && !row.kolId) {
+        errors.kol = "Pilih KOL untuk story tanpa link.";
       }
 
       if (!platform && !row.platform) {
@@ -1029,7 +1067,7 @@ function RouteComponent() {
             likeCount: parseOptionalNumber(row.estimatedLikeCount),
             platform: platform ?? row.platform,
             shareCount: parseOptionalNumber(row.estimatedShareCount),
-            title: row.title,
+            title: "",
             viewCount: parseOptionalNumber(row.estimatedViewCount),
           };
     });
@@ -2038,7 +2076,7 @@ function RouteComponent() {
       >
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden text-[#2b1418]">
           <DialogHeader>
-            <DialogTitle>Tambahkan konten</DialogTitle>
+            <DialogTitle>{addContentCampaign ? `Tambah konten - ${addContentCampaign.name}` : "Tambah konten"}</DialogTitle>
           </DialogHeader>
 
           {!addContentCampaign ? (
@@ -2054,13 +2092,6 @@ function RouteComponent() {
               }}
             >
               <div className="grid gap-5 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <DetailStat label="Campaign" value={addContentCampaign.name} />
-                  <DetailStat label="Brand" value={addContentCampaign.brand} />
-                  <DetailStat label="Periode" value={`${formatHumanDate(addContentCampaign.periodStart)} → ${formatHumanDate(addContentCampaign.periodEnd)}`} />
-                  <DetailStat label="KOL terpilih" value={String(addContentCampaign.kols.length)} />
-                </div>
-
                 <div className="space-y-3">
                   {contentRows.map((row) => (
                     <div key={row.id} className="grid gap-3 rounded-none border border-border p-3">
@@ -2087,7 +2118,15 @@ function RouteComponent() {
                             aria-invalid={Boolean(contentRowErrors[row.id]?.contentUrl)}
                             placeholder="https://www.instagram.com/reel/DYyTFReyo3D/"
                             value={row.contentUrl}
-                            onChange={(event) => updateContentRow(row.id, { contentUrl: event.target.value })}
+                            onChange={(event) => {
+                              const contentUrl = event.target.value;
+                              const normalizedUrl = normalizeContentUrl(contentUrl);
+                              const detectedPlatform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
+                              updateContentRow(row.id, {
+                                contentUrl,
+                                ...(detectedPlatform ? { platform: detectedPlatform } : {}),
+                              });
+                            }}
                           />
                           {contentRowErrors[row.id]?.contentUrl && (
                             <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.contentUrl}</span>
@@ -2109,7 +2148,10 @@ function RouteComponent() {
                               <SearchableSelect
                                 value={row.platform}
                                 onValueChange={(value) => updateContentRow(row.id, { platform: value as ContentFormRow["platform"] })}
-                                options={[...CONTENT_PLATFORM_OPTIONS]}
+                                options={CONTENT_PLATFORM_OPTIONS.map((option) => ({
+                                  ...option,
+                                  icon: <SocialPlatformIcon platform={option.value} className="size-4" />,
+                                }))}
                                 placeholder="Pilih platform"
                                 searchPlaceholder="Cari platform"
                               />
@@ -2138,8 +2180,8 @@ function RouteComponent() {
                             </Label>
                           </div>
 
-                          <div className="grid gap-3 md:grid-cols-3">
-                            <Label className="grid gap-2 md:col-span-1">
+                          <div className="grid gap-3">
+                            <Label className="grid gap-2">
                               <span>KOL</span>
                               <SearchableSelect
                                 value={row.kolId === "" ? "" : String(row.kolId)}
@@ -2149,6 +2191,7 @@ function RouteComponent() {
                                   updateContentRow(row.id, {
                                     ...applyKolEstimate(row, kolId),
                                     kolDisplayName: selected?.displayName ?? row.kolDisplayName,
+                                    kolHandle: selected?.handles[0]?.replace(/^(instagram|tiktok):/i, "") ?? row.kolHandle,
                                     kolId,
                                   });
                                 }}
@@ -2167,18 +2210,6 @@ function RouteComponent() {
                                 <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.kol}</span>
                               )}
                             </Label>
-                            <FormInput
-                              label="Nama KOL manual"
-                              placeholder="ITB Official"
-                              value={row.kolDisplayName}
-                              onChange={(kolDisplayName) => updateContentRow(row.id, { kolDisplayName })}
-                            />
-                            <FormInput
-                              label="Username manual"
-                              placeholder="@itb1920"
-                              value={row.kolHandle}
-                              onChange={(kolHandle) => updateContentRow(row.id, { kolHandle })}
-                            />
                           </div>
 
                           <div className="grid gap-3 md:grid-cols-4">
@@ -2188,15 +2219,6 @@ function RouteComponent() {
                             <FormInput label="Est. shares" placeholder="320" value={row.estimatedShareCount} onChange={(estimatedShareCount) => updateContentRow(row.id, { estimatedShareCount })} />
                           </div>
 
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <FormInput label="Judul/catatan" placeholder="Story mention produk" value={row.title} onChange={(title) => updateContentRow(row.id, { title })} />
-                            <FormTextarea
-                              label="Caption/manual note"
-                              placeholder="Caption singkat"
-                              value={row.caption}
-                              onChange={(caption) => updateContentRow(row.id, { caption })}
-                            />
-                          </div>
                         </div>
                       </details>
 
