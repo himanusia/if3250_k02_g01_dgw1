@@ -134,6 +134,9 @@ export type CampaignRecord = {
   periodStart: string;
   postBriefs: string;
   status: "draft" | "active" | "completed" | "archived";
+  targetPostCount: number;
+  targetReelCount: number;
+  targetStoryCount: number;
   targetContentCount: number;
   targetFollowerTier: string;
   targetKolCount: number;
@@ -218,6 +221,9 @@ export type CampaignDashboardRecord = {
   status: CampaignRecord["status"];
   storyCount: number;
   syncedContentCount: number;
+  targetPostCount: number;
+  targetReelCount: number;
+  targetStoryCount: number;
   targetContentCount: number;
   targetFollowerTier: string;
   targetKolCount: number;

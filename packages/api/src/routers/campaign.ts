@@ -1,7 +1,7 @@
 import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile } from "@if3250_k02_g01_dgw1/db/schema/kol";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import z from "zod";
 
 import { protectedProcedure } from "../index";
@@ -26,6 +26,9 @@ const campaignInputSchema = z.object({
   postBriefs: z.string().trim().default(""),
   selectedKolIds: z.array(z.number().int().positive()).default([]),
   status: z.enum(["draft", "active", "completed", "archived"]),
+  targetPostCount: z.number().int().nonnegative().default(0),
+  targetReelCount: z.number().int().nonnegative().default(0),
+  targetStoryCount: z.number().int().nonnegative().default(0),
   targetContentCount: z.number().int().nonnegative().default(0),
   targetFollowerTier: z.string().trim().default(""),
   targetKolCount: z.number().int().nonnegative(),
@@ -235,6 +238,9 @@ export const campaignRouter = {
         shareCount: campaignContents.reduce((sum, row) => sum + row.shareCount, 0),
         status: item.status,
         syncedContentCount: successfulSyncs.length,
+        targetPostCount: item.targetPostCount,
+        targetReelCount: item.targetReelCount,
+        targetStoryCount: item.targetStoryCount,
         targetContentCount: item.targetContentCount,
         targetFollowerTier: item.targetFollowerTier,
         targetKolCount: item.targetKolCount,
@@ -310,6 +316,9 @@ export const campaignRouter = {
           periodStart: toDate(input.periodStart),
           postBriefs: input.postBriefs,
           status: input.status,
+          targetPostCount: input.targetPostCount,
+          targetReelCount: input.targetReelCount,
+          targetStoryCount: input.targetStoryCount,
           targetContentCount: input.targetContentCount,
           targetFollowerTier: input.targetFollowerTier,
           targetKolCount: input.targetKolCount,
@@ -330,27 +339,78 @@ export const campaignRouter = {
     .handler(async ({ input }) => {
       return await getCampaignDetail(input.id);
     }),
-  list: protectedProcedure.handler(async () => {
-    const campaigns = await db.select().from(campaign).orderBy(desc(campaign.createdAt));
-    const links = await getCampaignKolLinks();
+  list: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().int().positive().default(1),
+        pageSize: z.number().int().positive().max(50).default(8),
+        search: z.string().trim().optional().default(""),
+        status: z.enum(["all", "draft", "active", "completed", "archived"]).optional().default("all"),
+      }).optional(),
+    )
+    .handler(async ({ input }) => {
+      const page = input?.page ?? 1;
+      const pageSize = input?.pageSize ?? 8;
+      const search = input?.search?.trim() ?? "";
+      const status = input?.status ?? "all";
+      const whereParts = [];
 
-    return campaigns.map((item) => ({
-      ...item,
-      createdAt: item.createdAt.toISOString(),
-      kols: links
-        .filter((link) => link.campaignId === item.id)
-        .map((link) => ({
-          avatarUrl: link.avatarUrl,
-          displayName: link.displayName,
-          handles: link.handles,
-          id: link.id,
+      if (search) {
+        const likeSearch = `%${search.toLowerCase()}%`;
+        whereParts.push(sql`(LOWER(${campaign.name}) LIKE ${likeSearch} OR LOWER(${campaign.brand}) LIKE ${likeSearch} OR LOWER(${campaign.description}) LIKE ${likeSearch} OR LOWER(${campaign.keywords}) LIKE ${likeSearch} OR LOWER(${campaign.objective}) LIKE ${likeSearch})`);
+      }
+
+      if (status !== "all") {
+        const now = new Date();
+        if (status === "draft") {
+          whereParts.push(sql`${campaign.periodStart} > ${now}`);
+        } else if (status === "active") {
+          whereParts.push(sql`${campaign.periodStart} <= ${now} AND ${campaign.periodEnd} >= ${now}`);
+        } else {
+          whereParts.push(sql`${campaign.periodEnd} < ${now}`);
+        }
+      }
+
+      const whereClause = whereParts.length ? and(...whereParts) : undefined;
+      const offset = (page - 1) * pageSize;
+      const campaigns = await db
+        .select()
+        .from(campaign)
+        .where(whereClause)
+        .orderBy(desc(campaign.createdAt))
+        .limit(pageSize)
+        .offset(offset);
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(campaign)
+        .where(whereClause);
+      const links = await getCampaignKolLinks();
+      const totalItems = Number(count ?? 0);
+      const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+      return {
+        items: campaigns.map((item) => ({
+          ...item,
+          createdAt: item.createdAt.toISOString(),
+          kols: links
+            .filter((link) => link.campaignId === item.id)
+            .map((link) => ({
+              avatarUrl: link.avatarUrl,
+              displayName: link.displayName,
+              handles: link.handles,
+              id: link.id,
+            })),
+          periodEnd: item.periodEnd.toISOString().slice(0, 10),
+          periodStart: item.periodStart.toISOString().slice(0, 10),
+          selectedKolIds: links.filter((link) => link.campaignId === item.id).map((link) => link.id),
+          updatedAt: item.updatedAt.toISOString(),
         })),
-      periodEnd: item.periodEnd.toISOString().slice(0, 10),
-      periodStart: item.periodStart.toISOString().slice(0, 10),
-      selectedKolIds: links.filter((link) => link.campaignId === item.id).map((link) => link.id),
-      updatedAt: item.updatedAt.toISOString(),
-    }));
-  }),
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+      };
+    }),
   update: protectedProcedure
     .input(
       campaignInputSchema.extend({
@@ -372,6 +432,9 @@ export const campaignRouter = {
             periodStart: toDate(input.periodStart),
             postBriefs: input.postBriefs,
             status: input.status,
+            targetPostCount: input.targetPostCount,
+            targetReelCount: input.targetReelCount,
+            targetStoryCount: input.targetStoryCount,
             targetContentCount: input.targetContentCount,
             targetFollowerTier: input.targetFollowerTier,
             targetKolCount: input.targetKolCount,
