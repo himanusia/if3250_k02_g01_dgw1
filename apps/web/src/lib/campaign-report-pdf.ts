@@ -169,13 +169,33 @@ function parseTargetKolTiers(value: string | null | undefined) {
 
 function drawHeader(page: PdfPage, campaign: CampaignDetailRecord) {
   const y = page.cursorY;
-  page.commands.push(setFill(COLORS.rose), rect(PAGE.margin, y - 30, 30, 30, "f"));
-  page.commands.push(textCommand("DW", PAGE.margin + 6, y - 20, 10, "F2", COLORS.white));
+  drawFaviconMark(page, PAGE.margin, y - 32, 32);
   page.commands.push(textCommand("Laporan Campaign", PAGE.margin + 42, y - 10, 18, "F2"));
   page.commands.push(textCommand(campaign.name, PAGE.margin + 42, y - 28, 12, "F2", COLORS.rose));
   page.commands.push(rightTextCommand(`Generated ${formatDate(new Date().toISOString(), true)}`, PAGE.width - PAGE.margin, y - 10, 8, "F1", COLORS.muted));
   page.commands.push(setStroke(COLORS.rose), `${PAGE.margin} ${y - 44} m ${PAGE.width - PAGE.margin} ${y - 44} l S`);
   page.cursorY = y - 62;
+}
+
+function drawFaviconMark(page: PdfPage, x: number, y: number, size: number) {
+  const center = x + size / 2;
+  const middle = y + size / 2;
+  const radius = size / 2;
+  const c = radius * 0.5522847498;
+  page.commands.push(setFill(COLORS.white), setStroke(COLORS.rose));
+  page.commands.push(`${center + radius} ${middle} m`);
+  page.commands.push(`${center + radius} ${middle + c} ${center + c} ${middle + radius} ${center} ${middle + radius} c`);
+  page.commands.push(`${center - c} ${middle + radius} ${center - radius} ${middle + c} ${center - radius} ${middle} c`);
+  page.commands.push(`${center - radius} ${middle - c} ${center - c} ${middle - radius} ${center} ${middle - radius} c`);
+  page.commands.push(`${center + c} ${middle - radius} ${center + radius} ${middle - c} ${center + radius} ${middle} c B`);
+  page.commands.push(setStroke(COLORS.rose), "3 w");
+  page.commands.push(`${x + 4} ${middle} m`);
+  page.commands.push(`${x + 11} ${middle} l`);
+  page.commands.push(`${x + 16} ${y + 25} l`);
+  page.commands.push(`${x + 21} ${y + 7} l`);
+  page.commands.push(`${x + 26} ${middle + 1} l`);
+  page.commands.push(`${x + 29} ${middle + 1} l S`);
+  page.commands.push("1 w");
 }
 
 function drawSectionTitle(page: PdfPage, title: string) {
@@ -253,14 +273,18 @@ function drawTable<T>(pages: PdfPage[], page: PdfPage, title: string, columns: T
 
   const x = PAGE.margin;
   const rowHeight = 24;
-  const tableWidth = columns.reduce((sum, column) => sum + column.width, 0);
+  const maxTableWidth = PAGE.width - PAGE.margin * 2;
+  const rawTableWidth = columns.reduce((sum, column) => sum + column.width, 0);
+  const scale = rawTableWidth > maxTableWidth ? maxTableWidth / rawTableWidth : 1;
+  const fittedColumns = columns.map((column) => ({ ...column, width: Math.floor(column.width * scale) }));
+  const tableWidth = fittedColumns.reduce((sum, column) => sum + column.width, 0);
 
   function drawHeaderRow(target: PdfPage) {
     const y = target.cursorY - rowHeight;
     let cursorX = x;
-    columns.forEach((column) => {
+    fittedColumns.forEach((column) => {
       target.commands.push(setFill(COLORS.rose), setStroke(COLORS.border), rect(cursorX, y, column.width, rowHeight, "B"));
-      target.commands.push(textCommand(column.header, cursorX + 5, y + 8, 8, "F2", COLORS.white));
+      target.commands.push(textCommand(wrapText(column.header, Math.max(8, Math.floor(column.width / 5)))[0], cursorX + 4, y + 8, 7, "F2", COLORS.white));
       cursorX += column.width;
     });
     target.cursorY -= rowHeight;
@@ -284,14 +308,14 @@ function drawTable<T>(pages: PdfPage[], page: PdfPage, title: string, columns: T
 
     const y = current.cursorY - rowHeight;
     let cursorX = x;
-    columns.forEach((column) => {
+    fittedColumns.forEach((column) => {
       const rawValue = column.render(row);
       const value = cleanPdfText(rawValue);
       current.commands.push(setFill(rowIndex % 2 === 0 ? COLORS.white : COLORS.lightBlue), setStroke(COLORS.border), rect(cursorX, y, column.width, rowHeight, "B"));
       if (column.align === "right") {
-        current.commands.push(rightTextCommand(value, cursorX + column.width - 5, y + 8, 8));
+        current.commands.push(rightTextCommand(value, cursorX + column.width - 4, y + 8, 7));
       } else {
-        current.commands.push(textCommand(wrapText(value, Math.max(10, Math.floor(column.width / 5)))[0], cursorX + 5, y + 8, 8));
+        current.commands.push(textCommand(wrapText(value, Math.max(8, Math.floor(column.width / 5)))[0], cursorX + 4, y + 8, 7));
       }
       cursorX += column.width;
     });
@@ -394,13 +418,13 @@ function buildReportPages(campaign: CampaignDetailRecord, progress?: CampaignDas
     "Ringkasan Per KOL",
     [
       { header: "KOL", render: (row) => row.name, width: 110 },
-      { header: "Handle", render: (row) => row.handles, width: 104 },
-      { align: "right", header: "Konten", render: (row) => row.contentCount, width: 48 },
-      { align: "right", header: "Views", render: (row) => formatNumber(row.views), width: 68 },
-      { align: "right", header: "Likes", render: (row) => formatNumber(row.likes), width: 58 },
-      { align: "right", header: "Comments", render: (row) => formatNumber(row.comments), width: 68 },
-      { align: "right", header: "Shares", render: (row) => formatNumber(row.shares), width: 58 },
-      { align: "right", header: "FYP", render: (row) => row.fypCount, width: 45 },
+      { header: "Handle", render: (row) => row.handles, width: 92 },
+      { align: "right", header: "Konten", render: (row) => row.contentCount, width: 42 },
+      { align: "right", header: "Views", render: (row) => formatNumber(row.views), width: 62 },
+      { align: "right", header: "Likes", render: (row) => formatNumber(row.likes), width: 52 },
+      { align: "right", header: "Comments", render: (row) => formatNumber(row.comments), width: 62 },
+      { align: "right", header: "Shares", render: (row) => formatNumber(row.shares), width: 52 },
+      { align: "right", header: "FYP", render: (row) => row.fypCount, width: 34 },
     ],
     kolSummaries,
     "Belum ada KOL yang terhubung.",
@@ -410,15 +434,15 @@ function buildReportPages(campaign: CampaignDetailRecord, progress?: CampaignDas
     page,
     "Rincian Konten",
     [
-      { header: "KOL", render: (row) => row.kolDisplayName || row.authorDisplayName || "-", width: 92 },
-      { header: "Platform", render: (row) => row.platform, width: 58 },
-      { header: "Tipe", render: (row) => row.contentType, width: 44 },
-      { header: "Status", render: (row) => getStatusLabel(row.syncStatus), width: 56 },
-      { align: "right", header: "Views", render: (row) => formatNumber(row.viewCount), width: 64 },
-      { align: "right", header: "Likes", render: (row) => formatNumber(row.likeCount), width: 55 },
-      { align: "right", header: "Comments", render: (row) => formatNumber(row.commentCount), width: 66 },
-      { align: "right", header: "FYP", render: (row) => (row.isFyp ? "Ya" : "Tidak"), width: 42 },
-      { align: "right", header: "Budget", render: (row) => formatCurrency(row.budgetIdr), width: 82 },
+      { header: "KOL", render: (row) => row.kolDisplayName || row.authorDisplayName || "-", width: 82 },
+      { header: "Platform", render: (row) => row.platform, width: 50 },
+      { header: "Tipe", render: (row) => row.contentType, width: 38 },
+      { header: "Status", render: (row) => getStatusLabel(row.syncStatus), width: 52 },
+      { align: "right", header: "Views", render: (row) => formatNumber(row.viewCount), width: 58 },
+      { align: "right", header: "Likes", render: (row) => formatNumber(row.likeCount), width: 50 },
+      { align: "right", header: "Comments", render: (row) => formatNumber(row.commentCount), width: 60 },
+      { align: "right", header: "FYP", render: (row) => (row.isFyp ? "Ya" : "Tidak"), width: 34 },
+      { align: "right", header: "Budget", render: (row) => formatCurrency(row.budgetIdr), width: 72 },
     ],
     contents,
     "Belum ada konten campaign.",
