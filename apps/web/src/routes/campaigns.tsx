@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArchiveRestore, CalendarIcon, Check, ChevronDown, Download, Eye, Heart, Instagram, Loader2, MessageCircle, PencilLine, Plus, RefreshCcw, Search, Share2, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarIcon, ChevronDown, Download, Eye, Heart, Instagram, Loader2, MessageCircle, PencilLine, Plus, RefreshCcw, Search, Share2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { DateRange } from "react-day-picker";
@@ -611,10 +611,7 @@ function RouteComponent() {
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignRecord["status"]>("active");
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
   const [contentRowErrors, setContentRowErrors] = useState<Record<string, ContentRowErrors>>({});
-  const [kolSearch, setKolSearch] = useState("");
-  const [selectedKeywordFilter, setSelectedKeywordFilter] = useState<string[]>([]);
   const debouncedCampaignSearch = useDebouncedValue(campaignSearch);
-  const debouncedKolSearch = useDebouncedValue(kolSearch);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions({ input: { page: campaignPage, pageSize: campaignPageSize, search: debouncedCampaignSearch, status: campaignStatusFilter } }));
   const campaignProgressQuery = useQuery(orpc.campaign.dashboard.queryOptions());
   const kolsQuery = useQuery(orpc.kol.list.queryOptions());
@@ -712,23 +709,6 @@ function RouteComponent() {
 
     return { activeContentGroups: activeGroups, archivedContentGroups: archivedGroups };
   }, [detailCampaignData]);
-
-  const filteredKols = useMemo(() => {
-  return kols.filter((kol) => {
-    const normalizedSearch = debouncedKolSearch.trim().toLowerCase();
-    const matchesSearch =
-      !normalizedSearch ||
-      kol.displayName.toLowerCase().includes(normalizedSearch);
-
-    const matchesKeywords =
-      selectedKeywordFilter.length === 0 ||
-      selectedKeywordFilter.some((keyword) =>
-        kol.keywords.toLowerCase().includes(keyword.toLowerCase())
-      );
-
-    return matchesSearch && matchesKeywords;
-  });
-}, [kols, debouncedKolSearch, selectedKeywordFilter]);
 
   const addContent = useMutation({
     mutationFn: (input: { campaignId: number; contents: AddContentPayloadRow[] }) =>
@@ -838,14 +818,6 @@ function RouteComponent() {
       toast.error(error instanceof Error ? error.message : "Gagal menghapus konten");
     },
   });
-
-  const allKeywords = useMemo(() => {
-    return Array.from(
-      new Set(
-        kols.flatMap((kol) => parseKeywordTokens(kol.keywords))
-      )
-    ).sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
-  }, [kols]);
 
   const createCampaign = useMutation({
     mutationFn: (input: CampaignMutationInput) => client.campaign.create(input),
@@ -1428,16 +1400,9 @@ function RouteComponent() {
 
             <div className="md:col-span-2">
               <FormTextarea
-                label="Deskripsi"
-                value={form.description}
-                onChange={(value) => setForm((current) => ({ ...current, description: value }))}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <FormTextarea
                 label="Brief campaign"
                 value={form.objective}
-                onChange={(objective) => setForm((current) => ({ ...current, objective, postBriefs: objective }))}
+                onChange={(objective) => setForm((current) => ({ ...current, description: objective, objective, postBriefs: objective }))}
                 placeholder="Awareness produk baru untuk audiens Gen Z"
               />
             </div>
@@ -1453,29 +1418,13 @@ function RouteComponent() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#982E41]">KOL</p>
               </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <Label>KOL</Label>
-
-              <div className="space-y-3">
-                <Input
-                  placeholder="Cari KOL berdasarkan nama, keyword, atau handle"
-                  value={kolSearch}
-                  onChange={(event) => setKolSearch(event.target.value)}
-                />
-
-                {allKeywords.length > 0 && (
-                  <KeywordFilterCombobox
-                    options={allKeywords}
-                    selected={selectedKeywordFilter}
-                    onChange={setSelectedKeywordFilter}
-                  />
-                )}
-              </div>
 
               <div className="grid gap-3 border border-border p-3">
                 <KolCombobox
-                  kols={filteredKols.filter((kol) => !form.selectedKolIds.includes(kol.id))}
-                  placeholder="Cari dan pilih KOL"
+                  kols={kols.filter((kol) => !form.selectedKolIds.includes(kol.id))}
+                  placeholder="Cari KOL berdasarkan nama, keyword, atau handle"
                   onSelect={(kolId) => {
                     setForm((current) => ({
                       ...current,
@@ -1486,17 +1435,22 @@ function RouteComponent() {
                   }}
                 />
 
-                <div className="flex min-h-11 flex-wrap gap-2">
+                <div className="grid min-h-11 gap-2">
                   {form.selectedKolIds.map((kolId) => {
                     const kol = kols.find((item) => item.id === kolId);
                     if (!kol) return null;
 
                     return (
-                      <span key={kolId} className="inline-flex items-center gap-2 border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-sm text-[#2b1418]">
-                        {kol.displayName}
+                      <div key={kolId} className="flex items-center justify-between gap-3 border border-[#982E41]/25 bg-[#FFF8F9] px-3 py-2 text-sm text-[#2b1418]">
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{kol.displayName}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {kol.accounts.map((account) => `@${account.handle}`).join(" / ") || kol.keywords || "-"}
+                          </span>
+                        </span>
                         <button
                           type="button"
-                          className="inline-flex size-6 items-center justify-center text-[#982E41] hover:bg-[#982E41]/10"
+                          className="inline-flex size-7 shrink-0 items-center justify-center text-[#982E41] hover:bg-[#982E41]/10"
                           aria-label={`Hapus ${kol.displayName}`}
                           onClick={() => {
                             setForm((current) => ({
@@ -1507,7 +1461,7 @@ function RouteComponent() {
                         >
                           <Trash2 className="size-3.5" />
                         </button>
-                      </span>
+                      </div>
                     );
                   })}
                   {!form.selectedKolIds.length && <span className="text-sm text-muted-foreground">Belum ada KOL dipilih.</span>}
@@ -2502,23 +2456,23 @@ function DateRangePicker({ label, onChange, value }: { label: string; onChange: 
 }
 
 function BrandInput({ onChange, options, value }: { onChange: (value: string) => void; options: string[]; value: string }) {
+  const listId = "campaign-brand-options";
+
   return (
     <label className="grid gap-2 text-xs font-medium uppercase tracking-[0.14em] text-[#982E41]">
       <span>Brand</span>
-      <SearchableSelect
-        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
-        onValueChange={onChange}
-        options={options.map((option) => ({ label: option, value: option }))}
-        placeholder={value || "DigiWonder"}
-        searchPlaceholder="Cari brand"
-        value={value}
-      />
       <Input
         className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+        list={listId}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Atau ketik brand baru"
+        placeholder="DigiWonder"
         value={value}
       />
+      <datalist id={listId}>
+        {options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
     </label>
   );
 }
@@ -2681,73 +2635,6 @@ function EstimatedMetricValue({ estimated, value }: { estimated: number; value: 
       <div className="text-[11px] font-normal leading-snug text-muted-foreground">
         est. {formatNumber(estimated)} • {getEstimatedPercent(value, estimated)}% sampai est
       </div>
-    </div>
-  );
-}
-
-function KeywordFilterCombobox({ options, selected, onChange }: { options: string[]; selected: string[]; onChange: (next: string[]) => void }) {
-  const [open, setOpen] = useState(false);
-
-  function toggle(option: string) {
-    onChange(selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option]);
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Filter keyword</p>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            aria-expanded={open}
-            className="h-10 w-full justify-between border-[#982E41]/20 bg-white px-3 text-left text-sm font-normal"
-          >
-            <span className="truncate">
-              {selected.length ? `${selected.length} keyword dipilih` : "Cari keyword"}
-            </span>
-            <ChevronDown className="size-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] border-[#982E41]/20 p-0" align="start">
-          <Command>
-            <CommandInput placeholder="Search keyword" />
-            <CommandList>
-              <CommandEmpty>Keyword tidak ditemukan.</CommandEmpty>
-              <CommandGroup>
-                {options.map((keyword) => {
-                  const isSelected = selected.includes(keyword);
-                  return (
-                    <CommandItem
-                      key={keyword}
-                      value={keyword}
-                      onSelect={() => toggle(keyword)}
-                      className="justify-between"
-                    >
-                      <span>{keyword}</span>
-                      {isSelected && <Check className="size-4 text-[#982E41]" />}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {selected.map((keyword) => (
-            <button
-              key={keyword}
-              type="button"
-              className="border border-[#982E41]/25 bg-[#FFF8F9] px-2 py-1 text-xs font-medium text-[#982E41]"
-              onClick={() => toggle(keyword)}
-            >
-              {keyword} ×
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -83,7 +83,7 @@ function RouteComponent() {
     );
   }, [keywordFilter, kols, search]);
 
-  const selectedKols = filteredKols.filter((kol) => selectedKolIds.includes(kol.id));
+  const selectedKols = kols.filter((kol) => selectedKolIds.includes(kol.id));
 
   const groupedByPlatform = useMemo<Record<SocialPlatform, GroupedPlatformAccount[]>>(() => {
     const map: Record<SocialPlatform, GroupedPlatformAccount[]> = {
@@ -108,7 +108,7 @@ function RouteComponent() {
   }, [selectedKols]);
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <div className="container mx-auto grid w-full max-w-7xl gap-5 overflow-x-hidden px-4 py-6 lg:py-8">
+      <div className="container mx-auto grid w-full max-w-7xl gap-5 overflow-x-hidden px-4 py-6 lg:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.15fr)] lg:py-8">
       <section className="min-w-0 max-w-full overflow-hidden space-y-4 rounded-none border border-[#b43c39]/15 bg-white p-5 shadow-[8px_8px_0_rgba(152,46,65,0.10)]">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[#7B204C]">Compare KOL</p>
@@ -129,7 +129,7 @@ function RouteComponent() {
           </Label>
         </div>
 
-        <div className="grid max-h-[34rem] gap-3 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid max-h-[34rem] gap-3 overflow-auto border border-[#b43c39]/15 bg-[#fff6f8] p-3">
           {kolQuery.isLoading ? (
             <CompareKolPickerSkeleton />
           ) : filteredKols.map((kol) => {
