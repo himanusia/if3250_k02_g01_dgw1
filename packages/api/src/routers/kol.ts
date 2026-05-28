@@ -650,7 +650,9 @@ export const kolRouter = {
   list: protectedProcedure.handler(async () => {
     const rows = await db.select({ id: kolProfile.id }).from(kolProfile).orderBy(desc(kolProfile.createdAt));
 
-    return await Promise.all(rows.map((row) => mapKolRecord(row.id)));
+    const records = await Promise.all(rows.map((row) => mapKolRecord(row.id)));
+
+    return records.filter((record) => record !== null);
   }),
   syncMetrics: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))

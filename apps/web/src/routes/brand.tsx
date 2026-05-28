@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CampaignRecord } from "@/lib/app-types";
 import type { BrandSummary } from "@/lib/brand-summary";
 import { getBrandSummaries } from "@/lib/brand-summary";
+import { arrayFromQueryData } from "@/lib/query-data";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,7 @@ function RouteComponent() {
   const [brandPage, setBrandPage] = useState(1);
   const [selectedBrandName, setSelectedBrandName] = useState<string | null>(null);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions());
-  const campaigns = (campaignsQuery.data as CampaignRecord[] | undefined) ?? [];
+  const campaigns = arrayFromQueryData<CampaignRecord>(campaignsQuery.data);
   const brandSummaries = useMemo(() => getBrandSummaries(campaigns), [campaigns]);
   const filteredBrands = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();

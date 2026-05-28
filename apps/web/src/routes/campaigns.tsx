@@ -11,6 +11,7 @@ import { splitCampaignContentsByArchiveState } from "@/lib/campaign-content-arch
 import { formatObjectiveSummary, getObjectiveText } from "@/lib/campaign-objective";
 import { downloadCampaignReportPdf } from "@/lib/campaign-report-pdf";
 import { formatDateTime, formatNumber, getAvatarSrc } from "@/lib/kol-utils";
+import { arrayFromQueryData } from "@/lib/query-data";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -598,14 +599,21 @@ function RouteComponent() {
     ...orpc.campaign.getById.queryOptions({ input: { id: detailCampaignId ?? 0 } }),
     enabled: isDetailDialogOpen && detailCampaignId !== null,
   });
-  const campaignsResponse = (campaignsQuery.data as CampaignListResponse | undefined) ?? { items: [], page: campaignPage, pageSize: campaignPageSize, totalItems: 0, totalPages: 1 };
-  const campaigns = campaignsResponse.items;
-  const campaignProgressRows = (campaignProgressQuery.data as CampaignDashboardRecord[] | undefined) ?? [];
+  const campaigns = arrayFromQueryData<CampaignRecord>(campaignsQuery.data);
+  const campaignsResponseRaw = campaignsQuery.data as CampaignListResponse | undefined;
+  const campaignsResponse: CampaignListResponse = {
+    items: campaigns,
+    page: campaignsResponseRaw?.page ?? campaignPage,
+    pageSize: campaignsResponseRaw?.pageSize ?? campaignPageSize,
+    totalItems: campaignsResponseRaw?.totalItems ?? campaigns.length,
+    totalPages: campaignsResponseRaw?.totalPages ?? Math.max(1, Math.ceil(campaigns.length / campaignPageSize)),
+  };
+  const campaignProgressRows = arrayFromQueryData<CampaignDashboardRecord>(campaignProgressQuery.data);
   const campaignProgressById = useMemo(
     () => new Map(campaignProgressRows.map((campaign) => [campaign.id, campaign])),
     [campaignProgressRows],
   );
-  const kols = (kolsQuery.data as KolRecord[] | undefined) ?? [];
+  const kols = arrayFromQueryData<KolRecord>(kolsQuery.data);
   const detailCampaignData = (detailCampaignQuery.data as CampaignDetailRecord | null | undefined) ?? null;
 
   useEffect(() => {

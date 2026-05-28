@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import type { CampaignRecord, KolRecord, SocialPlatform } from "@/lib/app-types";
 import { formatCurrencyIdr } from "@/lib/kol-utils";
+import { arrayFromQueryData } from "@/lib/query-data";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,8 +43,8 @@ function RouteComponent() {
 
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
   const campaignQuery = useQuery(orpc.campaign.list.queryOptions());
-  const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
-  const campaigns = (campaignQuery.data as CampaignRecord[] | undefined) ?? [];
+  const kols = arrayFromQueryData<KolRecord>(kolQuery.data);
+  const campaigns = arrayFromQueryData<CampaignRecord>(campaignQuery.data);
   const addKol = useMutation({
     mutationFn: (input: { campaignId: number; kolId: number }) => client.campaign.addKolToCampaign(input),
     onError: (error) => {
