@@ -6,6 +6,8 @@ import { and, desc, eq, ilike } from "drizzle-orm";
 
 import { syncContentWithApify } from "./apify";
 
+const CAMPAIGN_CONTENT_SYNC_TIMEOUT_MS = 25_000;
+
 export type CampaignKolLink = {
   avatarUrl: string | null;
   campaignId: number;
@@ -533,6 +535,37 @@ function platformFromRow(row: CampaignContentInputRow, normalizedUrl: string | n
   return null;
 }
 
+function createContentSyncTimeoutMetrics(content: Pick<CampaignContentRow, "contentUrl" | "platform">): Awaited<ReturnType<typeof syncContentWithApify>> {
+  return {
+    authorDisplayName: "",
+    authorHandle: "",
+    caption: "",
+    commentCount: 0,
+    contentUrl: content.contentUrl,
+    engagementRate: "",
+    errorCode: "APIFY_TIMEOUT",
+    likeCount: 0,
+    message: "Sinkronisasi konten melewati batas waktu dan konten dihapus.",
+    platform: content.platform,
+    shareCount: 0,
+    syncStatus: "failed",
+    title: "",
+    viewCount: 0,
+  };
+}
+
+async function syncContentWithTimeout(content: Pick<CampaignContentRow, "contentUrl" | "platform">) {
+  return await Promise.race([
+    syncContentWithApify({
+      platform: content.platform,
+      url: content.contentUrl,
+    }),
+    new Promise<Awaited<ReturnType<typeof syncContentWithApify>>>((resolve) => {
+      setTimeout(() => resolve(createContentSyncTimeoutMetrics(content)), CAMPAIGN_CONTENT_SYNC_TIMEOUT_MS);
+    }),
+  ]);
+}
+
 async function ensureCampaignKolLink(campaignId: number, row: CampaignContentInputRow, allowedKolIds: Set<number>) {
   if (row.kolId && allowedKolIds.has(row.kolId)) {
     return row.kolId;
@@ -990,10 +1023,7 @@ export async function syncCampaignContent(contentId: number) {
   let metrics;
 
   try {
-    metrics = await syncContentWithApify({
-      platform: content.platform,
-      url: content.contentUrl,
-    });
+    metrics = await syncContentWithTimeout(content);
   } catch (error) {
     await db
       .update(campaignContent)
