@@ -1181,8 +1181,6 @@ function RouteComponent() {
     setEditingId(null);
     setIsDialogOpen(false);
     setForm(getDefaultForm());
-    setKolSearch("");
-    setSelectedKeywordFilter([]);
     clearCampaignFormDraft();
   }
 
