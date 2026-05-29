@@ -843,7 +843,23 @@ function RouteComponent() {
         return;
       }
 
-      toast.info("Konten sedang diproses. Nilai akan muncul setelah sinkronisasi selesai.");
+      const returnedContentUrls = new Set(campaignDetail.contentsByKol.flatMap((group) => group.contents.map((content) => content.contentUrl)));
+      const missingSubmittedUrls = variables.contents
+        .map((content) => content.contentUrl)
+        .filter((contentUrl) => contentUrl && !contentUrl.startsWith("manual://") && !returnedContentUrls.has(contentUrl));
+
+      if (missingSubmittedUrls.length) {
+        toast.error(
+          missingSubmittedUrls.length === 1
+            ? "Konten gagal diambil dan sudah dihapus."
+            : `${missingSubmittedUrls.length} konten gagal diambil dan sudah dihapus.`,
+        );
+        setPendingAddContentRows((current) =>
+          current.filter((row) => row.campaignId !== variables.campaignId || !missingSubmittedUrls.includes(row.contentUrl)),
+        );
+      } else {
+        toast.info("Konten sedang diproses. Nilai akan muncul setelah sinkronisasi selesai.");
+      }
 
       setAddContentCampaignId(null);
       setContentRows(getDefaultContentRows());

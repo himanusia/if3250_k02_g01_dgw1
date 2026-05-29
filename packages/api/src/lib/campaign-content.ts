@@ -2,7 +2,6 @@ import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile, type SocialPlatform } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
-import { waitUntil } from "@vercel/functions";
 import { and, desc, eq, ilike } from "drizzle-orm";
 
 import { syncContentWithApify } from "./apify";
@@ -970,9 +969,7 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
     }
   }
 
-  if (contentIdsToSync.length) {
-    waitUntil(Promise.allSettled(contentIdsToSync.map((id) => syncCampaignContent(id))));
-  }
+  await Promise.allSettled(contentIdsToSync.map((id) => syncCampaignContent(id)));
 
   return await getCampaignDetail(input.campaignId);
 }
