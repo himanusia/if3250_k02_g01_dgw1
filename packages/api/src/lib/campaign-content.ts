@@ -800,7 +800,6 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
       : { contentUrl: createManualContentUrl(input.campaignId, index), platform: platformFromRow(row, null) };
 
     const platform = content.platform ?? platformFromRow(row, content.contentUrl);
-    let metrics: Awaited<ReturnType<typeof syncContentWithApify>> | null = null;
 
     if (!platform) {
       throw new ORPCError("BAD_REQUEST", {
@@ -809,21 +808,10 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
       });
     }
 
-    if (hasUrl && row.contentType !== "story") {
-      metrics = await syncContentWithApify({
-        platform,
-        url: content.contentUrl,
-      });
-    }
-
-    const inferredHandle = metrics?.syncStatus === "success" ? metrics.authorHandle : "";
-    const inferredDisplayName = metrics?.syncStatus === "success" ? metrics.authorDisplayName : "";
     const kolId = await ensureCampaignKolLink(
       input.campaignId,
       {
         ...row,
-        kolDisplayName: row.kolDisplayName || inferredDisplayName,
-        kolHandle: row.kolHandle || inferredHandle,
         platform,
       },
       allowedKolIds,
@@ -839,49 +827,45 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
       estimatedShareCount: row.estimatedShareCount || defaults.estimatedShareCount,
       estimatedViewCount: row.estimatedViewCount || defaults.estimatedViewCount,
       kolId,
-      metrics,
       platform,
-      shouldSync: hasUrl && row.contentType !== "story" && !metrics,
+      shouldSync: hasUrl && row.contentType !== "story",
     });
   }
 
   for (const row of preparedRows) {
-    const metrics = row.metrics;
-    const isSynced = metrics?.syncStatus === "success";
-    const isFailed = metrics?.syncStatus === "failed";
     const [created] = await db
       .insert(campaignContent)
       .values({
         archivedAt: null,
-        authorDisplayName: isSynced ? metrics.authorDisplayName : "",
-        authorHandle: isSynced ? metrics.authorHandle : "",
+        authorDisplayName: "",
+        authorHandle: "",
         budgetIdr: normalizeOptionalBudget(row.budgetIdr),
         campaignId: input.campaignId,
-        caption: isSynced ? metrics.caption : row.caption ?? "",
-        commentCount: isSynced ? metrics.commentCount : normalizeOptionalCount(row.estimatedCommentCount),
+        caption: row.caption ?? "",
+        commentCount: normalizeOptionalCount(row.estimatedCommentCount),
         contentType: row.contentType ?? "post",
         contentUrl: row.contentUrl,
         createdByUserId,
-        engagementRate: isSynced ? metrics.engagementRate : "",
+        engagementRate: "",
         estimatedCommentCount: normalizeOptionalCount(row.estimatedCommentCount),
         estimatedLikeCount: normalizeOptionalCount(row.estimatedLikeCount),
         estimatedShareCount: normalizeOptionalCount(row.estimatedShareCount),
         estimatedViewCount: normalizeOptionalCount(row.estimatedViewCount),
-        externalId: isSynced ? metrics.externalId ?? null : null,
+        externalId: null,
         isFyp: row.isFyp ?? false,
-        likeCount: isSynced ? metrics.likeCount : normalizeOptionalCount(row.likeCount || row.estimatedLikeCount),
+        likeCount: normalizeOptionalCount(row.likeCount || row.estimatedLikeCount),
         kolId: row.kolId,
-        metadata: isSynced ? metrics.metadata ?? null : null,
+        metadata: null,
         platform: row.platform,
-        postedAt: isSynced && metrics.postedAt ? new Date(metrics.postedAt) : null,
-        shareCount: isSynced ? metrics.shareCount : normalizeOptionalCount(row.shareCount || row.estimatedShareCount),
-        syncErrorCode: isFailed ? metrics.errorCode ?? null : null,
-        syncMessage: isFailed ? metrics.message ?? null : null,
-        syncStatus: isSynced ? "success" : isFailed ? "failed" : row.shouldSync ? "pending" : "success",
-        syncedAt: isSynced || !row.shouldSync ? new Date() : null,
-        thumbnailUrl: isSynced ? metrics.thumbnailUrl ?? null : null,
-        title: isSynced ? metrics.title : row.title ?? "",
-        viewCount: isSynced ? metrics.viewCount : normalizeOptionalCount(row.viewCount || row.estimatedViewCount),
+        postedAt: null,
+        shareCount: normalizeOptionalCount(row.shareCount || row.estimatedShareCount),
+        syncErrorCode: null,
+        syncMessage: null,
+        syncStatus: row.shouldSync ? "pending" : "success",
+        syncedAt: row.shouldSync ? null : new Date(),
+        thumbnailUrl: null,
+        title: row.title ?? "",
+        viewCount: normalizeOptionalCount(row.viewCount || row.estimatedViewCount),
       })
       .returning({ id: campaignContent.id });
 

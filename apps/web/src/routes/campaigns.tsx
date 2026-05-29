@@ -95,18 +95,18 @@ function formatShortDate(value: string) {
 type ContentFormRow = {
   budgetIdr: string;
   caption: string;
-  contentType: "post" | "reel" | "story";
+  contentType: "" | "post" | "reel" | "story";
   contentUrl: string;
   estimatedCommentCount: string;
   estimatedLikeCount: string;
   estimatedShareCount: string;
   estimatedViewCount: string;
   id: string;
-  isFyp: "yes" | "no";
+  isFyp: "" | "yes" | "no";
   kolDisplayName: string;
   kolHandle: string;
   kolId: number | "";
-  platform: "instagram" | "tiktok";
+  platform: "" | "instagram" | "tiktok";
   title: string;
 };
 
@@ -140,18 +140,18 @@ function createEmptyContentRow(): ContentFormRow {
   return {
     budgetIdr: "",
     caption: "",
-    contentType: "post",
+    contentType: "",
     contentUrl: "",
     estimatedCommentCount: "",
     estimatedLikeCount: "",
     estimatedShareCount: "",
     estimatedViewCount: "",
     id: randomId,
-    isFyp: "no",
+    isFyp: "",
     kolDisplayName: "",
     kolHandle: "",
     kolId: "",
-    platform: "instagram",
+    platform: "",
     title: "",
   };
 }
@@ -201,11 +201,30 @@ function detectContentPlatformFromUrl(url: string) {
   return null;
 }
 
-function getSocialPlatformLabel(platform: ContentFormRow["platform"]) {
+function detectContentTypeFromUrl(url: string): AddContentPayloadRow["contentType"] {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.toLowerCase();
+
+    if (path.includes("/reel/") || path.includes("/video/")) {
+      return "reel";
+    }
+
+    if (path.includes("/stories/")) {
+      return "story";
+    }
+  } catch {
+    return "post";
+  }
+
+  return "post";
+}
+
+function getSocialPlatformLabel(platform: Exclude<ContentFormRow["platform"], "">) {
   return platform === "instagram" ? "Instagram" : "TikTok";
 }
 
-function SocialPlatformIcon({ platform, className = "size-3.5" }: { platform: ContentFormRow["platform"]; className?: string }) {
+function SocialPlatformIcon({ platform, className = "size-3.5" }: { platform: Exclude<ContentFormRow["platform"], "">; className?: string }) {
   if (platform === "instagram") {
     return <Instagram className={className} aria-hidden="true" />;
   }
@@ -260,6 +279,15 @@ function SocialHandleList({ emptyLabel, handles }: { emptyLabel: string; handles
           </span>
         );
       })}
+    </span>
+  );
+}
+
+function ContentPlatformBadge({ contentType, platform }: { contentType: string; platform: Exclude<ContentFormRow["platform"], ""> }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 border-border text-muted-foreground border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em]">
+      <SocialPlatformIcon platform={platform} />
+      <span>{contentType} · {getSocialPlatformLabel(platform)}</span>
     </span>
   );
 }
@@ -327,6 +355,13 @@ type CampaignFormDraft = {
 type AddContentFormDraft = {
   campaignId: number;
   rows: ContentFormRow[];
+};
+type PendingAddContentRow = {
+  campaignId: number;
+  contentType: AddContentPayloadRow["contentType"];
+  contentUrl: string;
+  id: string;
+  platform: AddContentPayloadRow["platform"];
 };
 
 function loadCampaignFormDraft() {
@@ -639,6 +674,7 @@ function RouteComponent() {
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | CampaignRecord["status"]>("active");
   const [contentRows, setContentRows] = useState<ContentFormRow[]>(getDefaultContentRows());
   const [contentRowErrors, setContentRowErrors] = useState<Record<string, ContentRowErrors>>({});
+  const [pendingAddContentRows, setPendingAddContentRows] = useState<PendingAddContentRow[]>([]);
   const debouncedCampaignSearch = useDebouncedValue(campaignSearch);
   const campaignsQuery = useQuery(orpc.campaign.list.queryOptions({ input: { page: campaignPage, pageSize: campaignPageSize, search: debouncedCampaignSearch, status: campaignStatusFilter } }));
   const campaignProgressQuery = useQuery(orpc.campaign.dashboard.queryOptions());
@@ -745,6 +781,11 @@ function RouteComponent() {
 
     return { activeContentGroups: activeGroups, archivedContentGroups: archivedGroups };
   }, [detailCampaignData]);
+  const pendingDetailContentRows = useMemo(() => {
+    if (!detailCampaignData) return [];
+    const existingUrls = new Set(detailCampaignData.contentsByKol.flatMap((group) => group.contents.map((content) => content.contentUrl)));
+    return pendingAddContentRows.filter((row) => row.campaignId === detailCampaignData.id && !existingUrls.has(row.contentUrl));
+  }, [detailCampaignData, pendingAddContentRows]);
   const detailKolTierRows = useMemo(() => {
     if (!detailCampaignData) {
       return TARGET_KOL_TIERS.map(({ key, label }) => ({ actual: 0, key, label, target: 0 }));
@@ -774,7 +815,6 @@ function RouteComponent() {
     onSuccess: (campaignDetail, variables) => {
       if (!campaignDetail) {
         toast.error("Konten tersimpan, tetapi detail campaign tidak dapat dimuat.");
-        setIsAddContentDialogOpen(false);
         setAddContentCampaignId(null);
         setContentRows(getDefaultContentRows());
         setContentRowErrors({});
@@ -782,28 +822,26 @@ function RouteComponent() {
         return;
       }
 
-      const failedCount = campaignDetail.contentsByKol
-        .flatMap((group) => group.contents)
-        .filter((content: CampaignContentRecord) => content.syncStatus === "failed").length;
+      toast.success("Konten ditambahkan. Sinkronisasi berjalan di background.");
 
-      if (failedCount > 0) {
-        toast.error(`Konten tersimpan, tetapi ${failedCount} post gagal di-scrap`);
-      } else {
-        toast.success("Konten berhasil disimpan");
-      }
-
-      setIsAddContentDialogOpen(false);
       setAddContentCampaignId(null);
       setContentRows(getDefaultContentRows());
       setContentRowErrors({});
       clearAddContentFormDraft();
+      setPendingAddContentRows((current) =>
+        current.filter((row) => row.campaignId !== variables.campaignId || !variables.contents.some((content) => content.contentUrl === row.contentUrl)),
+      );
       campaignsQuery.refetch();
       campaignProgressQuery.refetch();
       kolsQuery.refetch();
       setDetailCampaignId(variables.campaignId);
       setIsDetailDialogOpen(true);
+      syncAddedContentsInBackground(campaignDetail, variables.contents);
     },
     onError: (error) => {
+      if (addContentCampaignId !== null) {
+        setPendingAddContentRows((current) => current.filter((row) => row.campaignId !== addContentCampaignId));
+      }
       toast.error(error instanceof Error ? error.message : "Gagal menambahkan konten");
     },
   });
@@ -878,6 +916,50 @@ function RouteComponent() {
       toast.error(error instanceof Error ? error.message : "Gagal menghapus konten");
     },
   });
+
+  async function syncAddedContentsInBackground(campaignDetail: CampaignDetailRecord, submittedRows: AddContentPayloadRow[]) {
+    const submittedUrls = new Set(submittedRows.map((row) => row.contentUrl).filter(Boolean));
+    const contentsToSync = campaignDetail.contentsByKol
+      .flatMap((group) => group.contents)
+      .filter((content) => submittedUrls.has(content.contentUrl) && content.syncStatus === "pending" && !content.contentUrl.startsWith("manual://"));
+
+    if (!contentsToSync.length) {
+      return;
+    }
+
+    setPendingContentSyncIds((current) => {
+      const next = new Set(current);
+      contentsToSync.forEach((content) => next.add(content.id));
+      return next;
+    });
+
+    await Promise.allSettled(
+      contentsToSync.map(async (content) => {
+        try {
+          const synced = await client.campaign.syncContent({ id: content.id });
+
+          if (synced.syncStatus === "failed") {
+            toast.error(synced.syncMessage || `Konten ${content.contentUrl} gagal di-scrap`);
+          }
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : `Gagal sync konten ${content.contentUrl}`);
+        } finally {
+          setPendingContentSyncIds((current) => {
+            const next = new Set(current);
+            next.delete(content.id);
+            return next;
+          });
+        }
+      }),
+    );
+
+    campaignsQuery.refetch();
+    campaignProgressQuery.refetch();
+    kolsQuery.refetch();
+    if (detailCampaignQuery.isFetched) {
+      detailCampaignQuery.refetch();
+    }
+  }
 
   const createCampaign = useMutation({
     mutationFn: (input: CampaignMutationInput) => client.campaign.create(input),
@@ -1033,7 +1115,8 @@ function RouteComponent() {
     const nextErrors: Record<string, ContentRowErrors> = {};
     const normalizedRows = contentRows.map((row) => {
       const normalizedUrl = row.contentUrl.trim() ? normalizeContentUrl(row.contentUrl) : "";
-      const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
+      const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : row.platform || null;
+      const contentType = row.contentType || (normalizedUrl ? detectContentTypeFromUrl(normalizedUrl) : "post");
       const errors: ContentRowErrors = {};
 
       if (row.contentType !== "story" && !normalizedUrl) {
@@ -1048,7 +1131,7 @@ function RouteComponent() {
         errors.kol = "Pilih KOL untuk story tanpa link.";
       }
 
-      if (!platform && !row.platform) {
+      if (!platform) {
         errors.platform = "Pilih platform.";
       }
 
@@ -1061,7 +1144,7 @@ function RouteComponent() {
         : {
             budgetIdr: row.budgetIdr ? parseOptionalNumber(row.budgetIdr) : null,
             caption: row.caption,
-            contentType: row.contentType,
+            contentType,
             contentUrl: normalizedUrl,
             estimatedCommentCount: parseOptionalNumber(row.estimatedCommentCount),
             estimatedLikeCount: parseOptionalNumber(row.estimatedLikeCount),
@@ -1072,7 +1155,7 @@ function RouteComponent() {
             kolHandle: row.kolHandle,
             kolId: row.kolId ? Number(row.kolId) : null,
             likeCount: parseOptionalNumber(row.estimatedLikeCount),
-            platform: platform ?? row.platform,
+            platform,
             shareCount: parseOptionalNumber(row.estimatedShareCount),
             title: "",
             viewCount: parseOptionalNumber(row.estimatedViewCount),
@@ -1099,10 +1182,24 @@ function RouteComponent() {
       return;
     }
 
+    const payloadRows = normalizedRows as AddContentPayloadRow[];
+    const optimisticRows = payloadRows
+      .filter((row) => row.contentUrl && !row.contentUrl.startsWith("manual://"))
+      .map((row, index) => ({
+        campaignId: addContentCampaignId,
+        contentType: row.contentType,
+        contentUrl: row.contentUrl,
+        id: `${Date.now()}-${index}-${row.contentUrl}`,
+        platform: row.platform,
+      }));
+
+    setPendingAddContentRows((current) => [...current, ...optimisticRows]);
+    setDetailCampaignId(addContentCampaignId);
+    setIsDetailDialogOpen(true);
     setIsAddContentDialogOpen(false);
     addContent.mutate({
       campaignId: addContentCampaignId,
-      contents: normalizedRows as AddContentPayloadRow[],
+      contents: payloadRows,
     });
   }
 
@@ -1798,8 +1895,49 @@ function RouteComponent() {
                   <h3 className="text-[15px] font-semibold text-foreground">Konten campaign</h3>
                 </div>
 
-                {activeContentGroups.length ? (
+                {activeContentGroups.length || pendingDetailContentRows.length ? (
                   <div className="space-y-4">
+                    {pendingDetailContentRows.length ? (
+                      <article className="border-[1.6px] border-dashed border-[#982E41]/35 bg-white p-4 sm:p-5">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-[18px] font-semibold leading-none text-foreground">Konten baru</p>
+                            <p className="mt-1 text-[13px] text-muted-foreground">Sedang disimpan dan disinkronkan di background.</p>
+                          </div>
+                          <span className="border border-border bg-[#fff3d8] px-2 py-1 text-xs text-muted-foreground">
+                            {pendingDetailContentRows.length} pending
+                          </span>
+                        </div>
+                        <div className="mt-4 space-y-3">
+                          {pendingDetailContentRows.map((row) => (
+                            <article key={row.id} className="space-y-3 border-[1.6px] border-[#982E41]/20 bg-[#FFF5F7] p-3 sm:p-4">
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="min-w-0 space-y-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <ContentPlatformBadge contentType={row.contentType} platform={row.platform} />
+                                    <span className="border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-amber-300">
+                                      <Loader2 className="mr-1 inline size-3 animate-spin" />
+                                      pending
+                                    </span>
+                                  </div>
+                                  <a className="break-all text-xs text-primary underline-offset-4 hover:underline" href={row.contentUrl} rel="noreferrer" target="_blank">
+                                    {row.contentUrl}
+                                  </a>
+                                </div>
+                              </div>
+                              <div className="grid gap-3 border border-[#982E41]/15 bg-white p-3 md:grid-cols-[104px_minmax(0,1fr)]">
+                                <Skeleton className="aspect-square w-full" />
+                                <div className="space-y-2">
+                                  <Skeleton className="h-4 w-4/5" />
+                                  <Skeleton className="h-4 w-2/3" />
+                                  <Skeleton className="h-4 w-1/2" />
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </article>
+                    ) : null}
                     {activeContentGroups.map((group) => (
                       <article key={group.kolId} className="border-[1.6px] border-border/70 bg-white p-4 sm:p-5">
                         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -1841,9 +1979,7 @@ function RouteComponent() {
 
                                           return (
                                             <div className="flex flex-wrap items-center gap-2">
-                                              <span className="border-border text-muted-foreground border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em]">
-                                                {content.contentType} · {getSocialPlatformLabel(content.platform)}
-                                              </span>
+                                              <ContentPlatformBadge contentType={content.contentType} platform={content.platform} />
                                               <span
                                                 className={`border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] ${
                                                   isSyncingThisContent
@@ -2027,9 +2163,7 @@ function RouteComponent() {
                                     <span className="border border-border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                                       archived
                                     </span>
-                                    <span className="border border-border px-2 py-0.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                                      {getSocialPlatformLabel(content.platform)}
-                                    </span>
+                                    <ContentPlatformBadge contentType={content.contentType} platform={content.platform} />
                                   </div>
                                   <a
                                     className="break-all text-xs text-primary underline-offset-4 hover:underline"
@@ -2148,14 +2282,22 @@ function RouteComponent() {
                             value={row.contentUrl}
                             onChange={(event) => {
                               const contentUrl = event.target.value;
-                              const normalizedUrl = normalizeContentUrl(contentUrl);
-                              const detectedPlatform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
                               updateContentRow(row.id, {
                                 contentUrl,
-                                ...(detectedPlatform ? { platform: detectedPlatform } : {}),
                               });
                             }}
                           />
+                          {(() => {
+                            const normalizedUrl = normalizeContentUrl(row.contentUrl);
+                            const detectedPlatform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
+
+                            return detectedPlatform ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium normal-case tracking-normal text-[#982E41]">
+                                <SocialPlatformIcon platform={detectedPlatform} />
+                                Terdeteksi {getSocialPlatformLabel(detectedPlatform)}
+                              </span>
+                            ) : null;
+                          })()}
                           {contentRowErrors[row.id]?.contentUrl && (
                             <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.contentUrl}</span>
                           )}
@@ -2224,7 +2366,6 @@ function RouteComponent() {
                                   });
                                 }}
                                 options={[
-                                  { label: "Otomatis dari link", value: "" },
                                   ...addContentCampaign.kols.map((kol) => ({
                                     label: kol.displayName,
                                     value: String(kol.id),
@@ -2279,9 +2420,8 @@ function RouteComponent() {
                 <Button type="button" variant="outline" className="border-[#982E41] text-[#982E41] hover:bg-[#982E41]/10 hover:text-[#982E41]" onClick={closeAddContentDialog}>
                   Batal
                 </Button>
-                <Button type="submit" disabled={addContent.isPending} className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]">
-                  {addContent.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  {addContent.isPending ? "Mengambil data..." : "Tambahkan konten"}
+                <Button type="submit" className="border border-[#982E41] bg-[#982E41] text-white hover:bg-[#7E2334]">
+                  Tambahkan konten
                 </Button>
               </DialogFooter>
             </form>
