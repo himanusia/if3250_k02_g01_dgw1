@@ -130,7 +130,7 @@ type AddContentPayloadRow = {
   viewCount: number;
 };
 
-type ContentRowErrors = Partial<Record<"contentUrl" | "kol" | "platform", string>>;
+type ContentRowErrors = Partial<Record<"contentType" | "contentUrl" | "kol" | "platform", string>>;
 
 function createEmptyContentRow(): ContentFormRow {
   const randomId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -362,6 +362,7 @@ type PendingAddContentRow = {
   contentUrl: string;
   id: string;
   platform: AddContentPayloadRow["platform"];
+  submittedAt: number;
 };
 
 function loadCampaignFormDraft() {
@@ -763,15 +764,28 @@ function RouteComponent() {
     }
   }, [campaignPage, totalCampaignPages]);
 
+  const pendingUrlsForDetail = useMemo(() => {
+    if (!detailCampaignData) return new Set<string>();
+
+    return new Set(
+      pendingAddContentRows
+        .filter((row) => row.campaignId === detailCampaignData.id)
+        .map((row) => row.contentUrl),
+    );
+  }, [detailCampaignData, pendingAddContentRows]);
+
   const { activeContentGroups, archivedContentGroups } = useMemo(() => {
     const activeGroups: CampaignDetailRecord["contentsByKol"] = [];
     const archivedGroups: CampaignDetailRecord["contentsByKol"] = [];
 
     for (const group of detailCampaignData?.contentsByKol ?? []) {
       const { activeContents, archivedContents } = splitCampaignContentsByArchiveState(group.contents);
+      const visibleActiveContents = activeContents.filter(
+        (content) => !(pendingUrlsForDetail.has(content.contentUrl) && content.syncStatus === "pending"),
+      );
 
-      if (activeContents.length) {
-        activeGroups.push({ ...group, contents: activeContents });
+      if (visibleActiveContents.length) {
+        activeGroups.push({ ...group, contents: visibleActiveContents });
       }
 
       if (archivedContents.length) {
@@ -780,11 +794,18 @@ function RouteComponent() {
     }
 
     return { activeContentGroups: activeGroups, archivedContentGroups: archivedGroups };
-  }, [detailCampaignData]);
+  }, [detailCampaignData, pendingUrlsForDetail]);
   const pendingDetailContentRows = useMemo(() => {
     if (!detailCampaignData) return [];
-    const existingUrls = new Set(detailCampaignData.contentsByKol.flatMap((group) => group.contents.map((content) => content.contentUrl)));
-    return pendingAddContentRows.filter((row) => row.campaignId === detailCampaignData.id && !existingUrls.has(row.contentUrl));
+    const contentByUrl = new Map(
+      detailCampaignData.contentsByKol.flatMap((group) => group.contents.map((content) => [content.contentUrl, content] as const)),
+    );
+
+    return pendingAddContentRows.filter((row) => {
+      if (row.campaignId !== detailCampaignData.id) return false;
+      const content = contentByUrl.get(row.contentUrl);
+      return !content || content.syncStatus === "pending";
+    });
   }, [detailCampaignData, pendingAddContentRows]);
   const detailKolTierRows = useMemo(() => {
     if (!detailCampaignData) {
@@ -822,22 +843,19 @@ function RouteComponent() {
         return;
       }
 
-      toast.success("Konten ditambahkan. Sinkronisasi berjalan di background.");
+      toast.info("Konten sedang diproses. Nilai akan muncul setelah sinkronisasi selesai.");
 
       setAddContentCampaignId(null);
       setContentRows(getDefaultContentRows());
       setContentRowErrors({});
       clearAddContentFormDraft();
-      setPendingAddContentRows((current) =>
-        current.filter((row) => row.campaignId !== variables.campaignId || !variables.contents.some((content) => content.contentUrl === row.contentUrl)),
-      );
       campaignsQuery.refetch();
       campaignProgressQuery.refetch();
       kolsQuery.refetch();
       setDetailCampaignId(variables.campaignId);
       setIsDetailDialogOpen(true);
       if (typeof window !== "undefined") {
-        for (const delay of [15_000, 60_000]) {
+        for (const delay of [5_000, 15_000, 60_000, 120_000]) {
           window.setTimeout(() => {
             campaignsQuery.refetch();
             campaignProgressQuery.refetch();
@@ -856,6 +874,87 @@ function RouteComponent() {
       toast.error(error instanceof Error ? error.message : "Gagal menambahkan konten");
     },
   });
+
+  useEffect(() => {
+    if (!detailCampaignData || !pendingAddContentRows.length) return;
+
+    const contentByUrl = new Map(
+      detailCampaignData.contentsByKol.flatMap((group) => group.contents.map((content) => [content.contentUrl, content] as const)),
+    );
+    const rowsToRemove = new Set<string>();
+    let completedCount = 0;
+    let failedCount = 0;
+    const now = Date.now();
+
+    for (const row of pendingAddContentRows) {
+      if (row.campaignId !== detailCampaignData.id) continue;
+
+      const content = contentByUrl.get(row.contentUrl);
+
+      if (content?.syncStatus === "success") {
+        rowsToRemove.add(row.id);
+        completedCount += 1;
+        continue;
+      }
+
+      if (content?.syncStatus === "failed" || (!content && now - row.submittedAt > 12_000)) {
+        rowsToRemove.add(row.id);
+        failedCount += 1;
+      }
+    }
+
+    if (!rowsToRemove.size) return;
+
+    setPendingAddContentRows((current) => current.filter((row) => !rowsToRemove.has(row.id)));
+
+    if (failedCount > 0) {
+      toast.error(failedCount === 1 ? "Konten gagal diambil dan sudah dihapus." : `${failedCount} konten gagal diambil dan sudah dihapus.`);
+      return;
+    }
+
+    if (completedCount > 0) {
+      toast.success(completedCount === 1 ? "Konten berhasil disinkronkan." : `${completedCount} konten berhasil disinkronkan.`);
+    }
+  }, [detailCampaignData, pendingAddContentRows]);
+
+  useEffect(() => {
+    if (!detailCampaignData) return;
+
+    const fallbackSyncContents = detailCampaignData.contentsByKol
+      .flatMap((group) => group.contents)
+      .filter((content) => content.syncStatus === "pending" && !content.contentUrl.startsWith("manual://") && !pendingContentSyncIds.has(content.id));
+
+    if (!fallbackSyncContents.length) return;
+
+    const timeout = window.setTimeout(() => {
+      setPendingContentSyncIds((current) => {
+        const next = new Set(current);
+        fallbackSyncContents.forEach((content) => next.add(content.id));
+        return next;
+      });
+
+      void Promise.allSettled(fallbackSyncContents.map((content) => client.campaign.syncContent({ id: content.id }))).then((results) => {
+        const failed = results.filter((result) => result.status === "rejected").length;
+
+        setPendingContentSyncIds((current) => {
+          const next = new Set(current);
+          fallbackSyncContents.forEach((content) => next.delete(content.id));
+          return next;
+        });
+
+        if (failed > 0) {
+          toast.error(failed === 1 ? "Konten gagal diambil dan sudah dihapus." : `${failed} konten gagal diambil dan sudah dihapus.`);
+        }
+
+        campaignsQuery.refetch();
+        campaignProgressQuery.refetch();
+        detailCampaignQuery.refetch();
+        kolsQuery.refetch();
+      });
+    }, 20_000);
+
+    return () => window.clearTimeout(timeout);
+  }, [campaignProgressQuery, campaignsQuery, detailCampaignData, detailCampaignQuery, kolsQuery, pendingContentSyncIds]);
 
   const syncContent = useMutation({
     mutationFn: ({ id }: { id: number }) => client.campaign.syncContent({ id }),
@@ -1083,10 +1182,15 @@ function RouteComponent() {
     const normalizedRows = contentRows.map((row) => {
       const normalizedUrl = row.contentUrl.trim() ? normalizeContentUrl(row.contentUrl) : "";
       const platform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : row.platform || null;
-      const contentType = row.contentType || (normalizedUrl ? detectContentTypeFromUrl(normalizedUrl) : "post");
+      const detectedContentType = normalizedUrl ? detectContentTypeFromUrl(normalizedUrl) : null;
+      const contentType = detectedContentType || row.contentType || null;
       const errors: ContentRowErrors = {};
 
-      if (row.contentType !== "story" && !normalizedUrl) {
+      if (!contentType) {
+        errors.contentType = "Pilih jenis konten.";
+      }
+
+      if (contentType !== "story" && !normalizedUrl) {
         errors.contentUrl = "Link wajib untuk post dan reels.";
       }
 
@@ -1094,7 +1198,7 @@ function RouteComponent() {
         errors.contentUrl = "Link harus berasal dari Instagram atau TikTok.";
       }
 
-      if (row.contentType === "story" && !normalizedUrl && !row.kolId) {
+      if (contentType === "story" && !normalizedUrl && !row.kolId) {
         errors.kol = "Pilih KOL untuk story tanpa link.";
       }
 
@@ -1111,7 +1215,7 @@ function RouteComponent() {
         : {
             budgetIdr: row.budgetIdr ? parseOptionalNumber(row.budgetIdr) : null,
             caption: row.caption,
-            contentType,
+            contentType: contentType!,
             contentUrl: normalizedUrl,
             estimatedCommentCount: parseOptionalNumber(row.estimatedCommentCount),
             estimatedLikeCount: parseOptionalNumber(row.estimatedLikeCount),
@@ -1158,6 +1262,7 @@ function RouteComponent() {
         contentUrl: row.contentUrl,
         id: `${Date.now()}-${index}-${row.contentUrl}`,
         platform: row.platform,
+        submittedAt: Date.now(),
       }));
 
     setPendingAddContentRows((current) => [...current, ...optimisticRows]);
@@ -2240,30 +2345,40 @@ function RouteComponent() {
                             placeholder="Pilih jenis"
                             searchPlaceholder="Cari jenis"
                           />
+                          {contentRowErrors[row.id]?.contentType && (
+                            <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.contentType}</span>
+                          )}
                         </Label>
                         <Label className="grid gap-2">
                           <span>Link</span>
-                          <Input
-                            aria-invalid={Boolean(contentRowErrors[row.id]?.contentUrl)}
-                            placeholder="https://www.instagram.com/reel/DYyTFReyo3D/"
-                            value={row.contentUrl}
-                            onChange={(event) => {
-                              const contentUrl = event.target.value;
-                              updateContentRow(row.id, {
-                                contentUrl,
-                              });
-                            }}
-                          />
                           {(() => {
                             const normalizedUrl = normalizeContentUrl(row.contentUrl);
                             const detectedPlatform = normalizedUrl ? detectContentPlatformFromUrl(normalizedUrl) : null;
 
-                            return detectedPlatform ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium normal-case tracking-normal text-[#982E41]">
-                                <SocialPlatformIcon platform={detectedPlatform} />
-                                Terdeteksi {getSocialPlatformLabel(detectedPlatform)}
-                              </span>
-                            ) : null;
+                            return (
+                              <div className="relative">
+                                <Input
+                                  aria-invalid={Boolean(contentRowErrors[row.id]?.contentUrl)}
+                                  className={detectedPlatform ? "pr-10" : undefined}
+                                  placeholder="https://www.instagram.com/reel/DYyTFReyo3D/"
+                                  value={row.contentUrl}
+                                  onChange={(event) => {
+                                    const contentUrl = event.target.value;
+                                    updateContentRow(row.id, {
+                                      contentUrl,
+                                    });
+                                  }}
+                                />
+                                {detectedPlatform ? (
+                                  <span
+                                    className="pointer-events-none absolute right-3 top-1/2 inline-flex -translate-y-1/2 text-[#982E41]"
+                                    title={getSocialPlatformLabel(detectedPlatform)}
+                                  >
+                                    <SocialPlatformIcon platform={detectedPlatform} className="size-4" />
+                                  </span>
+                                ) : null}
+                              </div>
+                            );
                           })()}
                           {contentRowErrors[row.id]?.contentUrl && (
                             <span className="text-xs font-medium normal-case tracking-normal text-destructive">{contentRowErrors[row.id]?.contentUrl}</span>

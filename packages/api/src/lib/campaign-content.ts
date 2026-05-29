@@ -395,6 +395,32 @@ export function detectContentPlatformFromUrl(url: string) {
   return null;
 }
 
+export function detectContentTypeFromUrl(url: string) {
+  try {
+    const path = new URL(url).pathname.toLowerCase();
+
+    if (path.includes("/stories/")) {
+      return "story" as const;
+    }
+
+    if (path.includes("/reel/") || path.includes("/video/")) {
+      return "reel" as const;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function contentTypeFromRow(row: CampaignContentInputRow, normalizedUrl: string | null) {
+  if (normalizedUrl) {
+    return detectContentTypeFromUrl(normalizedUrl) ?? row.contentType ?? "post";
+  }
+
+  return row.contentType ?? null;
+}
+
 function ensureCampaignContentUrl(rowIndex: number, row: CampaignContentInputRow, existingUrls: Set<string>, seenUrls: Set<string>) {
   const normalizedUrl = normalizeContentUrl(row.contentUrl ?? "");
 
@@ -852,6 +878,7 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
       : { contentUrl: createManualContentUrl(input.campaignId, index), platform: platformFromRow(row, null) };
 
     const platform = content.platform ?? platformFromRow(row, content.contentUrl);
+    const contentType = contentTypeFromRow(row, hasUrl ? content.contentUrl : null);
 
     if (!platform) {
       throw new ORPCError("BAD_REQUEST", {
@@ -860,15 +887,23 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
       });
     }
 
+    if (!contentType) {
+      throw new ORPCError("BAD_REQUEST", {
+        data: { reason: "CONTENT_TYPE_REQUIRED" },
+        message: `Baris ${index + 1}: pilih jenis konten.`,
+      });
+    }
+
     const kolId = await ensureCampaignKolLink(
       input.campaignId,
       {
         ...row,
+        contentType,
         platform,
       },
       allowedKolIds,
     );
-    const defaults = await loadKolContentDefaults(kolId, row.contentType ?? "post");
+    const defaults = await loadKolContentDefaults(kolId, contentType);
 
     preparedRows.push({
       ...row,
@@ -878,9 +913,10 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
       estimatedLikeCount: row.estimatedLikeCount || defaults.estimatedLikeCount,
       estimatedShareCount: row.estimatedShareCount || defaults.estimatedShareCount,
       estimatedViewCount: row.estimatedViewCount || defaults.estimatedViewCount,
+      contentType,
       kolId,
       platform,
-      shouldSync: hasUrl && row.contentType !== "story",
+      shouldSync: hasUrl && contentType !== "story",
     });
   }
 
@@ -897,7 +933,7 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
         campaignId: input.campaignId,
         caption: row.caption ?? "",
         commentCount: normalizeOptionalCount(row.estimatedCommentCount),
-        contentType: row.contentType ?? "post",
+        contentType: row.contentType,
         contentUrl: row.contentUrl,
         createdByUserId,
         engagementRate: "",

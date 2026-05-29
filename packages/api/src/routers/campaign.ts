@@ -41,7 +41,7 @@ const campaignContentInputSchema = z.object({
       z.object({
         budgetIdr: z.number().int().nonnegative().nullable().optional(),
         caption: z.string().trim().optional().default(""),
-        contentType: z.enum(["post", "reel", "story"]).default("post"),
+        contentType: z.enum(["post", "reel", "story"]).optional(),
         contentUrl: z.string().trim().optional().default(""),
         estimatedCommentCount: z.number().int().nonnegative().optional().default(0),
         estimatedLikeCount: z.number().int().nonnegative().optional().default(0),
