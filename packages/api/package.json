@@ -19,6 +19,7 @@
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
     "@types/pg": "catalog:",
+    "@vercel/functions": "^3.6.1",
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"

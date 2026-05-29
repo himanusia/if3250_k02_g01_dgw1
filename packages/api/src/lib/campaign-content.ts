@@ -2,6 +2,7 @@ import { db } from "@if3250_k02_g01_dgw1/db";
 import { campaign, campaignContent, campaignKol } from "@if3250_k02_g01_dgw1/db/schema/campaign";
 import { kolAccount, kolProfile, type SocialPlatform } from "@if3250_k02_g01_dgw1/db/schema/kol";
 import { ORPCError } from "@orpc/server";
+import { waitUntil } from "@vercel/functions";
 import { and, desc, eq, ilike } from "drizzle-orm";
 
 import { syncContentWithApify } from "./apify";
@@ -871,6 +872,8 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
     });
   }
 
+  const contentIdsToSync: number[] = [];
+
   for (const row of preparedRows) {
     const [created] = await db
       .insert(campaignContent)
@@ -913,6 +916,14 @@ export async function addCampaignContents(input: CampaignContentInput, createdBy
         message: "Gagal menyimpan konten campaign.",
       });
     }
+
+    if (row.shouldSync) {
+      contentIdsToSync.push(created.id);
+    }
+  }
+
+  if (contentIdsToSync.length) {
+    waitUntil(Promise.allSettled(contentIdsToSync.map((id) => syncCampaignContent(id))));
   }
 
   return await getCampaignDetail(input.campaignId);

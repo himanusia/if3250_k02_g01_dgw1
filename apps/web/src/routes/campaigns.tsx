@@ -836,7 +836,18 @@ function RouteComponent() {
       kolsQuery.refetch();
       setDetailCampaignId(variables.campaignId);
       setIsDetailDialogOpen(true);
-      syncAddedContentsInBackground(campaignDetail, variables.contents);
+      if (typeof window !== "undefined") {
+        for (const delay of [15_000, 60_000]) {
+          window.setTimeout(() => {
+            campaignsQuery.refetch();
+            campaignProgressQuery.refetch();
+            kolsQuery.refetch();
+            if (detailCampaignQuery.isFetched) {
+              detailCampaignQuery.refetch();
+            }
+          }, delay);
+        }
+      }
     },
     onError: (error) => {
       if (addContentCampaignId !== null) {
@@ -916,52 +927,6 @@ function RouteComponent() {
       toast.error(error instanceof Error ? error.message : "Gagal menghapus konten");
     },
   });
-
-  async function syncAddedContentsInBackground(campaignDetail: CampaignDetailRecord, submittedRows: AddContentPayloadRow[]) {
-    void submittedRows;
-    const contentsToSync = campaignDetail.contentsByKol
-      .flatMap((group) => group.contents)
-      .filter((content) => content.syncStatus === "pending" && !content.contentUrl.startsWith("manual://"));
-
-    if (!contentsToSync.length) {
-      return;
-    }
-
-    setPendingContentSyncIds((current) => {
-      const next = new Set(current);
-      contentsToSync.forEach((content) => next.add(content.id));
-      return next;
-    });
-
-    await Promise.allSettled(
-      contentsToSync.map(async (content) => {
-        try {
-          const synced = await client.campaign.syncContent({ id: content.id });
-
-          if (synced.syncStatus === "failed") {
-            await client.campaign.deleteContent({ id: content.id });
-            toast.error(synced.syncMessage || `Konten ${content.contentUrl} gagal di-scrap`);
-          }
-        } catch (error) {
-          await client.campaign.deleteContent({ id: content.id }).catch(() => undefined);
-          toast.error(error instanceof Error ? error.message : `Gagal sync konten ${content.contentUrl}`);
-        } finally {
-          setPendingContentSyncIds((current) => {
-            const next = new Set(current);
-            next.delete(content.id);
-            return next;
-          });
-        }
-      }),
-    );
-
-    campaignsQuery.refetch();
-    campaignProgressQuery.refetch();
-    kolsQuery.refetch();
-    if (detailCampaignQuery.isFetched) {
-      detailCampaignQuery.refetch();
-    }
-  }
 
   const createCampaign = useMutation({
     mutationFn: (input: CampaignMutationInput) => client.campaign.create(input),
