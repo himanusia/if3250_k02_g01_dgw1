@@ -939,9 +939,11 @@ function RouteComponent() {
           const synced = await client.campaign.syncContent({ id: content.id });
 
           if (synced.syncStatus === "failed") {
+            await client.campaign.deleteContent({ id: content.id });
             toast.error(synced.syncMessage || `Konten ${content.contentUrl} gagal di-scrap`);
           }
         } catch (error) {
+          await client.campaign.deleteContent({ id: content.id }).catch(() => undefined);
           toast.error(error instanceof Error ? error.message : `Gagal sync konten ${content.contentUrl}`);
         } finally {
           setPendingContentSyncIds((current) => {

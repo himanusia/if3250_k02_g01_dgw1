@@ -535,13 +535,13 @@ async function ensureCampaignKolLink(campaignId: number, row: CampaignContentInp
     }
   }
 
-  const displayName = row.kolDisplayName?.trim() || handle || "Manual KOL";
+  const displayName = row.kolDisplayName?.trim() || handle || "KOL belum terdaftar";
   const [createdProfile] = await db
     .insert(kolProfile)
     .values({
       displayName,
       keywords: "",
-      syncMessage: handle ? "Belum disinkronkan." : "KOL manual dari konten campaign.",
+      syncMessage: handle ? "Belum disinkronkan." : "KOL belum terdaftar dari konten campaign.",
       syncStatus: handle ? "pending" : "failed",
     })
     .returning({ id: kolProfile.id });
@@ -623,6 +623,30 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
 
   if (metrics.syncStatus === "success") {
     const authorHandle = metrics.authorHandle.replace(/^@/, "").trim();
+    let targetKolId = current.kolId;
+
+    if (authorHandle) {
+      const [matchingAccount] = await db
+        .select({ kolId: kolAccount.kolId })
+        .from(kolAccount)
+        .where(and(ilike(kolAccount.handle, authorHandle), eq(kolAccount.platform, metrics.platform)))
+        .limit(1);
+
+      if (matchingAccount) {
+        targetKolId = matchingAccount.kolId;
+        await db.insert(campaignKol).values({ campaignId: current.campaignId, kolId: targetKolId }).onConflictDoNothing();
+      } else {
+        await db
+          .update(kolProfile)
+          .set({
+            displayName: "KOL belum terdaftar",
+            syncMessage: "KOL belum terdaftar dari konten campaign.",
+            syncStatus: "failed",
+            updatedAt: new Date(),
+          })
+          .where(eq(kolProfile.id, current.kolId));
+      }
+    }
 
     await db
       .update(campaignContent)
@@ -634,6 +658,7 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
         engagementRate: metrics.engagementRate,
         externalId: metrics.externalId,
         likeCount: metrics.likeCount,
+        kolId: targetKolId,
         metadata: metrics.metadata,
         postedAt: metrics.postedAt ? new Date(metrics.postedAt) : null,
         shareCount: metrics.shareCount,
@@ -654,7 +679,7 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
         .from(kolAccount)
         .where(
           and(
-            eq(kolAccount.kolId, current.kolId),
+            eq(kolAccount.kolId, targetKolId),
             eq(kolAccount.platform, metrics.platform),
             eq(kolAccount.handle, authorHandle),
           ),
@@ -665,13 +690,27 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
         try {
           await db.insert(kolAccount).values({
             handle: authorHandle,
-            kolId: current.kolId,
+            kolId: targetKolId,
             platform: metrics.platform,
             profileUrl: null,
           });
         } catch {
           // Another KOL may already own this handle. Keep content sync successful.
         }
+      }
+    }
+
+    if (targetKolId !== current.kolId) {
+      const [remainingPlaceholderContent] = await db
+        .select({ id: campaignContent.id })
+        .from(campaignContent)
+        .where(and(eq(campaignContent.campaignId, current.campaignId), eq(campaignContent.kolId, current.kolId)))
+        .limit(1);
+
+      if (!remainingPlaceholderContent) {
+        await db
+          .delete(campaignKol)
+          .where(and(eq(campaignKol.campaignId, current.campaignId), eq(campaignKol.kolId, current.kolId)));
       }
     }
   } else {
