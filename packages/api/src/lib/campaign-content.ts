@@ -567,6 +567,28 @@ async function ensureCampaignKolLink(campaignId: number, row: CampaignContentInp
   return createdProfile.id;
 }
 
+async function unlinkUnusedPlaceholderKol(campaignId: number, kolId: number) {
+  const [profile] = await db
+    .select({ displayName: kolProfile.displayName })
+    .from(kolProfile)
+    .where(eq(kolProfile.id, kolId))
+    .limit(1);
+
+  if (profile?.displayName !== "KOL belum terdaftar") {
+    return;
+  }
+
+  const [remainingContent] = await db
+    .select({ id: campaignContent.id })
+    .from(campaignContent)
+    .where(and(eq(campaignContent.campaignId, campaignId), eq(campaignContent.kolId, kolId)))
+    .limit(1);
+
+  if (!remainingContent) {
+    await db.delete(campaignKol).where(and(eq(campaignKol.campaignId, campaignId), eq(campaignKol.kolId, kolId)));
+  }
+}
+
 async function loadCampaignContentRow(contentId: number) {
   const [row] = await db
     .select({
@@ -702,17 +724,7 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
     }
 
     if (targetKolId !== current.kolId) {
-      const [remainingPlaceholderContent] = await db
-        .select({ id: campaignContent.id })
-        .from(campaignContent)
-        .where(and(eq(campaignContent.campaignId, current.campaignId), eq(campaignContent.kolId, current.kolId)))
-        .limit(1);
-
-      if (!remainingPlaceholderContent) {
-        await db
-          .delete(campaignKol)
-          .where(and(eq(campaignKol.campaignId, current.campaignId), eq(campaignKol.kolId, current.kolId)));
-      }
+      await unlinkUnusedPlaceholderKol(current.campaignId, current.kolId);
     }
   } else {
     await db
@@ -962,6 +974,7 @@ export async function syncCampaignContent(contentId: number) {
       .where(eq(campaignContent.id, contentId));
 
     await db.delete(campaignContent).where(eq(campaignContent.id, contentId));
+    await unlinkUnusedPlaceholderKol(content.campaignId, content.kolId);
 
     throw new ORPCError("SERVICE_UNAVAILABLE", {
       message: "Sinkronisasi konten gagal.",
@@ -981,6 +994,7 @@ export async function syncCampaignContent(contentId: number) {
       .where(eq(campaignContent.id, contentId));
 
     await db.delete(campaignContent).where(eq(campaignContent.id, contentId));
+    await unlinkUnusedPlaceholderKol(content.campaignId, content.kolId);
 
     throw new ORPCError("BAD_REQUEST", {
       data: { reason: metrics.errorCode ?? "CONTENT_SYNC_FAILED" },
