@@ -23,6 +23,7 @@ type SyncedMetrics = {
     | "APIFY_BAD_REQUEST"
     | "APIFY_TIMEOUT"
     | "APIFY_RATE_LIMIT"
+    | "APIFY_PAYMENT_REQUIRED"
     | "APIFY_UNAVAILABLE"
     | "APIFY_UNKNOWN"
     | "APIFY_NOT_CONFIGURED"
@@ -47,6 +48,7 @@ type ContentSyncErrorCode =
   | "APIFY_BAD_REQUEST"
   | "APIFY_TIMEOUT"
   | "APIFY_RATE_LIMIT"
+  | "APIFY_PAYMENT_REQUIRED"
   | "APIFY_UNAVAILABLE"
   | "APIFY_UNKNOWN"
   | "APIFY_NOT_CONFIGURED"
@@ -518,13 +520,17 @@ export async function syncAccountWithApify(account: AccountInput): Promise<Synce
             ? "APIFY_TIMEOUT"
             : response.status === 429
               ? "APIFY_RATE_LIMIT"
-              : response.status >= 500
-                ? "APIFY_UNAVAILABLE"
-                : "APIFY_UNKNOWN",
+              : response.status === 402
+                ? "APIFY_PAYMENT_REQUIRED"
+                : response.status >= 500
+                  ? "APIFY_UNAVAILABLE"
+                  : "APIFY_UNKNOWN",
       engagementRate: "",
       followers: 0,
       metadata: null,
-      message: `Apify request gagal (${response.status}).`,
+      message: response.status === 402
+        ? "Saldo atau usage Apify tidak cukup untuk menjalankan scraper."
+        : `Apify request gagal (${response.status}).`,
       syncStatus: "failed",
     };
   }
@@ -565,15 +571,14 @@ function buildContentInput(content: ContentInput) {
 
   if (content.platform === "tiktok") {
     return {
-      directUrls: [url],
-      profiles: [url],
+      postURLs: [url],
       resultsPerPage: 1,
+      scrapeRelatedVideos: false,
+      shouldDownloadAvatars: false,
       shouldDownloadCovers: false,
+      shouldDownloadMusicCovers: false,
       shouldDownloadSlideshowImages: false,
-      shouldDownloadVideos: true,
-      startUrls: [{ url }],
-      url,
-      urls: [url],
+      shouldDownloadVideos: false,
     };
   }
 
@@ -841,16 +846,29 @@ export async function syncContentWithApify(content: ContentInput): Promise<Synce
     );
   }
 
-  const response = await fetch(
-    `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${env.APIFY_API_TOKEN}&clean=true&limit=1`,
-    {
-      body: JSON.stringify(input),
-      headers: {
-        "content-type": "application/json",
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${env.APIFY_API_TOKEN}&clean=true&limit=1`,
+      {
+        body: JSON.stringify(input),
+        headers: {
+          "content-type": "application/json",
+        },
+        method: "POST",
       },
-      method: "POST",
-    },
-  );
+    );
+  } catch (error) {
+    console.error("[apify] content request crashed", {
+      actorId,
+      message: error instanceof Error ? error.message : String(error),
+      platform: content.platform,
+      url,
+    });
+
+    return buildContentFailure(content.platform, url, "APIFY_UNAVAILABLE", "Apify tidak bisa dihubungi. Coba lagi nanti.");
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -871,11 +889,15 @@ export async function syncContentWithApify(content: ContentInput): Promise<Synce
           ? "APIFY_TIMEOUT"
           : response.status === 429
             ? "APIFY_RATE_LIMIT"
-            : response.status >= 500
-              ? "APIFY_UNAVAILABLE"
-              : "APIFY_UNKNOWN",
+            : response.status === 402
+              ? "APIFY_PAYMENT_REQUIRED"
+              : response.status >= 500
+                ? "APIFY_UNAVAILABLE"
+                : "APIFY_UNKNOWN",
       response.status === 404
         ? "Post tidak ditemukan atau tidak bisa diakses."
+        : response.status === 402
+          ? "Saldo atau usage Apify tidak cukup untuk menjalankan scraper TikTok."
         : `Apify request gagal (${response.status}).`,
     );
   }

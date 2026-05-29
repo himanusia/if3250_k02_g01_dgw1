@@ -131,6 +131,17 @@ type AddContentPayloadRow = {
 };
 
 type ContentRowErrors = Partial<Record<"contentType" | "contentUrl" | "kol" | "platform", string>>;
+type RpcLikeError = {
+  code?: string;
+  data?: {
+    reason?: string;
+    issues?: Array<{
+      message: string;
+      path?: Array<string | number>;
+    }>;
+  };
+  message?: string;
+};
 
 function createEmptyContentRow(): ContentFormRow {
   const randomId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -431,6 +442,30 @@ function parseOptionalNumber(value: string) {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : 0;
 }
 
+function sanitizeIntegerInput(value: string) {
+  return value.replace(/[^\d]/g, "");
+}
+
+function isPlaceholderKol(kol: Pick<KolRecord, "displayName" | "accounts">) {
+  return kol.displayName.trim().toLowerCase() === "kol belum terdaftar" && !kol.accounts.length;
+}
+
+function getCampaignErrorMessage(error: unknown, fallback: string) {
+  const rpcError = error as RpcLikeError;
+  const issue = rpcError?.data?.issues?.[0];
+
+  if (issue?.message) {
+    const path = issue.path?.length ? `${issue.path.join(".")}: ` : "";
+    return `${path}${issue.message}`;
+  }
+
+  if (rpcError?.data?.reason === "CONTENT_TYPE_REQUIRED") {
+    return rpcError.message || "Pilih jenis konten.";
+  }
+
+  return error instanceof Error ? error.message : fallback;
+}
+
 function toInputNumber(value: number | null | undefined) {
   return value && Number.isFinite(value) ? String(Math.round(value)) : "";
 }
@@ -699,6 +734,7 @@ function RouteComponent() {
     [campaignProgressRows],
   );
   const kols = arrayFromQueryData<KolRecord>(kolsQuery.data);
+  const selectableKols = useMemo(() => kols.filter((kol) => !isPlaceholderKol(kol)), [kols]);
   const detailCampaignData = (detailCampaignQuery.data as CampaignDetailRecord | null | undefined) ?? null;
   const detailCampaignProgress = detailCampaignData ? campaignProgressById.get(detailCampaignData.id) : undefined;
 
@@ -816,7 +852,7 @@ function RouteComponent() {
     const selectedKolIds = new Set(detailCampaignData.kols.map((kol) => kol.id));
     const actuals = new Map(TARGET_KOL_TIERS.map(({ key }) => [key, 0]));
 
-    kols.forEach((kol) => {
+    selectableKols.forEach((kol) => {
       if (selectedKolIds.has(kol.id) && actuals.has(kol.followerTier)) {
         actuals.set(kol.followerTier, (actuals.get(kol.followerTier) ?? 0) + 1);
       }
@@ -828,7 +864,7 @@ function RouteComponent() {
       label,
       target: targets.get(key) ?? 0,
     }));
-  }, [detailCampaignData, kols]);
+  }, [detailCampaignData, selectableKols]);
 
   const addContent = useMutation({
     mutationFn: (input: { campaignId: number; contents: AddContentPayloadRow[] }) =>
@@ -887,7 +923,7 @@ function RouteComponent() {
       if (addContentCampaignId !== null) {
         setPendingAddContentRows((current) => current.filter((row) => row.campaignId !== addContentCampaignId));
       }
-      toast.error(error instanceof Error ? error.message : "Gagal menambahkan konten");
+      toast.error(getCampaignErrorMessage(error, "Gagal menambahkan konten"));
     },
   });
 
@@ -997,7 +1033,7 @@ function RouteComponent() {
         next.delete(variables.id);
         return next;
       });
-      toast.error(error instanceof Error ? error.message : "Gagal melakukan sync konten");
+      toast.error(getCampaignErrorMessage(error, "Gagal melakukan sync konten"));
     },
   });
 
@@ -1011,7 +1047,7 @@ function RouteComponent() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal mengarsipkan konten");
+      toast.error(getCampaignErrorMessage(error, "Gagal mengarsipkan konten"));
     },
   });
 
@@ -1025,7 +1061,7 @@ function RouteComponent() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal mengembalikan konten");
+      toast.error(getCampaignErrorMessage(error, "Gagal mengembalikan konten"));
     },
   });
 
@@ -1039,7 +1075,7 @@ function RouteComponent() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus konten");
+      toast.error(getCampaignErrorMessage(error, "Gagal menghapus konten"));
     },
   });
 
@@ -1051,7 +1087,7 @@ function RouteComponent() {
       resetForm();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal membuat campaign");
+      toast.error(getCampaignErrorMessage(error, "Gagal membuat campaign"));
     },
   });
 
@@ -1064,7 +1100,7 @@ function RouteComponent() {
       resetForm();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal memperbarui campaign");
+      toast.error(getCampaignErrorMessage(error, "Gagal memperbarui campaign"));
     },
   });
 
@@ -1075,7 +1111,7 @@ function RouteComponent() {
       campaignsQuery.refetch();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus campaign");
+      toast.error(getCampaignErrorMessage(error, "Gagal menghapus campaign"));
     },
   });
 
@@ -1097,7 +1133,7 @@ function RouteComponent() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Gagal sync konten campaign aktif");
+      toast.error(getCampaignErrorMessage(error, "Gagal sync konten campaign aktif"));
     },
   });
 
@@ -1303,7 +1339,9 @@ function RouteComponent() {
       periodEnd: campaign.periodEnd,
       periodStart: campaign.periodStart,
       postBriefs: campaign.postBriefs,
-      selectedKolIds: campaign.kols.map((kol) => kol.id),
+      selectedKolIds: campaign.kols
+        .filter((kol) => kol.displayName.trim().toLowerCase() !== "kol belum terdaftar")
+        .map((kol) => kol.id),
       status: getCampaignTemporalStatus(campaign.periodStart, campaign.periodEnd),
       targetPostCount: toInputNumber(campaign.targetPostCount),
       targetReelCount: toInputNumber(campaign.targetReelCount),
@@ -1367,7 +1405,7 @@ function RouteComponent() {
       campaignProgressQuery.refetch();
       detailCampaignQuery.refetch();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal menyinkronkan campaign.");
+      toast.error(getCampaignErrorMessage(error, "Gagal menyinkronkan campaign."));
     } finally {
       toast.dismiss(toastId);
     }
@@ -1604,19 +1642,19 @@ function RouteComponent() {
                 />
               </Label>
               <div className="grid gap-3 md:col-span-2 md:grid-cols-3">
-                <FormInput
+                <NumberFormInput
                   label="Target post"
                   placeholder="40"
                   value={form.targetPostCount}
                   onChange={(targetPostCount) => setForm((current) => ({ ...current, targetPostCount }))}
                 />
-                <FormInput
+                <NumberFormInput
                   label="Target reels"
                   placeholder="40"
                   value={form.targetReelCount}
                   onChange={(targetReelCount) => setForm((current) => ({ ...current, targetReelCount }))}
                 />
-                <FormInput
+                <NumberFormInput
                   label="Target story"
                   placeholder="20"
                   value={form.targetStoryCount}
@@ -1677,7 +1715,7 @@ function RouteComponent() {
 
               <div className="grid gap-3 border border-border p-3">
                 <KolCombobox
-                  kols={kols.filter((kol) => !form.selectedKolIds.includes(kol.id))}
+                  kols={selectableKols.filter((kol) => !form.selectedKolIds.includes(kol.id))}
                   placeholder="Cari KOL berdasarkan nama, keyword, atau handle"
                   onSelect={(kolId) => {
                     setForm((current) => ({
@@ -1691,7 +1729,7 @@ function RouteComponent() {
 
                 <div className="grid min-h-11 gap-2">
                   {form.selectedKolIds.map((kolId) => {
-                    const kol = kols.find((item) => item.id === kolId);
+                    const kol = selectableKols.find((item) => item.id === kolId);
                     if (!kol) return null;
 
                     const keywordTokens = parseKeywordTokens(kol.keywords);
@@ -2464,7 +2502,9 @@ function RouteComponent() {
                                   });
                                 }}
                                 options={[
-                                  ...addContentCampaign.kols.map((kol) => ({
+                                  ...addContentCampaign.kols
+                                    .filter((kol) => kol.displayName.trim().toLowerCase() !== "kol belum terdaftar")
+                                    .map((kol) => ({
                                     label: kol.displayName,
                                     value: String(kol.id),
                                     keywords: kol.handles,
@@ -2917,6 +2957,32 @@ function FormInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={!placeholder}
+      />
+    </Label>
+  );
+}
+
+function NumberFormInput({
+  label,
+  onChange,
+  placeholder,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  value: string;
+}) {
+  return (
+    <Label className="grid gap-2">
+      <span>{label}</span>
+      <Input
+        className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={value}
+        onChange={(event) => onChange(sanitizeIntegerInput(event.target.value))}
+        placeholder={placeholder}
       />
     </Label>
   );
