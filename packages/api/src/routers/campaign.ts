@@ -12,6 +12,7 @@ import {
   getCampaignDetail,
   restoreCampaignContent,
   syncCampaignContent,
+  updateCampaignContent,
 } from "../lib/campaign-content";
 
 const campaignInputSchema = z.object({
@@ -59,6 +60,16 @@ const campaignContentInputSchema = z.object({
       }),
     )
     .min(1, "Minimal 1 konten harus diisi."),
+});
+
+const campaignContentUpdateSchema = z.object({
+  budgetIdr: z.number().int().nonnegative().nullable().optional(),
+  estimatedCommentCount: z.number().int().nonnegative().optional(),
+  estimatedLikeCount: z.number().int().nonnegative().optional(),
+  estimatedShareCount: z.number().int().nonnegative().optional(),
+  estimatedViewCount: z.number().int().nonnegative().optional(),
+  id: z.number().int().positive(),
+  isFyp: z.boolean().nullable().optional(),
 });
 
 type CampaignDb = Pick<typeof db, "delete" | "insert">;
@@ -271,6 +282,9 @@ export const campaignRouter = {
     }),
   addContent: protectedProcedure.input(campaignContentInputSchema).handler(async ({ context, input }) => {
     return await addCampaignContents(input, context.session.user.id);
+  }),
+  updateContent: protectedProcedure.input(campaignContentUpdateSchema).handler(async ({ input }) => {
+    return await updateCampaignContent(input);
   }),
   archiveContent: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))

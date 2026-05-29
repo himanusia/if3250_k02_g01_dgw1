@@ -744,14 +744,21 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
       }
     }
 
+    const defaults = await loadKolContentDefaults(targetKolId, current.contentType);
+
     await db
       .update(campaignContent)
       .set({
         authorDisplayName: metrics.authorDisplayName || current.kolDisplayName,
         authorHandle: metrics.authorHandle,
+        budgetIdr: current.budgetIdr ?? defaults.budgetIdr,
         caption: metrics.caption,
         commentCount: metrics.commentCount,
         engagementRate: metrics.engagementRate,
+        estimatedCommentCount: current.estimatedCommentCount || defaults.estimatedCommentCount,
+        estimatedLikeCount: current.estimatedLikeCount || defaults.estimatedLikeCount,
+        estimatedShareCount: current.estimatedShareCount || defaults.estimatedShareCount,
+        estimatedViewCount: current.estimatedViewCount || defaults.estimatedViewCount,
         externalId: metrics.externalId,
         likeCount: metrics.likeCount,
         kolId: targetKolId,
@@ -861,6 +868,59 @@ async function updateCampaignContentMetrics(contentId: number, metrics: Awaited<
       message: "Konten campaign tidak ditemukan.",
     });
   }
+
+  return normalizeCampaignContentRow(
+    {
+      ...latest,
+      metadata: (latest.metadata ?? null) as Record<string, unknown> | null,
+    },
+    linkMap.get(latest.kolId)?.handles ?? [],
+  );
+}
+
+export async function updateCampaignContent(input: {
+  budgetIdr?: number | null;
+  estimatedCommentCount?: number;
+  estimatedLikeCount?: number;
+  estimatedShareCount?: number;
+  estimatedViewCount?: number;
+  id: number;
+  isFyp?: boolean | null;
+}) {
+  const current = await loadCampaignContentRow(input.id);
+  const updates: Partial<typeof campaignContent.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+
+  if ("budgetIdr" in input) {
+    updates.budgetIdr = normalizeOptionalBudget(input.budgetIdr);
+  }
+
+  if ("estimatedCommentCount" in input) {
+    updates.estimatedCommentCount = normalizeOptionalCount(input.estimatedCommentCount);
+  }
+
+  if ("estimatedLikeCount" in input) {
+    updates.estimatedLikeCount = normalizeOptionalCount(input.estimatedLikeCount);
+  }
+
+  if ("estimatedShareCount" in input) {
+    updates.estimatedShareCount = normalizeOptionalCount(input.estimatedShareCount);
+  }
+
+  if ("estimatedViewCount" in input) {
+    updates.estimatedViewCount = normalizeOptionalCount(input.estimatedViewCount);
+  }
+
+  if ("isFyp" in input) {
+    updates.isFyp = input.isFyp ?? false;
+  }
+
+  await db.update(campaignContent).set(updates).where(eq(campaignContent.id, input.id));
+
+  const links = await loadCampaignKolLinks(current.campaignId);
+  const latest = await loadCampaignContentRow(input.id);
+  const linkMap = new Map(links.map((link) => [link.id, link] as const));
 
   return normalizeCampaignContentRow(
     {

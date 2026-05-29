@@ -130,6 +130,15 @@ type AddContentPayloadRow = {
   viewCount: number;
 };
 
+type ContentEditFormState = {
+  budgetIdr: string;
+  estimatedCommentCount: string;
+  estimatedLikeCount: string;
+  estimatedShareCount: string;
+  estimatedViewCount: string;
+  isFyp: "" | "yes" | "no";
+};
+
 type ContentRowErrors = Partial<Record<"contentType" | "contentUrl" | "kol" | "platform", string>>;
 type RpcLikeError = {
   code?: string;
@@ -702,6 +711,15 @@ function RouteComponent() {
   const [pendingContentSyncIds, setPendingContentSyncIds] = useState<Set<number>>(new Set());
   const [archivingContentId, setArchivingContentId] = useState<number | null>(null);
   const [restoringContentId, setRestoringContentId] = useState<number | null>(null);
+  const [editingContentId, setEditingContentId] = useState<number | null>(null);
+  const [contentEditForm, setContentEditForm] = useState<ContentEditFormState>({
+    budgetIdr: "",
+    estimatedCommentCount: "",
+    estimatedLikeCount: "",
+    estimatedShareCount: "",
+    estimatedViewCount: "",
+    isFyp: "",
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<CampaignFormState>(getDefaultForm());
   const [campaignSearch, setCampaignSearch] = useState("");
@@ -924,6 +942,28 @@ function RouteComponent() {
         setPendingAddContentRows((current) => current.filter((row) => row.campaignId !== addContentCampaignId));
       }
       toast.error(getCampaignErrorMessage(error, "Gagal menambahkan konten"));
+    },
+  });
+
+  const updateContent = useMutation({
+    mutationFn: (input: {
+      budgetIdr: number | null;
+      estimatedCommentCount: number;
+      estimatedLikeCount: number;
+      estimatedShareCount: number;
+      estimatedViewCount: number;
+      id: number;
+      isFyp: boolean | null;
+    }) => client.campaign.updateContent(input),
+    onSuccess: () => {
+      toast.success("Konten berhasil diperbarui.");
+      setEditingContentId(null);
+      campaignsQuery.refetch();
+      campaignProgressQuery.refetch();
+      detailCampaignQuery.refetch();
+    },
+    onError: (error) => {
+      toast.error(getCampaignErrorMessage(error, "Gagal memperbarui konten"));
     },
   });
 
@@ -1324,6 +1364,34 @@ function RouteComponent() {
     addContent.mutate({
       campaignId: addContentCampaignId,
       contents: payloadRows,
+    });
+  }
+
+  function openContentEdit(content: CampaignContentRecord) {
+    setEditingContentId(content.id);
+    setContentEditForm({
+      budgetIdr: toInputNumber(content.budgetIdr),
+      estimatedCommentCount: toInputNumber(content.estimatedCommentCount),
+      estimatedLikeCount: toInputNumber(content.estimatedLikeCount),
+      estimatedShareCount: toInputNumber(content.estimatedShareCount),
+      estimatedViewCount: toInputNumber(content.estimatedViewCount),
+      isFyp: content.isFyp ? "yes" : "no",
+    });
+  }
+
+  function updateContentEditField<K extends keyof ContentEditFormState>(key: K, value: ContentEditFormState[K]) {
+    setContentEditForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function submitContentEdit(contentId: number) {
+    updateContent.mutate({
+      budgetIdr: contentEditForm.budgetIdr ? parseOptionalNumber(contentEditForm.budgetIdr) : null,
+      estimatedCommentCount: parseOptionalNumber(contentEditForm.estimatedCommentCount),
+      estimatedLikeCount: parseOptionalNumber(contentEditForm.estimatedLikeCount),
+      estimatedShareCount: parseOptionalNumber(contentEditForm.estimatedShareCount),
+      estimatedViewCount: parseOptionalNumber(contentEditForm.estimatedViewCount),
+      id: contentId,
+      isFyp: contentEditForm.isFyp === "" ? null : contentEditForm.isFyp === "yes",
     });
   }
 
@@ -2140,6 +2208,15 @@ function RouteComponent() {
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    disabled={updateContent.isPending}
+                                    onClick={() => openContentEdit(content)}
+                                  >
+                                    <PencilLine className="mr-1 size-4" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     disabled={syncContent.isPending || syncingContentId !== null || content.syncStatus === "pending"}
                                     onClick={async () => {
                                       const toastId = toast.loading("Sinkronisasi konten berjalan...");
@@ -2194,6 +2271,80 @@ function RouteComponent() {
                                   </Button>
                                 </div>
                               </div>
+
+                              {editingContentId === content.id && (
+                                <div className="grid gap-3 border border-[#982E41]/15 bg-white p-3 md:grid-cols-2 xl:grid-cols-6">
+                                  <Label className="grid gap-2 xl:col-span-2">
+                                    <span>Budget</span>
+                                    <Input
+                                      className="border-[#b43c39]/20 bg-white text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+                                      inputMode="numeric"
+                                      value={formatRupiahInput(contentEditForm.budgetIdr)}
+                                      onChange={(event) => updateContentEditField("budgetIdr", sanitizeIntegerInput(event.target.value))}
+                                      placeholder="Rp0"
+                                    />
+                                  </Label>
+                                  <NumberFormInput
+                                    label="Est. views"
+                                    value={contentEditForm.estimatedViewCount}
+                                    onChange={(value) => updateContentEditField("estimatedViewCount", value)}
+                                    placeholder="0"
+                                  />
+                                  <NumberFormInput
+                                    label="Est. likes"
+                                    value={contentEditForm.estimatedLikeCount}
+                                    onChange={(value) => updateContentEditField("estimatedLikeCount", value)}
+                                    placeholder="0"
+                                  />
+                                  <NumberFormInput
+                                    label="Est. comments"
+                                    value={contentEditForm.estimatedCommentCount}
+                                    onChange={(value) => updateContentEditField("estimatedCommentCount", value)}
+                                    placeholder="0"
+                                  />
+                                  <NumberFormInput
+                                    label="Est. shares"
+                                    value={contentEditForm.estimatedShareCount}
+                                    onChange={(value) => updateContentEditField("estimatedShareCount", value)}
+                                    placeholder="0"
+                                  />
+                                  <Label className="grid gap-2">
+                                    <span>FYP</span>
+                                    <SearchableSelect
+                                      value={contentEditForm.isFyp}
+                                      onValueChange={(value) => updateContentEditField("isFyp", value as ContentEditFormState["isFyp"])}
+                                      options={[
+                                        { label: "Belum ditentukan", value: "" },
+                                        { label: "Ya", value: "yes" },
+                                        { label: "Tidak", value: "no" },
+                                      ]}
+                                      placeholder="Pilih FYP"
+                                      searchPlaceholder="Cari status"
+                                    />
+                                  </Label>
+                                  <div className="flex items-end gap-2 xl:col-span-6">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      className="bg-[#982E41] text-white hover:bg-[#7E2334]"
+                                      disabled={updateContent.isPending}
+                                      onClick={() => submitContentEdit(content.id)}
+                                    >
+                                      {updateContent.isPending && <Loader2 className="mr-1 size-4 animate-spin" />}
+                                      Simpan konten
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={updateContent.isPending}
+                                      onClick={() => setEditingContentId(null)}
+                                    >
+                                      Batal
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
 
                               <div className="grid gap-3 border border-[#982E41]/15 bg-white p-3 md:grid-cols-[104px_minmax(0,1fr)]">
                                 {content.thumbnailUrl ? (
@@ -3115,6 +3266,10 @@ function getEstimatedPercent(value: number, estimated: number) {
 }
 
 function EstimatedMetricValue({ estimated, value }: { estimated: number; value: number }) {
+  if (!estimated) {
+    return <div>{formatNumber(value)}</div>;
+  }
+
   return (
     <div className="space-y-0.5">
       <div>{formatNumber(value)}</div>

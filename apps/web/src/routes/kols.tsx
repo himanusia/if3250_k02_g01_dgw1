@@ -97,8 +97,17 @@ function parseOptionalPositiveRate(value: string) {
     return null;
   }
 
-  const parsed = Number(value);
+  const parsed = Number(value.replace(/[^\d]/g, ""));
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : undefined;
+}
+
+function sanitizeIntegerInput(value: string) {
+  return value.replace(/[^\d]/g, "");
+}
+
+function formatRupiahInput(value: string) {
+  const parsed = Number(value.replace(/[^\d]/g, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? formatCurrencyIdr(parsed) : "";
 }
 
 function buildActualRateCard(form: KolFormState): RateCardValue | null | undefined {
@@ -123,6 +132,51 @@ function buildActualRateCard(form: KolFormState): RateCardValue | null | undefin
     post: { max: post, min: post, suggested: post },
     reel: { max: reel, min: reel, suggested: reel },
     story: { max: story, min: story, suggested: story },
+  };
+}
+
+function createOptimisticKol(input: KolMutationInput, id: number): KolRecord {
+  const now = new Date().toISOString();
+
+  return {
+    accounts: input.accounts.map((account, index) => ({
+      averageLikes: 0,
+      averageViews: 0,
+      biography: null,
+      createdAt: now,
+      engagementRate: "",
+      externalId: null,
+      followers: 0,
+      handle: account.handle.trim().replace(/^@/, ""),
+      id: id - index - 1,
+      kolId: id,
+      lastSyncedAt: null,
+      metadata: null,
+      platform: account.platform,
+      profileUrl: null,
+      syncMessage: "Menunggu sinkronisasi.",
+      syncStatus: "pending",
+      updatedAt: now,
+    })),
+    actualRateCard: input.actualRateCard ?? null,
+    averageLikes: 0,
+    averageViews: 0,
+    contents: [],
+    createdAt: now,
+    displayName: input.displayName.trim() || "KOL baru",
+    engagementRate: "",
+    estimatedRateCard: null,
+    followerTier: "nano",
+    history: [],
+    id,
+    keywords: input.keywords,
+    lastSyncedAt: null,
+    rateCardHistory: [],
+    rateCardMetadata: null,
+    syncMessage: "Menunggu sinkronisasi.",
+    syncStatus: "pending",
+    totalFollowers: 0,
+    updatedAt: now,
   };
 }
 
@@ -352,8 +406,15 @@ function RouteComponent() {
   const [platformFilter, setPlatformFilter] = useState<"all" | SocialPlatform>("all");
   const [tierFilter, setTierFilter] = useState("all");
   const [form, setForm] = useState<KolFormState>(getDefaultForm());
+  const [optimisticKols, setOptimisticKols] = useState<KolRecord[]>([]);
   const kolQuery = useQuery(orpc.kol.list.queryOptions());
-  const kols = (kolQuery.data as KolRecord[] | undefined) ?? [];
+  const serverKols = (kolQuery.data as KolRecord[] | undefined) ?? [];
+  const kols = useMemo(() => {
+    if (!optimisticKols.length) return serverKols;
+
+    const serverIds = new Set(serverKols.map((kol) => kol.id));
+    return [...optimisticKols.filter((kol) => !serverIds.has(kol.id)), ...serverKols];
+  }, [optimisticKols, serverKols]);
 
   useEffect(() => {
     if (!kols.some((kol) => kol.syncStatus === "pending" || kol.accounts.some((account) => account.syncStatus === "pending"))) {
@@ -419,18 +480,40 @@ function RouteComponent() {
 
   const createKol = useMutation({
     mutationFn: (input: KolMutationInput) => client.kol.create(input),
-    onSuccess: async (kol) => {
-      toast.success("KOL berhasil ditambahkan");
+    onMutate: (input) => {
+      const tempId = -Date.now();
+      setOptimisticKols((current) => [createOptimisticKol(input, tempId), ...current]);
+      return { tempId };
+    },
+    onSuccess: async (kol, _variables, context) => {
+      setOptimisticKols((current) => [
+        { ...kol, syncStatus: "pending" },
+        ...current.filter((item) => item.id !== context?.tempId && item.id !== kol.id),
+      ]);
       resetForm();
-      kolQuery.refetch();
+      setSyncingKolId(kol.id);
 
       try {
-        await syncKol.mutateAsync({ id: kol.id });
+        const syncedKol = await client.kol.syncMetrics({ id: kol.id });
+        setOptimisticKols((current) => current.map((item) => (item.id === kol.id ? syncedKol : item)));
+
+        if (syncedKol?.syncStatus === "failed") {
+          toast.error(syncedKol.syncMessage || "KOL tersimpan, tetapi sebagian akun gagal disinkronkan.");
+        } else if (syncedKol?.syncStatus === "pending") {
+          toast.info("KOL tersimpan. Sinkronisasi masih berjalan dan status akan diperbarui.");
+        } else {
+          toast.success("KOL berhasil ditambahkan dan disinkronkan.");
+        }
+      } catch (error) {
+        toast.error(getKolErrorMessage(error, "KOL tersimpan, tetapi sinkronisasi gagal"));
       } finally {
-        kolQuery.refetch();
+        setSyncingKolId(null);
+        await kolQuery.refetch();
+        setOptimisticKols((current) => current.filter((item) => item.id !== kol.id));
       }
     },
     onError: (error) => {
+      setOptimisticKols((current) => current.filter((item) => item.id > 0));
       toast.error(getKolErrorMessage(error, "Gagal menambahkan KOL"));
     },
   });
@@ -1350,6 +1433,7 @@ function mergeKeywords(
               />
               <KeywordTokenInput
                 label="Keywords"
+                suggestions={keywordOptions}
                 value={form.keywords}
                 onChange={(value) => setForm((current) => ({ ...current, keywords: value }))}
               />
@@ -1377,7 +1461,7 @@ function mergeKeywords(
               {form.accounts.map((account, index) => (
                 <div
                   key={`${account.platform}-${index}`}
-                  className="grid min-w-0 gap-4 border border-[#982E41]/40 bg-white p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
+                  className="grid min-w-0 items-end gap-4 border border-[#982E41]/40 bg-white p-3 md:grid-cols-2 xl:grid-cols-[0.8fr_1fr_auto]"
                 >
                   <PlatformSelect
                     value={account.platform}
@@ -1392,7 +1476,7 @@ function mergeKeywords(
                   />
 
                   <FormInput
-                    label=""
+                    label="Handle"
                     placeholder="digi.wonder"
                     value={account.handle}
                     onChange={(value) => {
@@ -1405,7 +1489,7 @@ function mergeKeywords(
                     }}
                   />
 
-                  <div className="flex items-center xl:justify-end xl:pt-6">
+                  <div className="flex items-center xl:justify-end">
                     <Button
                       type="button"
                       variant="ghost"
@@ -1432,24 +1516,21 @@ function mergeKeywords(
                 <div className="grid gap-3 md:grid-cols-3">
                   <FormInput
                     label="Post"
-                    placeholder="0"
-                    type="number"
-                    value={form.actualPostRate}
-                    onChange={(actualPostRate) => setForm((current) => ({ ...current, actualPostRate }))}
+                    placeholder="Rp0"
+                    value={formatRupiahInput(form.actualPostRate)}
+                    onChange={(actualPostRate) => setForm((current) => ({ ...current, actualPostRate: sanitizeIntegerInput(actualPostRate) }))}
                   />
                   <FormInput
                     label="Story"
-                    placeholder="0"
-                    type="number"
-                    value={form.actualStoryRate}
-                    onChange={(actualStoryRate) => setForm((current) => ({ ...current, actualStoryRate }))}
+                    placeholder="Rp0"
+                    value={formatRupiahInput(form.actualStoryRate)}
+                    onChange={(actualStoryRate) => setForm((current) => ({ ...current, actualStoryRate: sanitizeIntegerInput(actualStoryRate) }))}
                   />
                   <FormInput
                     label="Reels"
-                    placeholder="0"
-                    type="number"
-                    value={form.actualReelRate}
-                    onChange={(actualReelRate) => setForm((current) => ({ ...current, actualReelRate }))}
+                    placeholder="Rp0"
+                    value={formatRupiahInput(form.actualReelRate)}
+                    onChange={(actualReelRate) => setForm((current) => ({ ...current, actualReelRate: sanitizeIntegerInput(actualReelRate) }))}
                   />
                 </div>
               </section>
@@ -2035,9 +2116,24 @@ function PlatformSelect({ onChange, value }: { onChange: (value: SocialPlatform)
   );
 }
 
-function KeywordTokenInput({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+function KeywordTokenInput({
+  label,
+  onChange,
+  suggestions = [],
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  suggestions?: string[];
+  value: string;
+}) {
   const tokens = parseKeywordSegments(value);
   const [draft, setDraft] = useState("");
+  const normalizedDraft = draft.trim().replace(/^#+/, "").toLowerCase();
+  const visibleSuggestions = suggestions
+    .filter((suggestion) => !tokens.some((token) => token.toLowerCase() === suggestion.toLowerCase()))
+    .filter((suggestion) => !normalizedDraft || suggestion.toLowerCase().includes(normalizedDraft))
+    .slice(0, 8);
 
   function commitDraft(rawDraft = draft) {
     const nextTokens = parseKeywordSegments(rawDraft);
@@ -2084,6 +2180,21 @@ function KeywordTokenInput({ label, onChange, value }: { label: string; onChange
           placeholder={tokens.length ? "Tambah lalu tekan spasi" : "Ketik keyword lalu tekan spasi"}
         />
       </div>
+      {visibleSuggestions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {visibleSuggestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              className="border border-[#982E41]/20 bg-white px-2 py-1 text-xs text-[#982E41] hover:bg-[#FFF8F9]"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => onChange(encodeKeywordSegments([...tokens, suggestion]))}
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
