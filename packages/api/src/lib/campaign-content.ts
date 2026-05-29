@@ -645,6 +645,21 @@ async function unlinkUnusedPlaceholderKol(campaignId: number, kolId: number) {
   if (!remainingContent) {
     await db.delete(campaignKol).where(and(eq(campaignKol.campaignId, campaignId), eq(campaignKol.kolId, kolId)));
   }
+
+  const [remainingCampaignLink] = await db
+    .select({ campaignId: campaignKol.campaignId })
+    .from(campaignKol)
+    .where(eq(campaignKol.kolId, kolId))
+    .limit(1);
+  const [remainingAccount] = await db
+    .select({ id: kolAccount.id })
+    .from(kolAccount)
+    .where(eq(kolAccount.kolId, kolId))
+    .limit(1);
+
+  if (!remainingContent && !remainingCampaignLink && !remainingAccount) {
+    await db.delete(kolProfile).where(eq(kolProfile.id, kolId));
+  }
 }
 
 async function loadCampaignContentRow(contentId: number) {
