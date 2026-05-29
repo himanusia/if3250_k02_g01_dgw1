@@ -950,8 +950,30 @@ export async function syncCampaignContent(contentId: number) {
       })
       .where(eq(campaignContent.id, contentId));
 
+    await db.delete(campaignContent).where(eq(campaignContent.id, contentId));
+
     throw new ORPCError("SERVICE_UNAVAILABLE", {
       message: "Sinkronisasi konten gagal.",
+    });
+  }
+
+  if (metrics.syncStatus === "failed") {
+    await db
+      .update(campaignContent)
+      .set({
+        syncErrorCode: metrics.errorCode ?? null,
+        syncMessage: metrics.message ?? null,
+        syncStatus: "failed",
+        syncedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(campaignContent.id, contentId));
+
+    await db.delete(campaignContent).where(eq(campaignContent.id, contentId));
+
+    throw new ORPCError("BAD_REQUEST", {
+      data: { reason: metrics.errorCode ?? "CONTENT_SYNC_FAILED" },
+      message: metrics.message || "Konten gagal di-scrap.",
     });
   }
 

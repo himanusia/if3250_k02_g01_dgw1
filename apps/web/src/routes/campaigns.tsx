@@ -918,10 +918,10 @@ function RouteComponent() {
   });
 
   async function syncAddedContentsInBackground(campaignDetail: CampaignDetailRecord, submittedRows: AddContentPayloadRow[]) {
-    const submittedUrls = new Set(submittedRows.map((row) => row.contentUrl).filter(Boolean));
+    void submittedRows;
     const contentsToSync = campaignDetail.contentsByKol
       .flatMap((group) => group.contents)
-      .filter((content) => submittedUrls.has(content.contentUrl) && content.syncStatus === "pending" && !content.contentUrl.startsWith("manual://"));
+      .filter((content) => content.syncStatus === "pending" && !content.contentUrl.startsWith("manual://"));
 
     if (!contentsToSync.length) {
       return;
