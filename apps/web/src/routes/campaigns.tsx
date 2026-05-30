@@ -1506,7 +1506,7 @@ function RouteComponent() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-              <Label className="grid gap-2 text-sm text-[#2b1418]">
+              <Label className="grid gap-2">
                 <span>Cari campaign</span>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#982E41]" />
@@ -1518,7 +1518,7 @@ function RouteComponent() {
                   />
                 </div>
               </Label>
-              <Label className="grid gap-2 text-sm text-[#2b1418]">
+              <Label className="grid gap-2">
                 <span>Filter status</span>
                 <SearchableSelect
                   value={campaignStatusFilter}
@@ -1761,6 +1761,7 @@ function RouteComponent() {
                 value={form.objective}
                 onChange={(objective) => setForm((current) => ({ ...current, description: objective, objective, postBriefs: objective }))}
                 placeholder="Awareness produk baru untuk audiens Gen Z"
+                required
               />
             </div>
             <KeywordTokenInput
@@ -2858,7 +2859,7 @@ function parseKeywordTokens(value: string) {
 }
 
 function encodeKeywordTokens(tokens: string[]) {
-  return Array.from(new Set(tokens.map((token) => token.trim()).filter(Boolean))).join(", ");
+  return Array.from(new Set(tokens.map((token) => token.trim().toLowerCase()).filter(Boolean))).join(", ");
 }
 
 function KeywordChips({ value }: { value: string | null | undefined }) {
@@ -3061,6 +3062,7 @@ function BrandInput({ onChange, options, value }: { onChange: (value: string) =>
           }}
           onFocus={() => setOpen(true)}
           placeholder="DigiWonder"
+          required
           value={value}
         />
         {open && filteredOptions.length ? (
@@ -3141,11 +3143,13 @@ function FormTextarea({
   label,
   onChange,
   placeholder,
+  required = false,
   value,
 }: {
   label: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  required?: boolean;
   value: string;
 }) {
   return (
@@ -3156,6 +3160,7 @@ function FormTextarea({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        required={required}
       />
     </Label>
   );

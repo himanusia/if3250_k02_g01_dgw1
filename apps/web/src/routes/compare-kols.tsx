@@ -132,7 +132,7 @@ function RouteComponent() {
 
         <div className="grid gap-3">
           <FilterInput label="Cari nama / handle" value={search} onChange={setSearch} />
-          <Label className="grid gap-2 text-sm text-[#2b1418]">
+          <Label className="grid gap-2">
             <span>Keyword</span>
             <SearchableSelect
               className="w-full"
@@ -493,7 +493,7 @@ function FilterInput({
   value: string;
 }) {
   return (
-    <Label className="grid gap-2 text-sm text-[#2b1418]">
+    <Label className="grid gap-2">
       <span>{label}</span>
       <Input
         className="border-[#b43c39]/20 bg-white text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"

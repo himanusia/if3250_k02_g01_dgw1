@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, ChevronDown, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -55,82 +56,93 @@ export function SearchableSelect({
     });
   }, [inputValue, options]);
 
-  useEffect(() => {
-    if (!open) {
-      setInputValue(selectedOption?.label ?? "");
-    }
-  }, [open, selectedOption]);
-
   function selectOption(option: SearchableSelectOption) {
     if (option.disabled) return;
     onValueChange(option.value);
-    setInputValue(option.label);
+    setInputValue("");
     setOpen(false);
   }
 
   return (
-    <Popover open={open} onOpenChange={(nextOpen) => setOpen(disabled ? false : nextOpen)}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(disabled ? false : nextOpen);
+        if (!nextOpen) setInputValue("");
+      }}
+    >
       <PopoverTrigger asChild>
-        <div className={cn("relative", disabled && "pointer-events-none opacity-60")} aria-disabled={disabled}>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-label={ariaLabel}
+          aria-expanded={open}
+          disabled={disabled}
+          className={cn(
+            "h-10 w-full justify-between border-[#b43c39]/20 bg-white px-3 text-sm font-normal text-[#2b1418] hover:bg-[#fff6f8] hover:text-[#2b1418] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15",
+            className,
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-2 truncate text-left">
           {selectedOption?.icon && (
-            <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#982E41]">
+            <span className="shrink-0 text-[#982E41]">
               {selectedOption.icon}
             </span>
           )}
-          <Input
-            aria-label={ariaLabel}
-            aria-expanded={open}
-            role="combobox"
-            disabled={disabled}
-            className={cn(
-              "h-10 w-full border-[#b43c39]/20 bg-white pr-16 text-sm font-normal text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15",
-              selectedOption?.icon && "pl-9",
-              className,
-            )}
-            placeholder={open ? searchPlaceholder : placeholder}
-            value={open ? inputValue : selectedOption?.label ?? ""}
-            onChange={(event) => {
-              setInputValue(event.target.value);
-              if (!open) setOpen(true);
-            }}
-            onFocus={() => {
-              setInputValue(selectedOption?.label ?? "");
-              setOpen(true);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowDown") {
-                event.preventDefault();
-                setOpen(true);
-              }
-              if (event.key === "Enter" && open && filteredOptions[0]) {
-                event.preventDefault();
-                selectOption(filteredOptions[0]);
-              }
-              if (event.key === "Escape") {
-                setOpen(false);
-              }
-            }}
-          />
-          <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1">
+            <span className={cn("truncate", !selectedOption && "text-[#A16A75]")}>
+              {selectedOption?.label ?? placeholder}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
             {showClear && value ? (
-              <button
-                type="button"
+              <span
+                role="button"
+                tabIndex={0}
                 className="inline-flex size-6 items-center justify-center text-muted-foreground hover:text-[#982E41]"
                 aria-label="Hapus pilihan"
-                onClick={() => {
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onValueChange("");
+                  setInputValue("");
+                  setOpen(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  event.stopPropagation();
                   onValueChange("");
                   setInputValue("");
                   setOpen(false);
                 }}
               >
                 <X className="size-3.5" />
-              </button>
+              </span>
             ) : null}
             <ChevronDown className="size-4 opacity-50" />
-          </div>
-        </div>
+          </span>
+        </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] border-[#982E41]/20 p-0" align="start" onOpenAutoFocus={(event) => event.preventDefault()}>
+        <div className="border-b border-[#982E41]/15 p-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#982E41]/60" />
+            <Input
+              autoFocus
+              className="h-9 border-[#b43c39]/20 bg-white pl-9 text-sm text-[#2b1418] placeholder:text-[#A16A75] focus-visible:border-[#B43C39] focus-visible:ring-[#B43C39]/15"
+              placeholder={searchPlaceholder}
+              value={inputValue}
+              onChange={(event) => setInputValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && filteredOptions[0]) {
+                  event.preventDefault();
+                  selectOption(filteredOptions[0]);
+                }
+                if (event.key === "Escape") setOpen(false);
+              }}
+            />
+          </div>
+        </div>
         <div className="max-h-72 overflow-y-auto p-1">
           {filteredOptions.length ? (
             filteredOptions.map((option) => (

@@ -211,7 +211,7 @@ function parseKeywordSegments(keywords: string | null | undefined): string[] {
 }
 
 function encodeKeywordSegments(keywords: string[]) {
-  return Array.from(new Set(keywords.map((keyword) => keyword.trim()).filter(Boolean))).join(" ");
+  return Array.from(new Set(keywords.map((keyword) => keyword.trim().toLowerCase()).filter(Boolean))).join(" ");
 }
 
 function formatFollowerTier(tier: string | null | undefined) {
@@ -790,13 +790,13 @@ function mergeKeywords(
 
     existing
       .split(",")
-      .map((k) => k.trim())
+      .map((k) => k.trim().toLowerCase())
       .filter(Boolean)
       .forEach((k) => set.add(k));
 
     (incoming ?? "")
       .split(",")
-      .map((k) => k.trim())
+      .map((k) => k.trim().toLowerCase())
       .filter(Boolean)
       .forEach((k) => set.add(k));
 

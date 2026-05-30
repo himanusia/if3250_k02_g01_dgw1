@@ -19,11 +19,11 @@ const campaignInputSchema = z.object({
   brand: z.string().trim().min(1),
   budgetIdr: z.number().int().nonnegative().default(0),
   description: z.string().trim().min(1),
-  keywords: z.string().trim().default(""),
+  keywords: z.string().trim().transform((value) => value.toLowerCase()).default(""),
   name: z.string().trim().min(1),
-  objective: z.string().trim().min(1),
-  periodEnd: z.string().min(1),
-  periodStart: z.string().min(1),
+  objective: z.string().trim().default(""),
+  periodEnd: z.string().default(""),
+  periodStart: z.string().default(""),
   postBriefs: z.string().trim().default(""),
   selectedKolIds: z.array(z.number().int().positive()).default([]),
   status: z.enum(["draft", "active", "completed", "archived"]),
@@ -74,8 +74,9 @@ const campaignContentUpdateSchema = z.object({
 
 type CampaignDb = Pick<typeof db, "delete" | "insert">;
 
-function toDate(value: string) {
-  return new Date(`${value}T00:00:00`);
+function toDate(value: string, fallback = new Date()) {
+  const date = value ? new Date(`${value}T00:00:00`) : fallback;
+  return Number.isNaN(date.getTime()) ? fallback : date;
 }
 
 async function replaceCampaignKols(database: CampaignDb, campaignId: number, kolIds: number[]) {
@@ -315,6 +316,8 @@ export const campaignRouter = {
     };
   }),
   create: protectedProcedure.input(campaignInputSchema).handler(async ({ context, input }) => {
+    const periodStart = toDate(input.periodStart);
+    const periodEnd = toDate(input.periodEnd, periodStart);
     const created = await db.transaction(async (tx) => {
       const result = await tx
         .insert(campaign)
@@ -325,9 +328,9 @@ export const campaignRouter = {
           description: input.description,
           keywords: input.keywords,
           name: input.name,
-          objective: input.objective,
-          periodEnd: toDate(input.periodEnd),
-          periodStart: toDate(input.periodStart),
+          objective: input.objective || input.description,
+          periodEnd,
+          periodStart,
           postBriefs: input.postBriefs,
           status: input.status,
           targetPostCount: input.targetPostCount,
@@ -440,6 +443,9 @@ export const campaignRouter = {
       }),
     )
     .handler(async ({ input }) => {
+      const periodStart = toDate(input.periodStart);
+      const periodEnd = toDate(input.periodEnd, periodStart);
+
       await db.transaction(async (tx) => {
         await tx
           .update(campaign)
@@ -449,9 +455,9 @@ export const campaignRouter = {
             description: input.description,
             keywords: input.keywords,
             name: input.name,
-            objective: input.objective,
-            periodEnd: toDate(input.periodEnd),
-            periodStart: toDate(input.periodStart),
+            objective: input.objective || input.description,
+            periodEnd,
+            periodStart,
             postBriefs: input.postBriefs,
             status: input.status,
             targetPostCount: input.targetPostCount,

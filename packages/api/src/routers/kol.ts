@@ -20,7 +20,7 @@ const kolInputSchema = z.object({
   accounts: z.array(kolAccountInputSchema).min(1, "Minimal 1 akun sosial media harus ditambahkan"),
   actualRateCard: z.lazy(() => rateCardValueInputSchema).nullable().optional(),
   displayName: z.string().trim().min(1, "Nama display KOL tidak boleh kosong"),
-  keywords: z.string().trim().default(""),
+  keywords: z.string().trim().transform((value) => value.toLowerCase()).default(""),
 });
 
 const historyInputSchema = z.object({
